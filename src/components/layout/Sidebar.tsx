@@ -8,7 +8,6 @@ import {
   ArrowDownCircle,
   ArrowUpCircle,
   Bell,
-  Settings,
   Users,
   Coins,
   LogOut,
@@ -49,8 +48,6 @@ export const Sidebar = () => {
   const { user, isAdmin, signOut } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  const navItems = isAdmin ? [...userNavItems, ...adminNavItems] : userNavItems;
-
   const handleSignOut = async () => {
     await signOut();
   };
@@ -58,25 +55,30 @@ export const Sidebar = () => {
   return (
     <aside
       className={cn(
-        'fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-border bg-card transition-all duration-300',
+        'fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-sidebar-border bg-gradient-to-b from-sidebar to-sidebar/95 backdrop-blur-xl transition-all duration-300',
         isCollapsed ? 'w-16' : 'w-64'
       )}
     >
       {/* Header */}
-      <div className="flex h-16 items-center justify-between border-b border-border px-4">
+      <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-4">
         {!isCollapsed && (
           <Link to="/dashboard" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <Bot className="h-5 w-5 text-primary-foreground" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl gradient-primary shadow-glow animate-pulse-soft">
+              <Bot className="h-5 w-5 text-white" />
             </div>
-            <span className="font-bold text-foreground">Invest Hub</span>
+            <span className="font-bold text-sidebar-foreground">Invest Hub</span>
           </Link>
+        )}
+        {isCollapsed && (
+          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl gradient-primary shadow-glow">
+            <Bot className="h-5 w-5 text-white" />
+          </div>
         )}
         <Button
           variant="ghost"
           size="icon"
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className={cn('shrink-0', isCollapsed && 'mx-auto')}
+          className={cn('shrink-0 hover:bg-sidebar-accent', isCollapsed && 'absolute right-2 top-4')}
         >
           {isCollapsed ? (
             <ChevronRight className="h-4 w-4" />
@@ -87,14 +89,14 @@ export const Sidebar = () => {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 overflow-y-auto p-2">
+      <nav className="flex-1 space-y-1 overflow-y-auto p-3">
         {isAdmin && !isCollapsed && (
-          <div className="mb-2 px-3 text-xs font-semibold uppercase text-muted-foreground">
-            Usuário
+          <div className="mb-3 rounded-lg bg-primary/10 px-3 py-2">
+            <span className="text-xs font-medium text-primary">👤 Área do Usuário</span>
           </div>
         )}
 
-        {userNavItems.map((item) => {
+        {userNavItems.map((item, index) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.href;
 
@@ -103,16 +105,23 @@ export const Sidebar = () => {
               key={item.href}
               to={item.href}
               className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
                 isActive
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                  ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-glow'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
                 isCollapsed && 'justify-center px-2'
               )}
               title={isCollapsed ? item.label : undefined}
+              style={{ animationDelay: `${index * 50}ms` }}
             >
-              <Icon className="h-5 w-5 shrink-0" />
+              <Icon className={cn(
+                'h-5 w-5 shrink-0 transition-transform duration-200',
+                isActive ? 'scale-110' : 'group-hover:scale-110'
+              )} />
               {!isCollapsed && <span>{item.label}</span>}
+              {isActive && !isCollapsed && (
+                <div className="ml-auto h-2 w-2 rounded-full bg-white animate-glow-pulse" />
+              )}
             </Link>
           );
         })}
@@ -120,13 +129,13 @@ export const Sidebar = () => {
         {isAdmin && (
           <>
             {!isCollapsed && (
-              <div className="mb-2 mt-6 px-3 text-xs font-semibold uppercase text-muted-foreground">
-                Administrador
+              <div className="mb-3 mt-6 rounded-lg bg-accent/10 px-3 py-2">
+                <span className="text-xs font-medium text-accent">🔐 Administrador</span>
               </div>
             )}
-            {isCollapsed && <div className="my-4 border-t border-border" />}
+            {isCollapsed && <div className="my-4 border-t border-sidebar-border" />}
 
-            {adminNavItems.map((item) => {
+            {adminNavItems.map((item, index) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.href;
 
@@ -135,16 +144,23 @@ export const Sidebar = () => {
                   key={item.href}
                   to={item.href}
                   className={cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                    'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
                     isActive
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                      ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-glow'
+                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
                     isCollapsed && 'justify-center px-2'
                   )}
                   title={isCollapsed ? item.label : undefined}
+                  style={{ animationDelay: `${(index + userNavItems.length) * 50}ms` }}
                 >
-                  <Icon className="h-5 w-5 shrink-0" />
+                  <Icon className={cn(
+                    'h-5 w-5 shrink-0 transition-transform duration-200',
+                    isActive ? 'scale-110' : 'group-hover:scale-110'
+                  )} />
                   {!isCollapsed && <span>{item.label}</span>}
+                  {isActive && !isCollapsed && (
+                    <div className="ml-auto h-2 w-2 rounded-full bg-white animate-glow-pulse" />
+                  )}
                 </Link>
               );
             })}
@@ -153,12 +169,25 @@ export const Sidebar = () => {
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-border p-2">
+      {!isCollapsed && (
+        <div className="border-t border-sidebar-border p-4">
+          <div className="rounded-xl bg-gradient-to-r from-primary/10 to-accent/10 p-4 mb-3">
+            <p className="text-xs font-medium text-sidebar-foreground">
+              {isAdmin ? '🛡️ Modo Admin' : '📈 Invista com segurança'}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {isAdmin ? 'Gerencie a plataforma' : 'Robôs operando 24/7'}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="border-t border-sidebar-border p-2">
         <Button
           variant="ghost"
           onClick={handleSignOut}
           className={cn(
-            'w-full justify-start gap-3 text-muted-foreground hover:text-destructive',
+            'w-full justify-start gap-3 text-sidebar-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl',
             isCollapsed && 'justify-center px-2'
           )}
           title={isCollapsed ? 'Sair' : undefined}

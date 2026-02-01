@@ -1,5 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
-import { Bell, User } from 'lucide-react';
+import { Bell, User, LogOut, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -28,7 +28,7 @@ export const Header = () => {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/95 px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border/50 bg-background/80 px-6 backdrop-blur-xl">
       <div className="flex items-center gap-4">
         <h1 className="text-lg font-semibold text-foreground">
           {isAdmin ? 'Painel Administrativo' : 'Minha Conta'}
@@ -38,9 +38,9 @@ export const Header = () => {
       <div className="flex items-center gap-4">
         {/* Notifications */}
         <Link to="/notifications">
-          <Button variant="ghost" size="icon" className="relative">
+          <Button variant="ghost" size="icon" className="relative hover:bg-primary/10">
             <Bell className="h-5 w-5" />
-            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
+            <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full gradient-primary text-[10px] font-medium text-white shadow-glow animate-pulse-soft">
               3
             </span>
           </Button>
@@ -49,15 +49,15 @@ export const Header = () => {
         {/* User Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-              <Avatar className="h-10 w-10">
-                <AvatarFallback className="bg-primary text-primary-foreground">
+            <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0 hover:ring-2 hover:ring-primary/50 transition-all">
+              <Avatar className="h-10 w-10 border-2 border-primary/30">
+                <AvatarFallback className="gradient-primary text-white font-semibold">
                   {getInitials()}
                 </AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56" align="end" forceMount>
+          <DropdownMenuContent className="w-56 border-border/50 bg-card/95 backdrop-blur-xl" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
                 <p className="text-sm font-medium leading-none">
@@ -67,7 +67,7 @@ export const Header = () => {
                   {user?.email}
                 </p>
                 {isAdmin && (
-                  <span className="mt-1 inline-flex w-fit rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                  <span className="mt-2 inline-flex w-fit rounded-full gradient-primary px-2 py-0.5 text-xs font-medium text-white">
                     Administrador
                   </span>
                 )}
@@ -76,15 +76,22 @@ export const Header = () => {
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <Link to="/settings" className="cursor-pointer">
+                <Settings className="mr-2 h-4 w-4" />
+                Configurações
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/settings" className="cursor-pointer">
                 <User className="mr-2 h-4 w-4" />
                 Meu Perfil
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              className="cursor-pointer text-destructive focus:text-destructive"
+              className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10"
               onClick={signOut}
             >
+              <LogOut className="mr-2 h-4 w-4" />
               Sair
             </DropdownMenuItem>
           </DropdownMenuContent>

@@ -1,12 +1,14 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { Bot } from 'lucide-react';
 
 export const DashboardLayout = () => {
   const { user, isLoading } = useAuth();
   const navigate = useNavigate();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -16,10 +18,15 @@ export const DashboardLayout = () => {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
         <div className="flex flex-col items-center gap-4">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-muted-foreground">Carregando...</p>
+          <div className="relative">
+            <div className="h-16 w-16 rounded-2xl gradient-primary flex items-center justify-center shadow-glow animate-pulse-soft">
+              <Bot className="h-8 w-8 text-white" />
+            </div>
+            <div className="absolute inset-0 rounded-2xl animate-glow-pulse" />
+          </div>
+          <p className="text-muted-foreground animate-fade-in-up">Carregando...</p>
         </div>
       </div>
     );
@@ -30,9 +37,15 @@ export const DashboardLayout = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+      {/* Background decorations */}
+      <div className="fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-primary/5 blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-accent/5 blur-3xl" />
+      </div>
+
       <Sidebar />
-      <div className="pl-64 transition-all duration-300">
+      <div className={`transition-all duration-300 ${sidebarCollapsed ? 'pl-20' : 'pl-64'}`}>
         <Header />
         <main className="p-6">
           <Outlet />
