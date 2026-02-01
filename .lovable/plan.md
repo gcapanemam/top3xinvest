@@ -1,201 +1,112 @@
 
 
-# Design Moderno para Invest Hub
+# Transformar admin@icmead.com.br em Administrador
 
-## Visao Geral
+## Situacao Atual
 
-Vou transformar o visual do Invest Hub com um tema moderno inspirado em plataformas fintech de sucesso, utilizando:
-- Paleta de cores vibrantes com gradientes
-- Animacoes suaves e micro-interacoes
-- Cards com efeitos de glassmorphism
-- Tipografia mais elegante
-- Dark mode otimizado
+O usuario **admin@icmead.com.br** ja esta cadastrado no sistema:
+- **ID:** `bf99886e-7d15-47d3-8b10-92527c2c58d7`
+- **Nome:** Admin
+- **Role atual:** `user`
+- **Saldo:** R$ 0,00
 
----
+## Acao Necessaria
 
-## 1. Nova Paleta de Cores
+Atualizar o registro na tabela `user_roles` para mudar o role de `user` para `admin`.
 
-### Tema Claro
-| Elemento | Cor Atual | Nova Cor |
-|----------|-----------|----------|
-| Primary | Cinza escuro | Roxo vibrante (262, 83%, 58%) |
-| Secondary | Cinza claro | Rosa claro (280, 60%, 95%) |
-| Accent | Cinza | Cyan/Turquesa (190, 95%, 50%) |
-| Success | Verde padrao | Verde neon (145, 80%, 50%) |
-| Background | Branco | Branco com toque roxo |
+## Funcoes do Administrador
 
-### Tema Escuro
-| Elemento | Cor Atual | Nova Cor |
-|----------|-----------|----------|
-| Background | Azul muito escuro | Preto-roxo profundo (260, 50%, 5%) |
-| Cards | Azul escuro | Roxo escuro com transparencia |
-| Primary | Branco | Roxo claro (262, 83%, 70%) |
-| Accents | Cinza | Gradientes neon |
+Apos a promocao, o usuario tera acesso completo ao painel administrativo com as seguintes funcionalidades:
 
----
+### 1. Dashboard Admin (`/admin`)
+- Visao geral da plataforma
+- Total de usuarios cadastrados
+- Depositos pendentes (quantidade e valor)
+- Saques pendentes (quantidade e valor)
+- Total investido em robos ativos
+- Numero de robos ativos
+- Links rapidos para aprovar depositos e saques
 
-## 2. Animacoes e Transicoes
+### 2. Gerenciar Robos (`/admin/robots`)
+- Criar novos robos de investimento
+- Editar robos existentes
+- Definir parametros:
+  - Nome e descricao
+  - Criptomoeda associada
+  - Rentabilidade (% por periodo)
+  - Periodo de rendimento (dias)
+  - Periodo de lock/bloqueio (dias)
+  - Investimento minimo e maximo
+  - Status ativo/inativo
+- Excluir robos
 
-### Novas Keyframes
-- **fade-in-up**: Elementos surgem de baixo com fade
-- **scale-in**: Elementos crescem suavemente
-- **glow-pulse**: Pulsacao com brilho para elementos importantes
-- **shimmer**: Efeito de brilho passando pelo elemento
-- **float**: Flutuacao sutil para icones
+### 3. Gerenciar Usuarios (`/admin/users`)
+- Listar todos os usuarios
+- Buscar por nome ou ID
+- Ver e editar saldo manualmente
+- Bloquear/desbloquear usuarios
+- Ver data de cadastro
 
-### Aplicacoes
-- Cards aparecem com stagger animation (um apos o outro)
-- Botoes com hover scale + glow
-- Sidebar com slide animation
-- Loading states com skeleton shimmer
+### 4. Aprovar Depositos (`/admin/deposits`)
+- Ver depositos pendentes
+- Aprovar depositos (credita saldo automaticamente)
+- Recusar depositos
+- Adicionar observacoes
+- Notificacao automatica para o usuario
+- Historico de depositos processados
 
----
+### 5. Aprovar Saques (`/admin/withdrawals`)
+- Ver saques pendentes com chave PIX
+- Verificar saldo do usuario
+- Aprovar saques (debita saldo automaticamente)
+- Recusar saques
+- Adicionar observacoes
+- Notificacao automatica para o usuario
+- Historico de saques processados
 
-## 3. Componentes Modernizados
+### 6. Gerenciar Cotacoes (`/admin/prices`)
+- Editar precos das criptomoedas
+- Definir variacao de 24h (positiva ou negativa)
+- Salvar historico de precos
+- Previa em tempo real das alteracoes
 
-### Cards
-- Background com gradiente sutil
-- Borda com cor accent transparente
-- Hover com elevacao e glow
-- Cantos mais arredondados (12px)
-
-### Botoes
-- Gradiente no primary button
-- Efeito de glow no hover
-- Transicao suave de 200ms
-- Sombra colorida
-
-### Sidebar
-- Fundo com gradiente vertical
-- Items ativos com glow
-- Logo com animacao de pulse
-
-### Header
-- Backdrop blur mais intenso
-- Avatar com borda gradiente
-- Badge de notificacao com pulse
-
----
-
-## 4. Elementos Especiais
-
-### Stats Cards (Dashboard)
-- Icones com fundo gradiente
-- Numero com gradiente de texto
-- Borda esquerda colorida por tipo
-- Hover com movimento sutil
-
-### Robot Cards
-- Badge de rentabilidade com brilho
-- Barra de progresso animada
-- Botao de investir com gradiente
-- Hover 3D sutil
-
-### Crypto Prices
-- Indicadores de alta/baixa animados
-- Grafico mini sparkline
-- Preco com typewriter effect
-
----
-
-## 5. Efeitos Visuais
-
-### Glassmorphism
-```css
-background: rgba(255, 255, 255, 0.1);
-backdrop-filter: blur(10px);
-border: 1px solid rgba(255, 255, 255, 0.2);
-```
-
-### Gradientes Principais
-- Primary: `linear-gradient(135deg, #8B5CF6, #D946EF)`
-- Success: `linear-gradient(135deg, #10B981, #34D399)`
-- Accent: `linear-gradient(135deg, #06B6D4, #3B82F6)`
-
-### Sombras Coloridas
-```css
-box-shadow: 0 4px 20px rgba(139, 92, 246, 0.25);
-```
-
----
-
-## 6. Arquivos a Modificar
-
-### src/index.css
-- Nova paleta de cores HSL
-- Variaveis para gradientes
-- Classes utilitarias de animacao
-- Estilos de glassmorphism
-
-### tailwind.config.ts
-- Novas keyframes de animacao
-- Extensao de cores
-- Bordas arredondadas maiores
-- Sombras customizadas
-
-### Componentes Layout
-- `Sidebar.tsx`: Gradiente e animacoes
-- `Header.tsx`: Glassmorphism e hover effects
-- `DashboardLayout.tsx`: Background pattern
-
-### Paginas Principais
-- `Dashboard.tsx`: Cards animados
-- `Robots.tsx`: Cards modernos com hover 3D
-- `Auth.tsx`: Background animado e gradientes
-- Todas as paginas admin: Consistencia visual
-
-### Componentes UI
-- `button.tsx`: Variantes com gradiente
-- `card.tsx`: Glassmorphism e sombras
-
----
-
-## 7. Mobile Responsivo
-
-- Animacoes reduzidas para performance
-- Touch feedback nos botoes
-- Cards em coluna unica
-- Sidebar como drawer com overlay
-
----
-
-## Resultado Esperado
-
-O Invest Hub tera uma aparencia premium e moderna, similar a plataformas como:
-- Binance (cores vibrantes)
-- Revolut (gradientes elegantes)
-- Robinhood (animacoes suaves)
-
-A experiencia do usuario sera mais envolvente com feedback visual em cada interacao.
+### 7. Enviar Notificacoes (`/admin/notifications`)
+- Enviar notificacao para usuario especifico
+- Enviar notificacao global para todos
+- Tipos: Informacao, Alerta, Promocao, Sistema
+- Selecionar usuario por nome
 
 ---
 
 ## Secao Tecnica
 
-### Estrutura de Arquivos Modificados
+### Migracao de Banco de Dados
 
-```text
-src/
-  index.css          -> Paleta de cores + animacoes base
-  components/
-    ui/
-      button.tsx     -> Variante gradient
-      card.tsx       -> Glassmorphism + hover
-    layout/
-      Sidebar.tsx    -> Redesign completo
-      Header.tsx     -> Glassmorphism
-  pages/
-    Auth.tsx         -> Background animado
-    Dashboard.tsx    -> Cards com stagger
-    Robots.tsx       -> Cards 3D hover
-tailwind.config.ts   -> Keyframes + extend colors
+Sera executado o seguinte comando SQL:
+
+```sql
+UPDATE public.user_roles 
+SET role = 'admin' 
+WHERE user_id = 'bf99886e-7d15-47d3-8b10-92527c2c58d7';
 ```
 
-### Dependencias
-Nao serao necessarias novas dependencias - apenas Tailwind e CSS nativo.
+### Verificacao de Acesso
 
-### Performance
-- Animacoes usando `transform` e `opacity` (GPU accelerated)
-- `will-change` apenas onde necessario
-- Reducao de animacoes para `prefers-reduced-motion`
+O sistema ja possui toda a logica de verificacao de admin implementada:
+
+1. **AuthContext** (`src/contexts/AuthContext.tsx`):
+   - Funcao `checkAdminRole()` consulta a tabela `user_roles`
+   - Define `isAdmin = true` quando encontra role = 'admin'
+
+2. **Rotas Protegidas** (`src/App.tsx`):
+   - Rotas `/admin/*` estao configuradas
+   - Cada pagina admin verifica `isAdmin` e redireciona se nao for admin
+
+3. **Menu Lateral** (`src/components/layout/Sidebar.tsx`):
+   - Exibe opcoes admin apenas quando `isAdmin = true`
+   - Links para todas as 7 areas administrativas
+
+### Nenhuma Alteracao de Codigo Necessaria
+
+Toda a infraestrutura de admin ja esta implementada. Apenas a atualizacao do role no banco de dados e necessaria.
 
