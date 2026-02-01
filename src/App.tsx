@@ -15,6 +15,7 @@ import Deposits from "./pages/Deposits";
 import Withdrawals from "./pages/Withdrawals";
 import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
+import MLMNetwork from "./pages/MLMNetwork";
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -24,6 +25,7 @@ import AdminDeposits from "./pages/admin/AdminDeposits";
 import AdminWithdrawals from "./pages/admin/AdminWithdrawals";
 import AdminPrices from "./pages/admin/AdminPrices";
 import AdminNotifications from "./pages/admin/AdminNotifications";
+import AdminMLM from "./pages/admin/AdminMLM";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +46,7 @@ const App = () => (
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/robots" element={<Robots />} />
               <Route path="/investments" element={<Investments />} />
+              <Route path="/mlm" element={<MLMNetwork />} />
               <Route path="/deposits" element={<Deposits />} />
               <Route path="/withdrawals" element={<Withdrawals />} />
               <Route path="/notifications" element={<Notifications />} />
@@ -52,6 +55,7 @@ const App = () => (
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/robots" element={<AdminRobots />} />
               <Route path="/admin/users" element={<AdminUsers />} />
+              <Route path="/admin/mlm" element={<AdminMLM />} />
               <Route path="/admin/deposits" element={<AdminDeposits />} />
               <Route path="/admin/withdrawals" element={<AdminWithdrawals />} />
               <Route path="/admin/prices" element={<AdminPrices />} />
