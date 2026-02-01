@@ -1,112 +1,115 @@
 
+# Plano: Implementar Layout Dark Premium do Admin Users
 
-# Transformar admin@icmead.com.br em Administrador
+## Visao Geral
 
-## Situacao Atual
+Vou transformar completamente a pagina de Gestao de Usuarios para replicar fielmente o layout de referencia com tema escuro premium, incluindo todas as colunas e elementos visuais.
 
-O usuario **admin@icmead.com.br** ja esta cadastrado no sistema:
-- **ID:** `bf99886e-7d15-47d3-8b10-92527c2c58d7`
-- **Nome:** Admin
-- **Role atual:** `user`
-- **Saldo:** R$ 0,00
+## Mudancas Visuais Principais
 
-## Acao Necessaria
+### 1. Cabecalho da Pagina
+- Titulo "Gestao de Usuarios" em branco
+- Subtitulo "Gerencie usuarios, carteiras e redes de indicacao" em cinza
 
-Atualizar o registro na tabela `user_roles` para mudar o role de `user` para `admin`.
+### 2. Cards de Estatisticas (4 cards)
+- **Total Usuarios**: Icone verde-agua, fundo escuro com borda sutil
+- **Ativos**: Icone verde, contador de usuarios ativos
+- **Bloqueados**: Icone vermelho, contador de bloqueados
+- **Total Investido**: Icone amarelo/dourado, soma dos investimentos
 
-## Funcoes do Administrador
+### 3. Tabela de Usuarios Expandida
+Nova estrutura com 8 colunas:
 
-Apos a promocao, o usuario tera acesso completo ao painel administrativo com as seguintes funcionalidades:
+| Coluna | Descricao |
+|--------|-----------|
+| Usuario | Avatar colorido + Nome + Email |
+| Status | Badge colorida (Ativo/Bloqueado/Pendente) |
+| Nivel | Badge com estrelas (Iniciante, Estrela 1-4) |
+| Carteira | Saldo disponivel + Saldo bloqueado (em cyan) |
+| Investido | Total investido pelo usuario |
+| Rede | Quantidade de membros indicados |
+| Ganhos | Lucros totais (em verde com icone trending) |
+| Acoes | Menu dropdown com opcoes |
 
-### 1. Dashboard Admin (`/admin`)
-- Visao geral da plataforma
-- Total de usuarios cadastrados
-- Depositos pendentes (quantidade e valor)
-- Saques pendentes (quantidade e valor)
-- Total investido em robos ativos
-- Numero de robos ativos
-- Links rapidos para aprovar depositos e saques
+### 4. Barra de Progresso
+- Barra horizontal verde-agua em cada linha representando nivel de atividade
 
-### 2. Gerenciar Robos (`/admin/robots`)
-- Criar novos robos de investimento
-- Editar robos existentes
-- Definir parametros:
-  - Nome e descricao
-  - Criptomoeda associada
-  - Rentabilidade (% por periodo)
-  - Periodo de rendimento (dias)
-  - Periodo de lock/bloqueio (dias)
-  - Investimento minimo e maximo
-  - Status ativo/inativo
-- Excluir robos
-
-### 3. Gerenciar Usuarios (`/admin/users`)
-- Listar todos os usuarios
-- Buscar por nome ou ID
-- Ver e editar saldo manualmente
-- Bloquear/desbloquear usuarios
-- Ver data de cadastro
-
-### 4. Aprovar Depositos (`/admin/deposits`)
-- Ver depositos pendentes
-- Aprovar depositos (credita saldo automaticamente)
-- Recusar depositos
-- Adicionar observacoes
-- Notificacao automatica para o usuario
-- Historico de depositos processados
-
-### 5. Aprovar Saques (`/admin/withdrawals`)
-- Ver saques pendentes com chave PIX
-- Verificar saldo do usuario
-- Aprovar saques (debita saldo automaticamente)
-- Recusar saques
-- Adicionar observacoes
-- Notificacao automatica para o usuario
-- Historico de saques processados
-
-### 6. Gerenciar Cotacoes (`/admin/prices`)
-- Editar precos das criptomoedas
-- Definir variacao de 24h (positiva ou negativa)
-- Salvar historico de precos
-- Previa em tempo real das alteracoes
-
-### 7. Enviar Notificacoes (`/admin/notifications`)
-- Enviar notificacao para usuario especifico
-- Enviar notificacao global para todos
-- Tipos: Informacao, Alerta, Promocao, Sistema
-- Selecionar usuario por nome
+### 5. Campo de Busca
+- Posicionado no canto direito do cabecalho da tabela
+- Placeholder "Buscar por nome ou email..."
 
 ---
 
 ## Secao Tecnica
 
-### Migracao de Banco de Dados
+### Arquivos a Modificar
 
-Sera executado o seguinte comando SQL:
+#### 1. `src/pages/admin/AdminUsers.tsx`
+Reescrever completamente a pagina com:
 
-```sql
-UPDATE public.user_roles 
-SET role = 'admin' 
-WHERE user_id = 'bf99886e-7d15-47d3-8b10-92527c2c58d7';
+```text
+- Interface UserProfile expandida com campos:
+  - email (string)
+  - level (string): "Iniciante", "Estrela 1", "Estrela 2", etc.
+  - total_invested (number)
+  - blocked_balance (number)
+  - network_count (number)
+  - total_earnings (number)
+
+- Novos componentes de UI:
+  - getLevelBadge(): Retorna badge com cor baseada no nivel
+  - ProgressBar: Barra de progresso verde-agua
+  - StatusBadge: Badge com cores para Ativo/Bloqueado/Pendente
+
+- Tabela expandida com todas as 8 colunas
+- Estilo dark premium com:
+  - bg-[#0d1117] para fundo
+  - bg-[#161b22] para cards
+  - Bordas em border-[#30363d]
+  - Texto em cores: branco, cinza, cyan, verde
 ```
 
-### Verificacao de Acesso
+#### 2. `src/index.css` (Opcional)
+Adicionar variaveis CSS customizadas para o tema dark do admin se necessario
 
-O sistema ja possui toda a logica de verificacao de admin implementada:
+### Novas Funcionalidades
 
-1. **AuthContext** (`src/contexts/AuthContext.tsx`):
-   - Funcao `checkAdminRole()` consulta a tabela `user_roles`
-   - Define `isAdmin = true` quando encontra role = 'admin'
+1. **Busca por email**: Filtro que inclui email alem do nome
+2. **Indicador de nivel**: Sistema de niveis baseado em investimento/atividade
+3. **Saldo bloqueado**: Exibicao de saldo que esta em investimentos ativos
+4. **Contagem de rede**: Numero de usuarios indicados
+5. **Total de ganhos**: Lucros acumulados do usuario
 
-2. **Rotas Protegidas** (`src/App.tsx`):
-   - Rotas `/admin/*` estao configuradas
-   - Cada pagina admin verifica `isAdmin` e redireciona se nao for admin
+### Dados Simulados vs Reais
 
-3. **Menu Lateral** (`src/components/layout/Sidebar.tsx`):
-   - Exibe opcoes admin apenas quando `isAdmin = true`
-   - Links para todas as 7 areas administrativas
+Como a tabela `profiles` atual nao tem todos os campos necessarios (level, blocked_balance, network_count, earnings), vou:
 
-### Nenhuma Alteracao de Codigo Necessaria
+1. Usar os dados existentes (balance, is_blocked, full_name)
+2. Calcular `total_invested` a partir da tabela `investments`
+3. Mostrar campos adicionais como placeholders ou calcular a partir dos dados disponiveis
+4. Manter a funcionalidade existente de bloquear/desbloquear usuarios
 
-Toda a infraestrutura de admin ja esta implementada. Apenas a atualizacao do role no banco de dados e necessaria.
+### Cores do Layout de Referencia
 
+```text
+- Fundo principal: #0a0f14 (azul muito escuro)
+- Cards: #111820 (azul escuro)
+- Bordas: #1e2a3a (azul acinzentado)
+- Texto principal: #ffffff
+- Texto secundario: #6b7280
+- Verde/Teal (icones): #14b8a6
+- Verde (sucesso): #22c55e
+- Vermelho (erro): #ef4444
+- Amarelo (destaque): #f59e0b
+- Cyan (valores): #06b6d4
+```
+
+### Fluxo de Implementacao
+
+1. Atualizar interface TypeScript com novos campos
+2. Modificar query para buscar dados de investments
+3. Recriar estrutura visual dos cards de estatisticas
+4. Implementar tabela expandida com todas as colunas
+5. Adicionar barras de progresso
+6. Estilizar com cores do tema dark
+7. Manter funcionalidades existentes (bloquear, editar saldo)
