@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, ArrowDownCircle, ArrowUpCircle, Wallet, Bot, TrendingUp } from 'lucide-react';
 
 interface Stats {
@@ -91,7 +90,7 @@ const AdminDashboard = () => {
   if (isLoading || !isAdmin) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-teal-500 border-t-transparent" />
       </div>
     );
   }
@@ -99,105 +98,95 @@ const AdminDashboard = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Painel Administrativo</h1>
-        <p className="text-muted-foreground">
-          Visão geral da plataforma
-        </p>
+        <h1 className="text-2xl font-bold text-white">Painel Administrativo</h1>
+        <p className="text-gray-400">Visão geral da plataforma</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total de Usuários</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalUsers}</div>
-            <p className="text-xs text-muted-foreground">Usuários cadastrados</p>
-          </CardContent>
-        </Card>
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6">
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-sm font-medium text-gray-400">Total de Usuários</span>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-500/10">
+              <Users className="h-5 w-5 text-teal-400" />
+            </div>
+          </div>
+          <div className="text-2xl font-bold text-white">{stats.totalUsers}</div>
+          <p className="text-xs text-gray-500 mt-1">Usuários cadastrados</p>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Depósitos Pendentes</CardTitle>
-            <ArrowDownCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.pendingDeposits}</div>
-            <p className="text-xs text-muted-foreground">
-              {formatCurrency(stats.pendingDepositsAmount)} aguardando
-            </p>
-          </CardContent>
-        </Card>
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6">
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-sm font-medium text-gray-400">Depósitos Pendentes</span>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-500/10">
+              <ArrowDownCircle className="h-5 w-5 text-yellow-400" />
+            </div>
+          </div>
+          <div className="text-2xl font-bold text-white">{stats.pendingDeposits}</div>
+          <p className="text-xs text-gray-500 mt-1">
+            {formatCurrency(stats.pendingDepositsAmount)} aguardando
+          </p>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Saques Pendentes</CardTitle>
-            <ArrowUpCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.pendingWithdrawals}</div>
-            <p className="text-xs text-muted-foreground">
-              {formatCurrency(stats.pendingWithdrawalsAmount)} aguardando
-            </p>
-          </CardContent>
-        </Card>
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6">
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-sm font-medium text-gray-400">Saques Pendentes</span>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10">
+              <ArrowUpCircle className="h-5 w-5 text-red-400" />
+            </div>
+          </div>
+          <div className="text-2xl font-bold text-white">{stats.pendingWithdrawals}</div>
+          <p className="text-xs text-gray-500 mt-1">
+            {formatCurrency(stats.pendingWithdrawalsAmount)} aguardando
+          </p>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Investido</CardTitle>
-            <Wallet className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats.totalInvested)}</div>
-            <p className="text-xs text-muted-foreground">Em robôs ativos</p>
-          </CardContent>
-        </Card>
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6">
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-sm font-medium text-gray-400">Total Investido</span>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-500/10">
+              <Wallet className="h-5 w-5 text-green-400" />
+            </div>
+          </div>
+          <div className="text-2xl font-bold text-white">{formatCurrency(stats.totalInvested)}</div>
+          <p className="text-xs text-gray-500 mt-1">Em robôs ativos</p>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Robôs Ativos</CardTitle>
-            <CardDescription>
-              {stats.activeRobots} robôs em operação
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-primary/10">
-                <Bot className="h-8 w-8 text-primary" />
-              </div>
-              <div>
-                <p className="text-3xl font-bold">{stats.activeRobots}</p>
-                <p className="text-muted-foreground">Robôs configurados</p>
-              </div>
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6">
+          <h2 className="text-lg font-semibold text-white mb-2">Robôs Ativos</h2>
+          <p className="text-sm text-gray-400 mb-4">{stats.activeRobots} robôs em operação</p>
+          <div className="flex items-center gap-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-r from-teal-500/20 to-cyan-500/20">
+              <Bot className="h-8 w-8 text-teal-400" />
             </div>
-          </CardContent>
-        </Card>
+            <div>
+              <p className="text-3xl font-bold text-white">{stats.activeRobots}</p>
+              <p className="text-gray-400">Robôs configurados</p>
+            </div>
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Ações Rápidas</CardTitle>
-            <CardDescription>Gerencie a plataforma</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <a
-              href="/admin/deposits"
-              className="flex items-center gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-accent"
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6">
+          <h2 className="text-lg font-semibold text-white mb-2">Ações Rápidas</h2>
+          <p className="text-sm text-gray-400 mb-4">Gerencie a plataforma</p>
+          <div className="space-y-2">
+            <Link
+              to="/admin/deposits"
+              className="flex items-center gap-3 rounded-lg border border-[#1e2a3a] p-3 transition-all hover:border-teal-500/50 hover:bg-[#1e2a3a]/50"
             >
-              <ArrowDownCircle className="h-5 w-5 text-primary" />
-              <span>Aprovar Depósitos ({stats.pendingDeposits})</span>
-            </a>
-            <a
-              href="/admin/withdrawals"
-              className="flex items-center gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-accent"
+              <ArrowDownCircle className="h-5 w-5 text-teal-400" />
+              <span className="text-white">Aprovar Depósitos ({stats.pendingDeposits})</span>
+            </Link>
+            <Link
+              to="/admin/withdrawals"
+              className="flex items-center gap-3 rounded-lg border border-[#1e2a3a] p-3 transition-all hover:border-teal-500/50 hover:bg-[#1e2a3a]/50"
             >
-              <ArrowUpCircle className="h-5 w-5 text-primary" />
-              <span>Aprovar Saques ({stats.pendingWithdrawals})</span>
-            </a>
-          </CardContent>
-        </Card>
+              <ArrowUpCircle className="h-5 w-5 text-teal-400" />
+              <span className="text-white">Aprovar Saques ({stats.pendingWithdrawals})</span>
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );

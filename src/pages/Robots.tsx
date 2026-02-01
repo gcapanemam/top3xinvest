@@ -1,8 +1,5 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Bot, TrendingUp, Clock, DollarSign, Sparkles } from 'lucide-react';
 
 interface Robot {
@@ -53,12 +50,10 @@ const Robots = () => {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="flex flex-col items-center gap-4">
-          <div className="relative">
-            <div className="h-12 w-12 rounded-xl gradient-primary flex items-center justify-center shadow-glow animate-pulse-soft">
-              <Bot className="h-6 w-6 text-white" />
-            </div>
+          <div className="h-12 w-12 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-teal-500/25 animate-pulse">
+            <Bot className="h-6 w-6 text-white" />
           </div>
-          <p className="text-muted-foreground">Carregando robôs...</p>
+          <p className="text-gray-400">Carregando robôs...</p>
         </div>
       </div>
     );
@@ -66,54 +61,51 @@ const Robots = () => {
 
   return (
     <div className="space-y-6">
-      <div className="animate-fade-in-up">
-        <h1 className="text-2xl font-bold text-foreground">Robôs de Investimento</h1>
-        <p className="text-muted-foreground">
+      <div>
+        <h1 className="text-2xl font-bold text-white">Robôs de Investimento</h1>
+        <p className="text-gray-400">
           Escolha um robô e comece a investir agora
         </p>
       </div>
 
       {robots.length === 0 ? (
-        <Card className="animate-fade-in-up">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
-              <Bot className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <h3 className="mt-4 text-lg font-medium">Nenhum robô disponível</h3>
-            <p className="text-muted-foreground">
-              Novos robôs serão disponibilizados em breve
-            </p>
-          </CardContent>
-        </Card>
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-12 text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#1e2a3a] mx-auto">
+            <Bot className="h-8 w-8 text-gray-400" />
+          </div>
+          <h3 className="mt-4 text-lg font-medium text-white">Nenhum robô disponível</h3>
+          <p className="text-gray-400">
+            Novos robôs serão disponibilizados em breve
+          </p>
+        </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {robots.map((robot, index) => (
-            <Card 
+          {robots.map((robot) => (
+            <div 
               key={robot.id} 
-              className="group flex flex-col animate-fade-in-up hover-lift overflow-hidden"
-              style={{ animationDelay: `${index * 100}ms` }}
+              className="group flex flex-col rounded-xl bg-[#111820] border border-[#1e2a3a] overflow-hidden transition-all hover:border-teal-500/50"
             >
               {/* Gradient top border */}
-              <div className="h-1 gradient-primary" />
+              <div className="h-1 bg-gradient-to-r from-teal-500 to-cyan-500" />
               
-              <CardHeader>
+              <div className="p-6">
                 <div className="flex items-start justify-between">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl gradient-primary shadow-glow group-hover:shadow-glow-lg transition-shadow duration-300">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r from-teal-500 to-cyan-500 shadow-lg shadow-teal-500/25">
                     <Bot className="h-7 w-7 text-white" />
                   </div>
                   {robot.cryptocurrency && (
-                    <Badge variant="secondary" className="font-semibold">
+                    <span className="px-3 py-1 rounded-full bg-[#1e2a3a] text-cyan-400 text-sm font-semibold">
                       {robot.cryptocurrency.symbol}
-                    </Badge>
+                    </span>
                   )}
                 </div>
-                <CardTitle className="mt-4 group-hover:text-primary transition-colors">{robot.name}</CardTitle>
-                <CardDescription>{robot.description}</CardDescription>
-              </CardHeader>
+                <h3 className="mt-4 text-lg font-semibold text-white group-hover:text-teal-400 transition-colors">{robot.name}</h3>
+                <p className="text-sm text-gray-400 mt-1">{robot.description}</p>
+              </div>
 
-              <CardContent className="flex-1 space-y-4">
+              <div className="px-6 pb-6 flex-1 space-y-4">
                 {/* Profitability highlight */}
-                <div className="flex items-center gap-3 rounded-xl gradient-success p-4 shadow-glow-success">
+                <div className="flex items-center gap-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 p-4 shadow-lg shadow-green-500/25">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20">
                     <TrendingUp className="h-5 w-5 text-white" />
                   </div>
@@ -123,41 +115,41 @@ const Robots = () => {
                       {robot.profit_percentage}% <span className="text-sm font-normal">/ {robot.profit_period_days} dias</span>
                     </p>
                   </div>
-                  <Sparkles className="ml-auto h-5 w-5 text-white/60 animate-pulse-soft" />
+                  <Sparkles className="ml-auto h-5 w-5 text-white/60 animate-pulse" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-xl border border-border/50 p-3 transition-all hover:border-primary/30">
-                    <div className="flex items-center gap-2 text-muted-foreground">
+                  <div className="rounded-xl border border-[#1e2a3a] p-3 transition-all hover:border-teal-500/30">
+                    <div className="flex items-center gap-2 text-gray-400">
                       <Clock className="h-4 w-4" />
                       <span className="text-xs">Período Lock</span>
                     </div>
-                    <p className="mt-1 font-semibold">{robot.lock_period_days} dias</p>
+                    <p className="mt-1 font-semibold text-white">{robot.lock_period_days} dias</p>
                   </div>
 
-                  <div className="rounded-xl border border-border/50 p-3 transition-all hover:border-primary/30">
-                    <div className="flex items-center gap-2 text-muted-foreground">
+                  <div className="rounded-xl border border-[#1e2a3a] p-3 transition-all hover:border-teal-500/30">
+                    <div className="flex items-center gap-2 text-gray-400">
                       <DollarSign className="h-4 w-4" />
                       <span className="text-xs">Mín. Investimento</span>
                     </div>
-                    <p className="mt-1 font-semibold">{formatCurrency(robot.min_investment)}</p>
+                    <p className="mt-1 font-semibold text-white">{formatCurrency(robot.min_investment)}</p>
                   </div>
                 </div>
 
                 {robot.max_investment && (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-gray-400">
                     Máximo: {formatCurrency(robot.max_investment)}
                   </p>
                 )}
-              </CardContent>
+              </div>
 
-              <CardFooter>
-                <Button variant="gradient" className="w-full">
-                  <Sparkles className="h-4 w-4 mr-2" />
+              <div className="p-6 pt-0">
+                <button className="w-full py-3 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:shadow-teal-500/25">
+                  <Sparkles className="h-4 w-4" />
                   Investir Agora
-                </Button>
-              </CardFooter>
-            </Card>
+                </button>
+              </div>
+            </div>
           ))}
         </div>
       )}

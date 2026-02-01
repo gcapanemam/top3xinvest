@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
@@ -128,34 +126,38 @@ const Deposits = () => {
     switch (status) {
       case 'pending':
         return (
-          <Badge variant="secondary" className="gap-1">
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-500/20 text-yellow-400 text-xs font-medium">
             <Clock className="h-3 w-3" />
             Pendente
-          </Badge>
+          </span>
         );
       case 'approved':
         return (
-          <Badge className="gap-1 bg-green-500">
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-500/20 text-green-400 text-xs font-medium">
             <CheckCircle className="h-3 w-3" />
             Aprovado
-          </Badge>
+          </span>
         );
       case 'rejected':
         return (
-          <Badge variant="destructive" className="gap-1">
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-500/20 text-red-400 text-xs font-medium">
             <XCircle className="h-3 w-3" />
             Recusado
-          </Badge>
+          </span>
         );
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-500/20 text-gray-400 text-xs font-medium">
+            {status}
+          </span>
+        );
     }
   };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-teal-500 border-t-transparent" />
       </div>
     );
   }
@@ -164,28 +166,28 @@ const Deposits = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Depósitos</h1>
-          <p className="text-muted-foreground">Adicione saldo à sua conta</p>
+          <h1 className="text-2xl font-bold text-white">Depósitos</h1>
+          <p className="text-gray-400">Adicione saldo à sua conta</p>
         </div>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-2">
+            <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium transition-all hover:shadow-lg hover:shadow-teal-500/25">
               <Plus className="h-4 w-4" />
               Novo Depósito
-            </Button>
+            </button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="bg-[#111820] border-[#1e2a3a] text-white">
             <DialogHeader>
-              <DialogTitle>Solicitar Depósito</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="text-white">Solicitar Depósito</DialogTitle>
+              <DialogDescription className="text-gray-400">
                 Informe o valor e faça o pagamento via PIX
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="amount">Valor do depósito</Label>
+                <Label htmlFor="amount" className="text-gray-300">Valor do depósito</Label>
                 <Input
                   id="amount"
                   type="number"
@@ -194,21 +196,22 @@ const Deposits = () => {
                   onChange={(e) => setAmount(e.target.value)}
                   min={50}
                   step={0.01}
+                  className="bg-[#0a0f14] border-[#1e2a3a] text-white placeholder:text-gray-500"
                 />
-                <p className="text-xs text-muted-foreground">Mínimo: R$ 50,00</p>
+                <p className="text-xs text-gray-400">Mínimo: R$ 50,00</p>
               </div>
 
-              <div className="rounded-lg border border-border p-4 space-y-3">
-                <h4 className="font-medium">Dados para PIX</h4>
+              <div className="rounded-lg border border-[#1e2a3a] p-4 space-y-3 bg-[#0a0f14]">
+                <h4 className="font-medium text-white">Dados para PIX</h4>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Chave PIX:</span>
+                    <span className="text-sm text-gray-400">Chave PIX:</span>
                     <div className="flex items-center gap-2">
-                      <code className="text-sm">{pixKey}</code>
+                      <code className="text-sm text-cyan-400">{pixKey}</code>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6"
+                        className="h-6 w-6 text-gray-400 hover:text-white hover:bg-[#1e2a3a]"
                         onClick={() => copyToClipboard(pixKey)}
                       >
                         <Copy className="h-3 w-3" />
@@ -216,20 +219,24 @@ const Deposits = () => {
                     </div>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Nome:</span>
-                    <span className="text-sm font-medium">{pixName}</span>
+                    <span className="text-sm text-gray-400">Nome:</span>
+                    <span className="text-sm font-medium text-white">{pixName}</span>
                   </div>
                 </div>
               </div>
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="border-[#1e2a3a] text-gray-300 hover:bg-[#1e2a3a] hover:text-white">
                 Cancelar
               </Button>
-              <Button onClick={handleDeposit} disabled={isSubmitting}>
+              <button 
+                onClick={handleDeposit} 
+                disabled={isSubmitting}
+                className="px-4 py-2 rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium transition-all hover:shadow-lg hover:shadow-teal-500/25 disabled:opacity-50"
+              >
                 {isSubmitting ? 'Enviando...' : 'Confirmar Depósito'}
-              </Button>
+              </button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -237,56 +244,50 @@ const Deposits = () => {
 
       {/* Deposits List */}
       {deposits.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <ArrowDownCircle className="h-12 w-12 text-muted-foreground" />
-            <h3 className="mt-4 text-lg font-medium">Nenhum depósito ainda</h3>
-            <p className="text-muted-foreground">
-              Clique no botão acima para fazer seu primeiro depósito
-            </p>
-          </CardContent>
-        </Card>
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-12 text-center">
+          <ArrowDownCircle className="h-12 w-12 text-gray-400 mx-auto" />
+          <h3 className="mt-4 text-lg font-medium text-white">Nenhum depósito ainda</h3>
+          <p className="text-gray-400">
+            Clique no botão acima para fazer seu primeiro depósito
+          </p>
+        </div>
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Histórico de Depósitos</CardTitle>
-            <CardDescription>
-              Todos os seus depósitos e status de aprovação
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {deposits.map((deposit) => (
-                <div
-                  key={deposit.id}
-                  className="flex items-center justify-between rounded-lg border border-border p-4"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                      <ArrowDownCircle className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-medium">{formatCurrency(deposit.amount)}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {format(new Date(deposit.created_at), "dd 'de' MMM 'às' HH:mm", {
-                          locale: ptBR,
-                        })}
-                      </p>
-                    </div>
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a]">
+          <div className="p-6 border-b border-[#1e2a3a]">
+            <h2 className="text-lg font-semibold text-white">Histórico de Depósitos</h2>
+            <p className="text-sm text-gray-400">Todos os seus depósitos e status de aprovação</p>
+          </div>
+          <div className="p-6 space-y-4">
+            {deposits.map((deposit) => (
+              <div
+                key={deposit.id}
+                className="flex items-center justify-between rounded-lg border border-[#1e2a3a] p-4 hover:border-teal-500/30 transition-all"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-teal-500/10">
+                    <ArrowDownCircle className="h-5 w-5 text-teal-400" />
                   </div>
-                  <div className="text-right">
-                    {getStatusBadge(deposit.status)}
-                    {deposit.admin_notes && (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {deposit.admin_notes}
-                      </p>
-                    )}
+                  <div>
+                    <p className="font-medium text-white">{formatCurrency(deposit.amount)}</p>
+                    <p className="text-sm text-gray-400">
+                      {format(new Date(deposit.created_at), "dd 'de' MMM 'às' HH:mm", {
+                        locale: ptBR,
+                      })}
+                    </p>
                   </div>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                <div className="text-right">
+                  {getStatusBadge(deposit.status)}
+                  {deposit.admin_notes && (
+                    <p className="mt-1 text-xs text-gray-400">
+                      {deposit.admin_notes}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

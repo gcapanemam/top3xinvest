@@ -2,9 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -158,28 +156,32 @@ const AdminWithdrawals = () => {
     switch (status) {
       case 'pending':
         return (
-          <Badge variant="secondary" className="gap-1">
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-500/20 text-yellow-400 text-xs font-medium">
             <Clock className="h-3 w-3" />
             Pendente
-          </Badge>
+          </span>
         );
       case 'approved':
       case 'completed':
         return (
-          <Badge className="gap-1 bg-green-500">
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-500/20 text-green-400 text-xs font-medium">
             <CheckCircle className="h-3 w-3" />
             Aprovado
-          </Badge>
+          </span>
         );
       case 'rejected':
         return (
-          <Badge variant="destructive" className="gap-1">
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-500/20 text-red-400 text-xs font-medium">
             <XCircle className="h-3 w-3" />
             Recusado
-          </Badge>
+          </span>
         );
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-500/20 text-gray-400 text-xs font-medium">
+            {status}
+          </span>
+        );
     }
   };
 
@@ -189,7 +191,7 @@ const AdminWithdrawals = () => {
   if (isLoading || !isAdmin) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-teal-500 border-t-transparent" />
       </div>
     );
   }
@@ -197,91 +199,89 @@ const AdminWithdrawals = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Aprovar Saques</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl font-bold text-white">Aprovar Saques</h1>
+        <p className="text-gray-400">
           {pendingWithdrawals.length} saque(s) pendente(s)
         </p>
       </div>
 
       {/* Pending Withdrawals */}
       {pendingWithdrawals.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Saques Pendentes</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a]">
+          <div className="p-6 border-b border-[#1e2a3a]">
+            <h2 className="text-lg font-semibold text-white">Saques Pendentes</h2>
+          </div>
+          <div className="p-6 space-y-4">
             {pendingWithdrawals.map((withdrawal) => (
               <div
                 key={withdrawal.id}
-                className="flex items-center justify-between rounded-lg border border-border p-4"
+                className="flex items-center justify-between rounded-lg border border-[#1e2a3a] p-4"
               >
                 <div className="flex items-center gap-4">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-yellow-500/20">
-                    <ArrowUpCircle className="h-5 w-5 text-yellow-600" />
+                    <ArrowUpCircle className="h-5 w-5 text-yellow-400" />
                   </div>
                   <div>
-                    <p className="font-medium">{withdrawal.profile?.full_name || 'Usuário'}</p>
-                    <p className="text-sm text-muted-foreground">
-                      PIX: {withdrawal.pix_key}
+                    <p className="font-medium text-white">{withdrawal.profile?.full_name || 'Usuário'}</p>
+                    <p className="text-sm text-gray-400">
+                      PIX: <span className="text-cyan-400">{withdrawal.pix_key}</span>
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-gray-500">
                       Saldo: {formatCurrency(withdrawal.profile?.balance || 0)}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
-                  <p className="text-xl font-bold">{formatCurrency(withdrawal.amount)}</p>
+                  <p className="text-xl font-bold text-white">{formatCurrency(withdrawal.amount)}</p>
                   <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      className="bg-green-600 hover:bg-green-700"
+                    <button
+                      className="px-3 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-sm font-medium flex items-center gap-1 hover:bg-green-500/30 transition-all"
                       onClick={() => setSelectedWithdrawal(withdrawal)}
                     >
-                      <CheckCircle className="mr-1 h-4 w-4" />
+                      <CheckCircle className="h-4 w-4" />
                       Aprovar
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
+                    </button>
+                    <button
+                      className="px-3 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-sm font-medium flex items-center gap-1 hover:bg-red-500/30 transition-all"
                       onClick={() => {
                         setSelectedWithdrawal(withdrawal);
                         setAdminNotes('');
                       }}
                     >
-                      <XCircle className="mr-1 h-4 w-4" />
+                      <XCircle className="h-4 w-4" />
                       Recusar
-                    </Button>
+                    </button>
                   </div>
                 </div>
               </div>
             ))}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {/* Processed Withdrawals */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Histórico de Saques</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <div className="rounded-xl bg-[#111820] border border-[#1e2a3a]">
+        <div className="p-6 border-b border-[#1e2a3a]">
+          <h2 className="text-lg font-semibold text-white">Histórico de Saques</h2>
+        </div>
+        <div className="p-6 space-y-4">
           {processedWithdrawals.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
+            <p className="text-center text-gray-400 py-8">
               Nenhum saque processado ainda
             </p>
           ) : (
             processedWithdrawals.map((withdrawal) => (
               <div
                 key={withdrawal.id}
-                className="flex items-center justify-between rounded-lg border border-border p-4"
+                className="flex items-center justify-between rounded-lg border border-[#1e2a3a] p-4"
               >
                 <div className="flex items-center gap-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                    <ArrowUpCircle className="h-5 w-5 text-muted-foreground" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1e2a3a]">
+                    <ArrowUpCircle className="h-5 w-5 text-gray-400" />
                   </div>
                   <div>
-                    <p className="font-medium">{withdrawal.profile?.full_name || 'Usuário'}</p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="font-medium text-white">{withdrawal.profile?.full_name || 'Usuário'}</p>
+                    <p className="text-sm text-gray-400">
                       {format(new Date(withdrawal.created_at), "dd/MM/yy 'às' HH:mm", {
                         locale: ptBR,
                       })}
@@ -289,59 +289,60 @@ const AdminWithdrawals = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
-                  <p className="font-bold">{formatCurrency(withdrawal.amount)}</p>
+                  <p className="font-bold text-white">{formatCurrency(withdrawal.amount)}</p>
                   {getStatusBadge(withdrawal.status)}
                 </div>
               </div>
             ))
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Process Dialog */}
       <Dialog open={!!selectedWithdrawal} onOpenChange={() => setSelectedWithdrawal(null)}>
-        <DialogContent>
+        <DialogContent className="bg-[#111820] border-[#1e2a3a] text-white">
           <DialogHeader>
-            <DialogTitle>Processar Saque</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-white">Processar Saque</DialogTitle>
+            <DialogDescription className="text-gray-400">
               Saque de {formatCurrency(selectedWithdrawal?.amount || 0)}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="rounded-lg bg-muted p-3">
-              <p className="text-sm text-muted-foreground">Chave PIX</p>
-              <p className="font-medium">{selectedWithdrawal?.pix_key}</p>
+            <div className="rounded-lg bg-[#0a0f14] p-3 border border-[#1e2a3a]">
+              <p className="text-sm text-gray-400">Chave PIX</p>
+              <p className="font-medium text-cyan-400">{selectedWithdrawal?.pix_key}</p>
             </div>
 
             <div>
-              <p className="text-sm text-muted-foreground">Observações (opcional)</p>
+              <p className="text-sm text-gray-400 mb-2">Observações (opcional)</p>
               <Textarea
                 value={adminNotes}
                 onChange={(e) => setAdminNotes(e.target.value)}
                 placeholder="Adicione uma observação..."
+                className="bg-[#0a0f14] border-[#1e2a3a] text-white placeholder:text-gray-500"
               />
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSelectedWithdrawal(null)}>
+            <Button variant="outline" onClick={() => setSelectedWithdrawal(null)} className="border-[#1e2a3a] text-gray-300 hover:bg-[#1e2a3a] hover:text-white">
               Cancelar
             </Button>
-            <Button
-              variant="destructive"
+            <button
+              className="px-4 py-2 rounded-lg bg-red-500/20 text-red-400 font-medium hover:bg-red-500/30 transition-all disabled:opacity-50"
               onClick={() => processWithdrawal(false)}
               disabled={isProcessing}
             >
               Recusar
-            </Button>
-            <Button
-              className="bg-green-600 hover:bg-green-700"
+            </button>
+            <button
+              className="px-4 py-2 rounded-lg bg-green-500/20 text-green-400 font-medium hover:bg-green-500/30 transition-all disabled:opacity-50"
               onClick={() => processWithdrawal(true)}
               disabled={isProcessing}
             >
               Aprovar
-            </Button>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

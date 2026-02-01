@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
@@ -156,42 +154,46 @@ const Withdrawals = () => {
     switch (status) {
       case 'pending':
         return (
-          <Badge variant="secondary" className="gap-1">
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-500/20 text-yellow-400 text-xs font-medium">
             <Clock className="h-3 w-3" />
             Pendente
-          </Badge>
+          </span>
         );
       case 'approved':
       case 'completed':
         return (
-          <Badge className="gap-1 bg-green-500">
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-500/20 text-green-400 text-xs font-medium">
             <CheckCircle className="h-3 w-3" />
             Aprovado
-          </Badge>
+          </span>
         );
       case 'processing':
         return (
-          <Badge variant="secondary" className="gap-1">
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-500/20 text-blue-400 text-xs font-medium">
             <Loader2 className="h-3 w-3 animate-spin" />
             Processando
-          </Badge>
+          </span>
         );
       case 'rejected':
         return (
-          <Badge variant="destructive" className="gap-1">
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-500/20 text-red-400 text-xs font-medium">
             <XCircle className="h-3 w-3" />
             Recusado
-          </Badge>
+          </span>
         );
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-500/20 text-gray-400 text-xs font-medium">
+            {status}
+          </span>
+        );
     }
   };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-teal-500 border-t-transparent" />
       </div>
     );
   }
@@ -200,37 +202,40 @@ const Withdrawals = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Saques</h1>
-          <p className="text-muted-foreground">
-            Saldo disponível: {formatCurrency(profile?.balance || 0)}
+          <h1 className="text-2xl font-bold text-white">Saques</h1>
+          <p className="text-gray-400">
+            Saldo disponível: <span className="text-teal-400 font-semibold">{formatCurrency(profile?.balance || 0)}</span>
           </p>
         </div>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-2" disabled={!profile || profile.balance < 20}>
+            <button 
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium transition-all hover:shadow-lg hover:shadow-teal-500/25 disabled:opacity-50"
+              disabled={!profile || profile.balance < 20}
+            >
               <Plus className="h-4 w-4" />
               Solicitar Saque
-            </Button>
+            </button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="bg-[#111820] border-[#1e2a3a] text-white">
             <DialogHeader>
-              <DialogTitle>Solicitar Saque</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="text-white">Solicitar Saque</DialogTitle>
+              <DialogDescription className="text-gray-400">
                 Informe o valor e sua chave PIX para receber
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4">
-              <div className="rounded-lg bg-muted p-3">
-                <p className="text-sm text-muted-foreground">Saldo disponível</p>
-                <p className="text-xl font-bold">
+              <div className="rounded-lg bg-[#0a0f14] p-3 border border-[#1e2a3a]">
+                <p className="text-sm text-gray-400">Saldo disponível</p>
+                <p className="text-xl font-bold text-teal-400">
                   {formatCurrency(profile?.balance || 0)}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="amount">Valor do saque</Label>
+                <Label htmlFor="amount" className="text-gray-300">Valor do saque</Label>
                 <Input
                   id="amount"
                   type="number"
@@ -240,29 +245,35 @@ const Withdrawals = () => {
                   max={profile?.balance || 0}
                   min={20}
                   step={0.01}
+                  className="bg-[#0a0f14] border-[#1e2a3a] text-white placeholder:text-gray-500"
                 />
-                <p className="text-xs text-muted-foreground">Mínimo: R$ 20,00</p>
+                <p className="text-xs text-gray-400">Mínimo: R$ 20,00</p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="pix">Chave PIX</Label>
+                <Label htmlFor="pix" className="text-gray-300">Chave PIX</Label>
                 <Input
                   id="pix"
                   type="text"
                   placeholder="CPF, email, telefone ou chave aleatória"
                   value={pixKey}
                   onChange={(e) => setPixKey(e.target.value)}
+                  className="bg-[#0a0f14] border-[#1e2a3a] text-white placeholder:text-gray-500"
                 />
               </div>
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="border-[#1e2a3a] text-gray-300 hover:bg-[#1e2a3a] hover:text-white">
                 Cancelar
               </Button>
-              <Button onClick={handleWithdrawal} disabled={isSubmitting}>
+              <button 
+                onClick={handleWithdrawal} 
+                disabled={isSubmitting}
+                className="px-4 py-2 rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium transition-all hover:shadow-lg hover:shadow-teal-500/25 disabled:opacity-50"
+              >
                 {isSubmitting ? 'Enviando...' : 'Confirmar Saque'}
-              </Button>
+              </button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -270,56 +281,50 @@ const Withdrawals = () => {
 
       {/* Withdrawals List */}
       {withdrawals.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <ArrowUpCircle className="h-12 w-12 text-muted-foreground" />
-            <h3 className="mt-4 text-lg font-medium">Nenhum saque ainda</h3>
-            <p className="text-muted-foreground">
-              Seus saques aparecerão aqui
-            </p>
-          </CardContent>
-        </Card>
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-12 text-center">
+          <ArrowUpCircle className="h-12 w-12 text-gray-400 mx-auto" />
+          <h3 className="mt-4 text-lg font-medium text-white">Nenhum saque ainda</h3>
+          <p className="text-gray-400">
+            Seus saques aparecerão aqui
+          </p>
+        </div>
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Histórico de Saques</CardTitle>
-            <CardDescription>
-              Todas as suas solicitações de saque
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {withdrawals.map((withdrawal) => (
-                <div
-                  key={withdrawal.id}
-                  className="flex items-center justify-between rounded-lg border border-border p-4"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                      <ArrowUpCircle className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-medium">{formatCurrency(withdrawal.amount)}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {format(new Date(withdrawal.created_at), "dd 'de' MMM 'às' HH:mm", {
-                          locale: ptBR,
-                        })}
-                      </p>
-                    </div>
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a]">
+          <div className="p-6 border-b border-[#1e2a3a]">
+            <h2 className="text-lg font-semibold text-white">Histórico de Saques</h2>
+            <p className="text-sm text-gray-400">Todas as suas solicitações de saque</p>
+          </div>
+          <div className="p-6 space-y-4">
+            {withdrawals.map((withdrawal) => (
+              <div
+                key={withdrawal.id}
+                className="flex items-center justify-between rounded-lg border border-[#1e2a3a] p-4 hover:border-teal-500/30 transition-all"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-500/10">
+                    <ArrowUpCircle className="h-5 w-5 text-cyan-400" />
                   </div>
-                  <div className="text-right">
-                    {getStatusBadge(withdrawal.status)}
-                    {withdrawal.pix_key && (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        PIX: {withdrawal.pix_key}
-                      </p>
-                    )}
+                  <div>
+                    <p className="font-medium text-white">{formatCurrency(withdrawal.amount)}</p>
+                    <p className="text-sm text-gray-400">
+                      {format(new Date(withdrawal.created_at), "dd 'de' MMM 'às' HH:mm", {
+                        locale: ptBR,
+                      })}
+                    </p>
                   </div>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                <div className="text-right">
+                  {getStatusBadge(withdrawal.status)}
+                  {withdrawal.pix_key && (
+                    <p className="mt-1 text-xs text-gray-400">
+                      PIX: {withdrawal.pix_key}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );
