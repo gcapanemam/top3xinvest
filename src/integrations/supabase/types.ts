@@ -204,6 +204,7 @@ export type Database = {
           id: string
           is_blocked: boolean
           phone: string | null
+          referral_code: string | null
           updated_at: string
           user_id: string
         }
@@ -215,6 +216,7 @@ export type Database = {
           id?: string
           is_blocked?: boolean
           phone?: string | null
+          referral_code?: string | null
           updated_at?: string
           user_id: string
         }
@@ -226,7 +228,68 @@ export type Database = {
           id?: string
           is_blocked?: boolean
           phone?: string | null
+          referral_code?: string | null
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      referral_commissions: {
+        Row: {
+          amount: number
+          created_at: string
+          from_user_id: string
+          id: string
+          investment_id: string | null
+          level: number
+          percentage: number
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          from_user_id: string
+          id?: string
+          investment_id?: string | null
+          level: number
+          percentage: number
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          from_user_id?: string
+          id?: string
+          investment_id?: string | null
+          level?: number
+          percentage?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          created_at: string
+          id: string
+          level: number
+          referral_code: string
+          referrer_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          level?: number
+          referral_code: string
+          referrer_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          level?: number
+          referral_code?: string
+          referrer_id?: string
           user_id?: string
         }
         Relationships: []
@@ -426,6 +489,34 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_network_stats: {
+        Args: { target_user_id: string }
+        Returns: {
+          active_levels: number
+          direct_members: number
+          level_1_count: number
+          level_1_volume: number
+          level_2_count: number
+          level_2_volume: number
+          level_3_count: number
+          level_3_volume: number
+          level_4_count: number
+          level_4_volume: number
+          total_members: number
+          total_volume: number
+        }[]
+      }
+      get_network_tree: {
+        Args: { root_user_id: string }
+        Returns: {
+          full_name: string
+          level: number
+          referral_code: string
+          referrer_id: string
+          total_invested: number
+          user_id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -434,6 +525,10 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: never; Returns: boolean }
+      process_referral: {
+        Args: { new_user_id: string; referrer_code: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "user"

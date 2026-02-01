@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,8 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import { z } from 'zod';
-import { Bot, TrendingUp, Shield, ArrowRight, Sparkles } from 'lucide-react';
+import { Bot, TrendingUp, Shield, ArrowRight, Sparkles, Gift } from 'lucide-react';
 
 const emailSchema = z.string().email('Email inválido');
 const passwordSchema = z.string().min(6, 'Senha deve ter pelo menos 6 caracteres');
@@ -16,6 +17,7 @@ const nameSchema = z.string().min(2, 'Nome deve ter pelo menos 2 caracteres');
 
 const Auth = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, signIn, signUp, isLoading } = useAuth();
   const { toast } = useToast();
 
@@ -26,6 +28,10 @@ const Auth = () => {
   const [registerEmail, setRegisterEmail] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
   const [registerConfirmPassword, setRegisterConfirmPassword] = useState('');
+
+  // Capturar código de indicação da URL
+  const referralCode = searchParams.get('ref') || '';
+  const [activeTab, setActiveTab] = useState(referralCode ? 'register' : 'login');
 
   useEffect(() => {
     if (user && !isLoading) {
@@ -94,7 +100,7 @@ const Auth = () => {
         return;
       }
 
-      const { error } = await signUp(registerEmail, registerPassword, registerName);
+      const { error, data } = await signUp(registerEmail, registerPassword, registerName);
 
       if (error) {
         let message = 'Erro ao criar conta';
@@ -107,6 +113,18 @@ const Auth = () => {
           variant: 'destructive',
         });
       } else {
+        // Processar indicação se houver código de referral
+        if (referralCode && data?.user?.id) {
+          try {
+            await supabase.rpc('process_referral', {
+              new_user_id: data.user.id,
+              referrer_code: referralCode,
+            });
+          } catch (refError) {
+            console.error('Erro ao processar indicação:', refError);
+          }
+        }
+
         toast({
           title: 'Conta criada!',
           description: 'Verifique seu email para confirmar o cadastro',
@@ -217,7 +235,17 @@ const Auth = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue="login" className="w-full">
+              {referralCode && (
+                <div className="mb-4 p-3 rounded-lg bg-gradient-to-r from-teal-500/10 to-cyan-500/10 border border-teal-500/20">
+                  <div className="flex items-center gap-2">
+                    <Gift className="h-4 w-4 text-teal-400" />
+                    <span className="text-sm text-teal-400">
+                      Você foi indicado! Código: <span className="font-mono font-bold">{referralCode}</span>
+                    </span>
+                  </div>
+                </div>
+              )}
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid w-full grid-cols-2 mb-6">
                   <TabsTrigger value="login" className="data-[state=active]:gradient-primary data-[state=active]:text-white">
                     Entrar
