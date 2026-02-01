@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
-import { Bot, TrendingUp, Shield, ArrowRight } from 'lucide-react';
+import { Bot, TrendingUp, Shield, ArrowRight, Sparkles } from 'lucide-react';
 
 const emailSchema = z.string().email('Email inválido');
 const passwordSchema = z.string().min(6, 'Senha deve ter pelo menos 6 caracteres');
@@ -131,23 +131,37 @@ const Auth = () => {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="animate-pulse text-muted-foreground">Carregando...</div>
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-primary/10">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative">
+            <div className="h-16 w-16 rounded-2xl gradient-primary flex items-center justify-center shadow-glow animate-pulse-soft">
+              <Bot className="h-8 w-8 text-white" />
+            </div>
+          </div>
+          <p className="text-muted-foreground animate-fade-in-up">Carregando...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/10 relative overflow-hidden">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 -z-10">
+        <div className="absolute top-20 left-10 h-72 w-72 rounded-full bg-primary/10 blur-3xl animate-float" />
+        <div className="absolute bottom-20 right-10 h-96 w-96 rounded-full bg-accent/10 blur-3xl animate-float" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[600px] w-[600px] rounded-full bg-primary/5 blur-3xl" />
+      </div>
+
       <div className="container mx-auto flex min-h-screen flex-col lg:flex-row">
         {/* Left side - Branding */}
         <div className="flex flex-1 flex-col justify-center p-8 lg:p-16">
-          <div className="mb-8">
-            <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-                <Bot className="h-7 w-7 text-primary-foreground" />
+          <div className="mb-8 animate-fade-in-up">
+            <div className="mb-6 flex items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl gradient-primary shadow-glow animate-glow-pulse">
+                <Bot className="h-8 w-8 text-white" />
               </div>
-              <h1 className="text-3xl font-bold text-foreground">Invest Hub</h1>
+              <h1 className="text-4xl font-bold text-foreground">Invest Hub</h1>
             </div>
             <p className="text-xl text-muted-foreground">
               Plataforma inteligente de investimentos com robôs automatizados
@@ -155,9 +169,9 @@ const Auth = () => {
           </div>
 
           <div className="space-y-6">
-            <div className="flex items-start gap-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                <TrendingUp className="h-5 w-5 text-primary" />
+            <div className="flex items-start gap-4 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl gradient-primary shadow-glow">
+                <TrendingUp className="h-6 w-6 text-white" />
               </div>
               <div>
                 <h3 className="font-semibold text-foreground">Robôs Automatizados</h3>
@@ -167,9 +181,9 @@ const Auth = () => {
               </div>
             </div>
 
-            <div className="flex items-start gap-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                <Shield className="h-5 w-5 text-primary" />
+            <div className="flex items-start gap-4 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl gradient-accent shadow-glow-accent">
+                <Shield className="h-6 w-6 text-white" />
               </div>
               <div>
                 <h3 className="font-semibold text-foreground">Segurança Total</h3>
@@ -179,9 +193,9 @@ const Auth = () => {
               </div>
             </div>
 
-            <div className="flex items-start gap-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                <ArrowRight className="h-5 w-5 text-primary" />
+            <div className="flex items-start gap-4 animate-fade-in-up" style={{ animationDelay: '300ms' }}>
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl gradient-success shadow-glow-success">
+                <Sparkles className="h-6 w-6 text-white" />
               </div>
               <div>
                 <h3 className="font-semibold text-foreground">Rendimentos Diários</h3>
@@ -195,7 +209,7 @@ const Auth = () => {
 
         {/* Right side - Auth Forms */}
         <div className="flex flex-1 items-center justify-center p-8">
-          <Card className="w-full max-w-md border-border/50 shadow-xl">
+          <Card className="w-full max-w-md border-border/50 shadow-2xl backdrop-blur-sm animate-scale-in">
             <CardHeader className="text-center">
               <CardTitle className="text-2xl">Acesse sua conta</CardTitle>
               <CardDescription>
@@ -204,12 +218,16 @@ const Auth = () => {
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="login" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="login">Entrar</TabsTrigger>
-                  <TabsTrigger value="register">Cadastrar</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-2 mb-6">
+                  <TabsTrigger value="login" className="data-[state=active]:gradient-primary data-[state=active]:text-white">
+                    Entrar
+                  </TabsTrigger>
+                  <TabsTrigger value="register" className="data-[state=active]:gradient-primary data-[state=active]:text-white">
+                    Cadastrar
+                  </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="login">
+                <TabsContent value="login" className="animate-fade-in-up">
                   <form onSubmit={handleLogin} className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="login-email">Email</Label>
@@ -220,6 +238,7 @@ const Auth = () => {
                         value={loginEmail}
                         onChange={(e) => setLoginEmail(e.target.value)}
                         required
+                        className="h-11 rounded-xl border-border/50 focus:border-primary focus:ring-primary"
                       />
                     </div>
                     <div className="space-y-2">
@@ -231,15 +250,17 @@ const Auth = () => {
                         value={loginPassword}
                         onChange={(e) => setLoginPassword(e.target.value)}
                         required
+                        className="h-11 rounded-xl border-border/50 focus:border-primary focus:ring-primary"
                       />
                     </div>
-                    <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    <Button type="submit" variant="gradient" className="w-full h-11" disabled={isSubmitting}>
                       {isSubmitting ? 'Entrando...' : 'Entrar'}
+                      <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </form>
                 </TabsContent>
 
-                <TabsContent value="register">
+                <TabsContent value="register" className="animate-fade-in-up">
                   <form onSubmit={handleRegister} className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="register-name">Nome completo</Label>
@@ -250,6 +271,7 @@ const Auth = () => {
                         value={registerName}
                         onChange={(e) => setRegisterName(e.target.value)}
                         required
+                        className="h-11 rounded-xl border-border/50 focus:border-primary focus:ring-primary"
                       />
                     </div>
                     <div className="space-y-2">
@@ -261,6 +283,7 @@ const Auth = () => {
                         value={registerEmail}
                         onChange={(e) => setRegisterEmail(e.target.value)}
                         required
+                        className="h-11 rounded-xl border-border/50 focus:border-primary focus:ring-primary"
                       />
                     </div>
                     <div className="space-y-2">
@@ -272,6 +295,7 @@ const Auth = () => {
                         value={registerPassword}
                         onChange={(e) => setRegisterPassword(e.target.value)}
                         required
+                        className="h-11 rounded-xl border-border/50 focus:border-primary focus:ring-primary"
                       />
                     </div>
                     <div className="space-y-2">
@@ -283,10 +307,12 @@ const Auth = () => {
                         value={registerConfirmPassword}
                         onChange={(e) => setRegisterConfirmPassword(e.target.value)}
                         required
+                        className="h-11 rounded-xl border-border/50 focus:border-primary focus:ring-primary"
                       />
                     </div>
-                    <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    <Button type="submit" variant="gradient" className="w-full h-11" disabled={isSubmitting}>
                       {isSubmitting ? 'Criando conta...' : 'Criar conta'}
+                      <Sparkles className="ml-2 h-4 w-4" />
                     </Button>
                   </form>
                 </TabsContent>

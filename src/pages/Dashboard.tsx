@@ -10,7 +10,8 @@ import {
   ArrowUpRight, 
   ArrowDownRight,
   Plus,
-  ArrowRight
+  ArrowRight,
+  Sparkles
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -110,7 +111,7 @@ const Dashboard = () => {
   return (
     <div className="space-y-6">
       {/* Welcome */}
-      <div>
+      <div className="animate-fade-in-up">
         <h1 className="text-2xl font-bold text-foreground">
           Olá, {profile?.full_name || user?.user_metadata?.full_name || 'Investidor'}! 👋
         </h1>
@@ -121,23 +122,29 @@ const Dashboard = () => {
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="animate-fade-in-up hover-lift group" style={{ animationDelay: '0ms' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Saldo Disponível</CardTitle>
-            <Wallet className="h-4 w-4 text-muted-foreground" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 group-hover:gradient-primary transition-all duration-300">
+              <Wallet className="h-5 w-5 text-primary group-hover:text-white transition-colors" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(profile?.balance || 0)}</div>
+            <div className="text-2xl font-bold gradient-text bg-clip-text text-transparent" style={{ backgroundImage: 'var(--gradient-primary)' }}>
+              {formatCurrency(profile?.balance || 0)}
+            </div>
             <p className="text-xs text-muted-foreground">
               Disponível para investir
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="animate-fade-in-up hover-lift group" style={{ animationDelay: '100ms' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Investido</CardTitle>
-            <Bot className="h-4 w-4 text-muted-foreground" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 group-hover:gradient-accent transition-all duration-300">
+              <Bot className="h-5 w-5 text-accent group-hover:text-white transition-colors" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(totalInvested)}</div>
@@ -147,23 +154,27 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="animate-fade-in-up hover-lift group" style={{ animationDelay: '200ms' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Lucro Acumulado</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-success/10 group-hover:gradient-success transition-all duration-300">
+              <TrendingUp className="h-5 w-5 text-success group-hover:text-white transition-colors" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(totalProfit)}</div>
+            <div className="text-2xl font-bold text-success">{formatCurrency(totalProfit)}</div>
             <p className="text-xs text-muted-foreground">
               Rendimentos dos robôs
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="animate-fade-in-up hover-lift group" style={{ animationDelay: '300ms' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Patrimônio Total</CardTitle>
-            <Wallet className="h-4 w-4 text-muted-foreground" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 group-hover:gradient-primary transition-all duration-300">
+              <Sparkles className="h-5 w-5 text-primary group-hover:text-white transition-colors" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -178,31 +189,31 @@ const Dashboard = () => {
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Quick Actions */}
-        <Card>
+        <Card className="animate-fade-in-up" style={{ animationDelay: '400ms' }}>
           <CardHeader>
             <CardTitle>Ações Rápidas</CardTitle>
             <CardDescription>O que você deseja fazer hoje?</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2">
-            <Button asChild className="h-auto flex-col gap-2 py-4">
+            <Button asChild variant="gradient" className="h-auto flex-col gap-2 py-4">
               <Link to="/deposits">
                 <Plus className="h-5 w-5" />
                 <span>Depositar</span>
               </Link>
             </Button>
-            <Button asChild variant="outline" className="h-auto flex-col gap-2 py-4">
+            <Button asChild variant="outline" className="h-auto flex-col gap-2 py-4 hover:border-primary/50">
               <Link to="/robots">
                 <Bot className="h-5 w-5" />
                 <span>Ver Robôs</span>
               </Link>
             </Button>
-            <Button asChild variant="outline" className="h-auto flex-col gap-2 py-4">
+            <Button asChild variant="outline" className="h-auto flex-col gap-2 py-4 hover:border-primary/50">
               <Link to="/investments">
                 <TrendingUp className="h-5 w-5" />
                 <span>Meus Investimentos</span>
               </Link>
             </Button>
-            <Button asChild variant="outline" className="h-auto flex-col gap-2 py-4">
+            <Button asChild variant="outline" className="h-auto flex-col gap-2 py-4 hover:border-primary/50">
               <Link to="/withdrawals">
                 <Wallet className="h-5 w-5" />
                 <span>Sacar</span>
@@ -212,7 +223,7 @@ const Dashboard = () => {
         </Card>
 
         {/* Crypto Prices */}
-        <Card>
+        <Card className="animate-fade-in-up" style={{ animationDelay: '500ms' }}>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>Cotações</CardTitle>
@@ -221,14 +232,15 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {cryptos.map((crypto) => (
+              {cryptos.map((crypto, index) => (
                 <div
                   key={crypto.id}
-                  className="flex items-center justify-between rounded-lg border border-border p-3"
+                  className="flex items-center justify-between rounded-xl border border-border/50 p-3 transition-all duration-200 hover:border-primary/30 hover:shadow-md animate-fade-in-up"
+                  style={{ animationDelay: `${600 + index * 100}ms` }}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
-                      {crypto.symbol}
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full gradient-primary text-sm font-bold text-white shadow-glow">
+                      {crypto.symbol.slice(0, 2)}
                     </div>
                     <div>
                       <p className="font-medium">{crypto.name}</p>
@@ -238,8 +250,8 @@ const Dashboard = () => {
                   <div className="text-right">
                     <p className="font-medium">{formatCrypto(crypto.current_price)}</p>
                     <p
-                      className={`flex items-center justify-end text-sm ${
-                        crypto.price_change_24h >= 0 ? 'text-green-600' : 'text-red-600'
+                      className={`flex items-center justify-end text-sm font-medium ${
+                        crypto.price_change_24h >= 0 ? 'text-success' : 'text-destructive'
                       }`}
                     >
                       {crypto.price_change_24h >= 0 ? (
@@ -259,28 +271,29 @@ const Dashboard = () => {
 
       {/* Active Investments */}
       {investments.length > 0 && (
-        <Card>
+        <Card className="animate-fade-in-up" style={{ animationDelay: '700ms' }}>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>Investimentos Ativos</CardTitle>
               <CardDescription>Seus robôs em operação</CardDescription>
             </div>
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/investments" className="gap-1">
+            <Button asChild variant="ghost" size="sm" className="gap-1">
+              <Link to="/investments">
                 Ver todos <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {investments.map((investment) => (
+              {investments.map((investment, index) => (
                 <div
                   key={investment.id}
-                  className="flex items-center justify-between rounded-lg border border-border p-4"
+                  className="flex items-center justify-between rounded-xl border border-border/50 p-4 transition-all duration-200 hover:border-primary/30 hover:shadow-md animate-fade-in-up"
+                  style={{ animationDelay: `${800 + index * 100}ms` }}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                      <Bot className="h-5 w-5 text-primary" />
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl gradient-primary shadow-glow">
+                      <Bot className="h-6 w-6 text-white" />
                     </div>
                     <div>
                       <p className="font-medium">{investment.robot?.name || 'Robô'}</p>
@@ -290,7 +303,7 @@ const Dashboard = () => {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-medium text-green-600">
+                    <p className="font-bold text-success">
                       +{formatCurrency(investment.profit_accumulated)}
                     </p>
                     <p className="text-sm text-muted-foreground">Lucro acumulado</p>
