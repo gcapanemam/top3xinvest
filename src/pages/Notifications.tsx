@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Bell, AlertTriangle, Info, Gift, CheckCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -69,13 +66,13 @@ const Notifications = () => {
   const getTypeIcon = (type: string) => {
     switch (type) {
       case 'alert':
-        return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
+        return <AlertTriangle className="h-5 w-5 text-yellow-400" />;
       case 'promo':
-        return <Gift className="h-5 w-5 text-green-500" />;
+        return <Gift className="h-5 w-5 text-green-400" />;
       case 'system':
-        return <Bell className="h-5 w-5 text-blue-500" />;
+        return <Bell className="h-5 w-5 text-blue-400" />;
       default:
-        return <Info className="h-5 w-5 text-muted-foreground" />;
+        return <Info className="h-5 w-5 text-gray-400" />;
     }
   };
 
@@ -84,7 +81,7 @@ const Notifications = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-teal-500 border-t-transparent" />
       </div>
     );
   }
@@ -93,8 +90,8 @@ const Notifications = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Notificações</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl font-bold text-white">Notificações</h1>
+          <p className="text-gray-400">
             {unreadCount > 0
               ? `${unreadCount} notificação(ões) não lida(s)`
               : 'Todas as notificações lidas'}
@@ -102,60 +99,61 @@ const Notifications = () => {
         </div>
 
         {unreadCount > 0 && (
-          <Button variant="outline" onClick={markAllAsRead} className="gap-2">
+          <button 
+            onClick={markAllAsRead} 
+            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[#1e2a3a] text-gray-300 font-medium transition-all hover:bg-[#1e2a3a] hover:text-white"
+          >
             <CheckCheck className="h-4 w-4" />
             Marcar todas como lidas
-          </Button>
+          </button>
         )}
       </div>
 
       {notifications.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Bell className="h-12 w-12 text-muted-foreground" />
-            <h3 className="mt-4 text-lg font-medium">Nenhuma notificação</h3>
-            <p className="text-muted-foreground">
-              Você será notificado sobre atividades importantes
-            </p>
-          </CardContent>
-        </Card>
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-12 text-center">
+          <Bell className="h-12 w-12 text-gray-400 mx-auto" />
+          <h3 className="mt-4 text-lg font-medium text-white">Nenhuma notificação</h3>
+          <p className="text-gray-400">
+            Você será notificado sobre atividades importantes
+          </p>
+        </div>
       ) : (
         <div className="space-y-3">
           {notifications.map((notification) => (
-            <Card
+            <div
               key={notification.id}
-              className={`cursor-pointer transition-colors hover:bg-accent/50 ${
-                !notification.is_read ? 'border-primary/50 bg-primary/5' : ''
+              className={`cursor-pointer rounded-xl bg-[#111820] border transition-all hover:border-teal-500/30 ${
+                !notification.is_read ? 'border-teal-500/50 bg-teal-500/5' : 'border-[#1e2a3a]'
               }`}
               onClick={() => markAsRead(notification.id)}
             >
-              <CardContent className="flex items-start gap-4 p-4">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted">
+              <div className="flex items-start gap-4 p-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#1e2a3a]">
                   {getTypeIcon(notification.type)}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-medium">{notification.title}</h3>
+                    <h3 className="font-medium text-white">{notification.title}</h3>
                     {!notification.is_read && (
-                      <Badge className="h-2 w-2 rounded-full bg-primary p-0" />
+                      <span className="h-2 w-2 rounded-full bg-teal-400" />
                     )}
                     {notification.is_global && (
-                      <Badge variant="outline" className="text-xs">
+                      <span className="px-2 py-0.5 rounded-full bg-[#1e2a3a] text-gray-400 text-xs">
                         Global
-                      </Badge>
+                      </span>
                     )}
                   </div>
-                  <p className="mt-1 text-sm text-muted-foreground">
+                  <p className="mt-1 text-sm text-gray-400">
                     {notification.message}
                   </p>
-                  <p className="mt-2 text-xs text-muted-foreground">
+                  <p className="mt-2 text-xs text-gray-500">
                     {format(new Date(notification.created_at), "dd 'de' MMM 'às' HH:mm", {
                       locale: ptBR,
                     })}
                   </p>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ))}
         </div>
       )}

@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,7 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Bell, Send, Users } from 'lucide-react';
+import { Send, Users } from 'lucide-react';
 
 interface UserProfile {
   user_id: string;
@@ -141,7 +139,7 @@ const AdminNotifications = () => {
   if (isLoading || !isAdmin) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-teal-500 border-t-transparent" />
       </div>
     );
   }
@@ -149,20 +147,18 @@ const AdminNotifications = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Enviar Notificações</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl font-bold text-white">Enviar Notificações</h1>
+        <p className="text-gray-400">
           Envie mensagens para usuários específicos ou para todos
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Nova Notificação</CardTitle>
-          <CardDescription>
-            Preencha os campos abaixo para enviar uma notificação
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <div className="rounded-xl bg-[#111820] border border-[#1e2a3a]">
+        <div className="p-6 border-b border-[#1e2a3a]">
+          <h2 className="text-lg font-semibold text-white">Nova Notificação</h2>
+          <p className="text-sm text-gray-400">Preencha os campos abaixo para enviar uma notificação</p>
+        </div>
+        <div className="p-6 space-y-4">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <Switch
@@ -171,7 +167,7 @@ const AdminNotifications = () => {
                   setFormData({ ...formData, isGlobal: checked, userId: '' })
                 }
               />
-              <Label className="flex items-center gap-2">
+              <Label className="flex items-center gap-2 text-gray-300">
                 <Users className="h-4 w-4" />
                 Enviar para todos os usuários
               </Label>
@@ -180,17 +176,17 @@ const AdminNotifications = () => {
 
           {!formData.isGlobal && (
             <div className="space-y-2">
-              <Label>Selecionar Usuário</Label>
+              <Label className="text-gray-300">Selecionar Usuário</Label>
               <Select
                 value={formData.userId}
                 onValueChange={(v) => setFormData({ ...formData, userId: v })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="bg-[#0a0f14] border-[#1e2a3a] text-white">
                   <SelectValue placeholder="Selecione um usuário" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-[#111820] border-[#1e2a3a]">
                   {users.map((user) => (
-                    <SelectItem key={user.user_id} value={user.user_id}>
+                    <SelectItem key={user.user_id} value={user.user_id} className="text-white hover:bg-[#1e2a3a]">
                       {user.full_name || 'Sem nome'} ({user.user_id.slice(0, 8)}...)
                     </SelectItem>
                   ))}
@@ -201,50 +197,56 @@ const AdminNotifications = () => {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="title">Título</Label>
+              <Label htmlFor="title" className="text-gray-300">Título</Label>
               <Input
                 id="title"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 placeholder="Título da notificação"
+                className="bg-[#0a0f14] border-[#1e2a3a] text-white placeholder:text-gray-500"
               />
             </div>
             <div className="space-y-2">
-              <Label>Tipo</Label>
+              <Label className="text-gray-300">Tipo</Label>
               <Select
                 value={formData.type}
                 onValueChange={(v) => setFormData({ ...formData, type: v })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="bg-[#0a0f14] border-[#1e2a3a] text-white">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="info">Informação</SelectItem>
-                  <SelectItem value="alert">Alerta</SelectItem>
-                  <SelectItem value="promo">Promoção</SelectItem>
-                  <SelectItem value="system">Sistema</SelectItem>
+                <SelectContent className="bg-[#111820] border-[#1e2a3a]">
+                  <SelectItem value="info" className="text-white hover:bg-[#1e2a3a]">Informação</SelectItem>
+                  <SelectItem value="alert" className="text-white hover:bg-[#1e2a3a]">Alerta</SelectItem>
+                  <SelectItem value="promo" className="text-white hover:bg-[#1e2a3a]">Promoção</SelectItem>
+                  <SelectItem value="system" className="text-white hover:bg-[#1e2a3a]">Sistema</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="message">Mensagem</Label>
+            <Label htmlFor="message" className="text-gray-300">Mensagem</Label>
             <Textarea
               id="message"
               value={formData.message}
               onChange={(e) => setFormData({ ...formData, message: e.target.value })}
               placeholder="Digite a mensagem..."
               rows={4}
+              className="bg-[#0a0f14] border-[#1e2a3a] text-white placeholder:text-gray-500"
             />
           </div>
 
-          <Button onClick={handleSubmit} disabled={isSubmitting} className="gap-2">
+          <button 
+            onClick={handleSubmit} 
+            disabled={isSubmitting} 
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium transition-all hover:shadow-lg hover:shadow-teal-500/25 disabled:opacity-50"
+          >
             <Send className="h-4 w-4" />
             {isSubmitting ? 'Enviando...' : 'Enviar Notificação'}
-          </Button>
-        </CardContent>
-      </Card>
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

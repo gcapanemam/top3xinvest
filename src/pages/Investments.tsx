@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Bot, TrendingUp, Calendar, Lock, Unlock } from 'lucide-react';
+import { Bot, TrendingUp, Lock, Unlock } from 'lucide-react';
 import { format, isPast } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -56,25 +54,45 @@ const Investments = () => {
     const isUnlocked = isPast(new Date(lockUntil));
 
     if (status === 'active' && isUnlocked) {
-      return <Badge className="bg-green-500">Disponível</Badge>;
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-500/20 text-green-400 text-xs font-medium">
+          Disponível
+        </span>
+      );
     }
 
     switch (status) {
       case 'active':
-        return <Badge variant="secondary">Em Lock</Badge>;
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-500/20 text-yellow-400 text-xs font-medium">
+            Em Lock
+          </span>
+        );
       case 'completed':
-        return <Badge className="bg-green-500">Finalizado</Badge>;
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-500/20 text-green-400 text-xs font-medium">
+            Finalizado
+          </span>
+        );
       case 'cancelled':
-        return <Badge variant="destructive">Cancelado</Badge>;
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-500/20 text-red-400 text-xs font-medium">
+            Cancelado
+          </span>
+        );
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-500/20 text-gray-400 text-xs font-medium">
+            {status}
+          </span>
+        );
     }
   };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-teal-500 border-t-transparent" />
       </div>
     );
   }
@@ -85,128 +103,106 @@ const Investments = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Meus Investimentos</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl font-bold text-white">Meus Investimentos</h1>
+        <p className="text-gray-400">
           Acompanhe seus investimentos e lucros
         </p>
       </div>
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Investido
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalInvested)}</div>
-          </CardContent>
-        </Card>
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6">
+          <p className="text-sm font-medium text-gray-400 mb-2">Total Investido</p>
+          <div className="text-2xl font-bold text-white">{formatCurrency(totalInvested)}</div>
+        </div>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Lucro Acumulado
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              +{formatCurrency(totalProfit)}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6">
+          <p className="text-sm font-medium text-gray-400 mb-2">Lucro Acumulado</p>
+          <div className="text-2xl font-bold text-green-400">
+            +{formatCurrency(totalProfit)}
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Investimentos Ativos
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {investments.filter((i) => i.status === 'active').length}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6">
+          <p className="text-sm font-medium text-gray-400 mb-2">Investimentos Ativos</p>
+          <div className="text-2xl font-bold text-white">
+            {investments.filter((i) => i.status === 'active').length}
+          </div>
+        </div>
       </div>
 
       {/* Investments List */}
       {investments.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Bot className="h-12 w-12 text-muted-foreground" />
-            <h3 className="mt-4 text-lg font-medium">Nenhum investimento ainda</h3>
-            <p className="text-muted-foreground">
-              Escolha um robô e faça seu primeiro investimento
-            </p>
-          </CardContent>
-        </Card>
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-12 text-center">
+          <Bot className="h-12 w-12 text-gray-400 mx-auto" />
+          <h3 className="mt-4 text-lg font-medium text-white">Nenhum investimento ainda</h3>
+          <p className="text-gray-400">
+            Escolha um robô e faça seu primeiro investimento
+          </p>
+        </div>
       ) : (
         <div className="space-y-4">
           {investments.map((investment) => {
             const isUnlocked = isPast(new Date(investment.lock_until));
 
             return (
-              <Card key={investment.id}>
-                <CardContent className="p-6">
-                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                        <Bot className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold">
-                            {investment.robot?.name || 'Robô'}
-                          </h3>
-                          {getStatusBadge(investment.status, investment.lock_until)}
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {investment.robot?.profit_percentage}% /{' '}
-                          {investment.robot?.profit_period_days} dias
-                        </p>
-                      </div>
+              <div key={investment.id} className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-teal-500/20 to-cyan-500/20">
+                      <Bot className="h-6 w-6 text-teal-400" />
                     </div>
-
-                    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Investido</p>
-                        <p className="font-medium">{formatCurrency(investment.amount)}</p>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-white">
+                          {investment.robot?.name || 'Robô'}
+                        </h3>
+                        {getStatusBadge(investment.status, investment.lock_until)}
                       </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Lucro</p>
-                        <p className="font-medium text-green-600">
-                          +{formatCurrency(investment.profit_accumulated)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Início</p>
-                        <p className="font-medium">
-                          {format(new Date(investment.created_at), 'dd/MM/yy', {
-                            locale: ptBR,
-                          })}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                          {isUnlocked ? (
-                            <Unlock className="h-3 w-3" />
-                          ) : (
-                            <Lock className="h-3 w-3" />
-                          )}
-                          Liberação
-                        </p>
-                        <p className="font-medium">
-                          {format(new Date(investment.lock_until), 'dd/MM/yy', {
-                            locale: ptBR,
-                          })}
-                        </p>
-                      </div>
+                      <p className="text-sm text-gray-400">
+                        {investment.robot?.profit_percentage}% /{' '}
+                        {investment.robot?.profit_period_days} dias
+                      </p>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+
+                  <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                    <div>
+                      <p className="text-xs text-gray-400">Investido</p>
+                      <p className="font-medium text-white">{formatCurrency(investment.amount)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400">Lucro</p>
+                      <p className="font-medium text-green-400">
+                        +{formatCurrency(investment.profit_accumulated)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400">Início</p>
+                      <p className="font-medium text-white">
+                        {format(new Date(investment.created_at), 'dd/MM/yy', {
+                          locale: ptBR,
+                        })}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="flex items-center gap-1 text-xs text-gray-400">
+                        {isUnlocked ? (
+                          <Unlock className="h-3 w-3 text-green-400" />
+                        ) : (
+                          <Lock className="h-3 w-3 text-yellow-400" />
+                        )}
+                        Liberação
+                      </p>
+                      <p className="font-medium text-white">
+                        {format(new Date(investment.lock_until), 'dd/MM/yy', {
+                          locale: ptBR,
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             );
           })}
         </div>

@@ -18,15 +18,14 @@ export const DashboardLayout = () => {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
+      <div className="flex min-h-screen items-center justify-center bg-[#0a0f14]">
         <div className="flex flex-col items-center gap-4">
           <div className="relative">
-            <div className="h-16 w-16 rounded-2xl gradient-primary flex items-center justify-center shadow-glow animate-pulse-soft">
+            <div className="h-16 w-16 rounded-2xl bg-gradient-to-r from-teal-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-teal-500/25 animate-pulse">
               <Bot className="h-8 w-8 text-white" />
             </div>
-            <div className="absolute inset-0 rounded-2xl animate-glow-pulse" />
           </div>
-          <p className="text-muted-foreground animate-fade-in-up">Carregando...</p>
+          <p className="text-gray-400 animate-pulse">Carregando...</p>
         </div>
       </div>
     );
@@ -37,11 +36,11 @@ export const DashboardLayout = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+    <div className="min-h-screen bg-[#0a0f14]">
       {/* Background decorations */}
       <div className="fixed inset-0 -z-10 overflow-hidden">
-        <div className="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-primary/5 blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-accent/5 blur-3xl" />
+        <div className="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-teal-500/5 blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-cyan-500/5 blur-3xl" />
       </div>
 
       <Sidebar />
