@@ -228,27 +228,27 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Welcome */}
       <div>
-        <h1 className="text-2xl font-bold text-white">
+        <h1 className="text-xl md:text-2xl font-bold text-white">
           Olá, {profile?.full_name || user?.user_metadata?.full_name || 'Investidor'}! 👋
         </h1>
-        <p className="text-gray-400">
+        <p className="text-sm md:text-base text-gray-400">
           Bem-vindo ao seu painel de investimentos
         </p>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 transition-all hover:border-teal-500/50 hover:scale-[1.02] animate-fade-in-up">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-sm font-medium text-gray-400">Saldo Disponível</span>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-500/10">
-              <Wallet className="h-5 w-5 text-teal-400" />
+      <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-4 md:p-6 transition-all hover:border-teal-500/50 hover:scale-[1.02] animate-fade-in-up">
+          <div className="flex items-center justify-between mb-3 md:mb-4">
+            <span className="text-xs md:text-sm font-medium text-gray-400">Saldo Disponível</span>
+            <div className="flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-xl bg-teal-500/10">
+              <Wallet className="h-4 w-4 md:h-5 md:w-5 text-teal-400" />
             </div>
           </div>
-          <div className="text-2xl font-bold text-teal-400">
+          <div className="text-xl md:text-2xl font-bold text-teal-400">
             {formatCurrency(profile?.balance || 0)}
           </div>
           <p className="text-xs text-gray-500 mt-1">
@@ -256,40 +256,40 @@ const Dashboard = () => {
           </p>
         </div>
 
-        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 transition-all hover:border-cyan-500/50 hover:scale-[1.02] animate-fade-in-up" style={{ animationDelay: '100ms' }}>
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-sm font-medium text-gray-400">Total Investido</span>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10">
-              <Bot className="h-5 w-5 text-cyan-400" />
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-4 md:p-6 transition-all hover:border-cyan-500/50 hover:scale-[1.02] animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+          <div className="flex items-center justify-between mb-3 md:mb-4">
+            <span className="text-xs md:text-sm font-medium text-gray-400">Total Investido</span>
+            <div className="flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-xl bg-cyan-500/10">
+              <Bot className="h-4 w-4 md:h-5 md:w-5 text-cyan-400" />
             </div>
           </div>
-          <div className="text-2xl font-bold text-white">{formatCurrency(totalInvested)}</div>
+          <div className="text-xl md:text-2xl font-bold text-white">{formatCurrency(totalInvested)}</div>
           <p className="text-xs text-gray-500 mt-1">
             Em {investments.length} robôs ativos
           </p>
         </div>
 
-        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 transition-all hover:border-green-500/50 hover:scale-[1.02] animate-fade-in-up" style={{ animationDelay: '200ms' }}>
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-sm font-medium text-gray-400">Lucro Acumulado</span>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-500/10">
-              <TrendingUp className="h-5 w-5 text-green-400" />
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-4 md:p-6 transition-all hover:border-green-500/50 hover:scale-[1.02] animate-fade-in-up" style={{ animationDelay: '200ms' }}>
+          <div className="flex items-center justify-between mb-3 md:mb-4">
+            <span className="text-xs md:text-sm font-medium text-gray-400">Lucro Acumulado</span>
+            <div className="flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-xl bg-green-500/10">
+              <TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-green-400" />
             </div>
           </div>
-          <div className="text-2xl font-bold text-green-400">{formatCurrency(totalProfit)}</div>
+          <div className="text-xl md:text-2xl font-bold text-green-400">{formatCurrency(totalProfit)}</div>
           <p className="text-xs text-gray-500 mt-1">
             Rendimentos dos robôs
           </p>
         </div>
 
-        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 transition-all hover:border-yellow-500/50 hover:scale-[1.02] animate-fade-in-up" style={{ animationDelay: '300ms' }}>
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-sm font-medium text-gray-400">Patrimônio Total</span>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-500/10">
-              <Sparkles className="h-5 w-5 text-yellow-400" />
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-4 md:p-6 transition-all hover:border-yellow-500/50 hover:scale-[1.02] animate-fade-in-up" style={{ animationDelay: '300ms' }}>
+          <div className="flex items-center justify-between mb-3 md:mb-4">
+            <span className="text-xs md:text-sm font-medium text-gray-400">Patrimônio Total</span>
+            <div className="flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-xl bg-yellow-500/10">
+              <Sparkles className="h-4 w-4 md:h-5 md:w-5 text-yellow-400" />
             </div>
           </div>
-          <div className="text-2xl font-bold text-white">
+          <div className="text-xl md:text-2xl font-bold text-white">
             {formatCurrency((profile?.balance || 0) + totalInvested + totalProfit)}
           </div>
           <p className="text-xs text-gray-500 mt-1">
@@ -299,11 +299,11 @@ const Dashboard = () => {
       </div>
 
       {/* Charts Section */}
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-4 md:gap-6 lg:grid-cols-3">
         {/* Area Chart - Fluxo Financeiro */}
-        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 lg:col-span-2 animate-fade-in-up">
-          <h2 className="text-lg font-semibold text-white mb-6">Fluxo Financeiro Anual</h2>
-          <div className="h-80">
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-4 md:p-6 lg:col-span-2 transition-all hover:border-teal-500/50 hover:scale-[1.01] animate-fade-in-up">
+          <h2 className="text-base md:text-lg font-semibold text-white mb-4 md:mb-6">Fluxo Financeiro Anual</h2>
+          <div className="h-60 md:h-80">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={monthlyData}>
                 <defs>
@@ -389,8 +389,8 @@ const Dashboard = () => {
         </div>
 
         {/* Pie Chart - Investimentos por Robo */}
-        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 animate-fade-in-up" style={{ animationDelay: '150ms' }}>
-          <h2 className="text-lg font-semibold text-white mb-6">Investimentos por Robô</h2>
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-4 md:p-6 transition-all hover:border-purple-500/50 hover:scale-[1.02] animate-fade-in-up" style={{ animationDelay: '150ms' }}>
+          <h2 className="text-base md:text-lg font-semibold text-white mb-4 md:mb-6">Investimentos por Robô</h2>
           {robotDistribution.length > 0 ? (
             <>
               <div className="h-52">
@@ -456,70 +456,70 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 md:gap-6 grid-cols-1 lg:grid-cols-2">
         {/* Quick Actions */}
-        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6">
-          <h2 className="text-lg font-semibold text-white mb-2">Ações Rápidas</h2>
-          <p className="text-sm text-gray-400 mb-4">O que você deseja fazer hoje?</p>
-          <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-4 md:p-6 transition-all hover:border-teal-500/50 hover:scale-[1.02]">
+          <h2 className="text-base md:text-lg font-semibold text-white mb-2">Ações Rápidas</h2>
+          <p className="text-xs md:text-sm text-gray-400 mb-3 md:mb-4">O que você deseja fazer hoje?</p>
+          <div className="grid gap-2 md:gap-3 grid-cols-2">
             <Link 
               to="/deposits"
-              className="flex flex-col items-center gap-2 py-4 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium transition-all hover:shadow-lg hover:shadow-teal-500/25"
+              className="flex flex-col items-center gap-1.5 md:gap-2 py-3 md:py-4 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white text-sm md:text-base font-medium transition-all hover:shadow-lg hover:shadow-teal-500/25 hover:scale-105"
             >
-              <Plus className="h-5 w-5" />
+              <Plus className="h-4 w-4 md:h-5 md:w-5" />
               <span>Depositar</span>
             </Link>
             <Link 
               to="/robots"
-              className="flex flex-col items-center gap-2 py-4 rounded-xl border border-[#1e2a3a] text-gray-300 font-medium transition-all hover:bg-[#1e2a3a] hover:text-white"
+              className="flex flex-col items-center gap-1.5 md:gap-2 py-3 md:py-4 rounded-xl border border-[#1e2a3a] text-gray-300 text-sm md:text-base font-medium transition-all hover:bg-[#1e2a3a] hover:text-white hover:scale-105"
             >
-              <Bot className="h-5 w-5" />
+              <Bot className="h-4 w-4 md:h-5 md:w-5" />
               <span>Ver Robôs</span>
             </Link>
             <Link 
               to="/investments"
-              className="flex flex-col items-center gap-2 py-4 rounded-xl border border-[#1e2a3a] text-gray-300 font-medium transition-all hover:bg-[#1e2a3a] hover:text-white"
+              className="flex flex-col items-center gap-1.5 md:gap-2 py-3 md:py-4 rounded-xl border border-[#1e2a3a] text-gray-300 text-sm md:text-base font-medium transition-all hover:bg-[#1e2a3a] hover:text-white hover:scale-105"
             >
-              <TrendingUp className="h-5 w-5" />
-              <span>Meus Investimentos</span>
+              <TrendingUp className="h-4 w-4 md:h-5 md:w-5" />
+              <span>Investimentos</span>
             </Link>
             <Link 
               to="/withdrawals"
-              className="flex flex-col items-center gap-2 py-4 rounded-xl border border-[#1e2a3a] text-gray-300 font-medium transition-all hover:bg-[#1e2a3a] hover:text-white"
+              className="flex flex-col items-center gap-1.5 md:gap-2 py-3 md:py-4 rounded-xl border border-[#1e2a3a] text-gray-300 text-sm md:text-base font-medium transition-all hover:bg-[#1e2a3a] hover:text-white hover:scale-105"
             >
-              <Wallet className="h-5 w-5" />
+              <Wallet className="h-4 w-4 md:h-5 md:w-5" />
               <span>Sacar</span>
             </Link>
           </div>
         </div>
 
         {/* Crypto Prices */}
-        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6">
-          <div className="flex items-center justify-between mb-4">
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-4 md:p-6 transition-all hover:border-cyan-500/50 hover:scale-[1.02]">
+          <div className="flex items-center justify-between mb-3 md:mb-4">
             <div>
-              <h2 className="text-lg font-semibold text-white">Cotações</h2>
-              <p className="text-sm text-gray-400">Preços das principais criptos</p>
+              <h2 className="text-base md:text-lg font-semibold text-white">Cotações</h2>
+              <p className="text-xs md:text-sm text-gray-400">Preços das principais criptos</p>
             </div>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-2 md:space-y-3">
             {cryptos.map((crypto) => (
               <div
                 key={crypto.id}
-                className="flex items-center justify-between rounded-xl border border-[#1e2a3a] p-3 transition-all duration-200 hover:border-teal-500/30 hover:bg-[#0a0f14]/50"
+                className="flex items-center justify-between rounded-xl border border-[#1e2a3a] p-2.5 md:p-3 transition-all duration-200 hover:border-teal-500/30 hover:bg-[#0a0f14]/50 hover:scale-[1.02]"
               >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-teal-500 to-cyan-500 text-sm font-bold text-white">
+                <div className="flex items-center gap-2 md:gap-3">
+                  <div className="flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full bg-gradient-to-r from-teal-500 to-cyan-500 text-xs md:text-sm font-bold text-white">
                     {crypto.symbol.slice(0, 2)}
                   </div>
                   <div>
-                    <p className="font-medium text-white">{crypto.name}</p>
-                    <p className="text-sm text-gray-400">{crypto.symbol}</p>
+                    <p className="text-sm md:text-base font-medium text-white">{crypto.name}</p>
+                    <p className="text-xs md:text-sm text-gray-400">{crypto.symbol}</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-medium text-white">{formatCrypto(crypto.current_price)}</p>
+                  <p className="text-sm md:text-base font-medium text-white">{formatCrypto(crypto.current_price)}</p>
                   <p
-                    className={`flex items-center justify-end text-sm font-medium ${
+                    className={`flex items-center justify-end text-xs md:text-sm font-medium ${
                       crypto.price_change_24h >= 0 ? 'text-green-400' : 'text-red-400'
                     }`}
                   >
@@ -539,41 +539,41 @@ const Dashboard = () => {
 
       {/* Active Investments */}
       {investments.length > 0 && (
-        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6">
-          <div className="flex items-center justify-between mb-4">
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-4 md:p-6 transition-all hover:border-green-500/50 hover:scale-[1.01]">
+          <div className="flex items-center justify-between mb-3 md:mb-4">
             <div>
-              <h2 className="text-lg font-semibold text-white">Investimentos Ativos</h2>
-              <p className="text-sm text-gray-400">Seus robôs em operação</p>
+              <h2 className="text-base md:text-lg font-semibold text-white">Investimentos Ativos</h2>
+              <p className="text-xs md:text-sm text-gray-400">Seus robôs em operação</p>
             </div>
             <Link 
               to="/investments"
-              className="flex items-center gap-1 text-sm text-teal-400 hover:text-teal-300"
+              className="flex items-center gap-1 text-xs md:text-sm text-teal-400 hover:text-teal-300"
             >
-              Ver todos <ArrowRight className="h-4 w-4" />
+              Ver todos <ArrowRight className="h-3 w-3 md:h-4 md:w-4" />
             </Link>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-2 md:space-y-3">
             {investments.map((investment) => (
               <div
                 key={investment.id}
-                className="flex items-center justify-between rounded-xl border border-[#1e2a3a] p-4 transition-all duration-200 hover:border-teal-500/30"
+                className="flex items-center justify-between rounded-xl border border-[#1e2a3a] p-3 md:p-4 transition-all duration-200 hover:border-teal-500/30 hover:scale-[1.02]"
               >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 shadow-lg shadow-teal-500/25">
-                    <Bot className="h-6 w-6 text-white" />
+                <div className="flex items-center gap-2 md:gap-3">
+                  <div className="flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 shadow-lg shadow-teal-500/25">
+                    <Bot className="h-5 w-5 md:h-6 md:w-6 text-white" />
                   </div>
                   <div>
-                    <p className="font-medium text-white">{investment.robot?.name || 'Robô'}</p>
-                    <p className="text-sm text-gray-400">
+                    <p className="text-sm md:text-base font-medium text-white">{investment.robot?.name || 'Robô'}</p>
+                    <p className="text-xs md:text-sm text-gray-400">
                       Investido: {formatCurrency(investment.amount)}
                     </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-bold text-green-400">
+                  <p className="text-sm md:text-base font-bold text-green-400">
                     +{formatCurrency(investment.profit_accumulated)}
                   </p>
-                  <p className="text-sm text-gray-400">Lucro acumulado</p>
+                  <p className="text-xs md:text-sm text-gray-400">Lucro acumulado</p>
                 </div>
               </div>
             ))}

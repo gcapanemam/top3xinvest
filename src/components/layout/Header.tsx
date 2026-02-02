@@ -1,5 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
-import { Bell, User, LogOut, Settings } from 'lucide-react';
+import { Bell, User, LogOut, Settings, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -11,9 +11,15 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Link } from 'react-router-dom';
+import { useIsMobile } from '@/hooks/use-mobile';
 
-export const Header = () => {
+interface HeaderProps {
+  onMenuClick?: () => void;
+}
+
+export const Header = ({ onMenuClick }: HeaderProps) => {
   const { user, isAdmin, signOut } = useAuth();
+  const isMobile = useIsMobile();
 
   const getInitials = () => {
     if (user?.user_metadata?.full_name) {
@@ -28,10 +34,23 @@ export const Header = () => {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[#1e2a3a] bg-[#0a0f14]/90 px-6 backdrop-blur-xl">
-      <div className="flex items-center gap-4">
-        <h1 className="text-lg font-semibold text-white">
-          {isAdmin ? 'Painel Administrativo' : 'Minha Conta'}
+    <header className="sticky top-0 z-30 flex h-14 md:h-16 items-center justify-between border-b border-[#1e2a3a] bg-[#0a0f14]/90 px-4 md:px-6 backdrop-blur-xl">
+      <div className="flex items-center gap-3 md:gap-4">
+        {/* Menu hamburger em mobile */}
+        {isMobile && (
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={onMenuClick}
+            className="hover:bg-[#111820] text-gray-400"
+            aria-label="Abrir menu"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+        )}
+        
+        <h1 className="text-base md:text-lg font-semibold text-white">
+          {isAdmin ? 'Painel Admin' : 'Minha Conta'}
         </h1>
       </div>
 

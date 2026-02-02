@@ -4,17 +4,27 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { Bot } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
 
 export const DashboardLayout = () => {
   const { user, isLoading } = useAuth();
   const navigate = useNavigate();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const isMobile = useIsMobile();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !user) {
       navigate('/auth');
     }
   }, [user, isLoading, navigate]);
+
+  // Fechar sidebar ao mudar de rota em mobile
+  useEffect(() => {
+    if (isMobile) {
+      setSidebarOpen(false);
+    }
+  }, [isMobile]);
 
   if (isLoading) {
     return (
@@ -43,10 +53,26 @@ export const DashboardLayout = () => {
         <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-cyan-500/5 blur-3xl" />
       </div>
 
-      <Sidebar />
-      <div className={`transition-all duration-300 ${sidebarCollapsed ? 'pl-20' : 'pl-64'}`}>
-        <Header />
-        <main className="p-6">
+      <Sidebar 
+        isOpen={sidebarOpen} 
+        onClose={() => setSidebarOpen(false)} 
+      />
+      
+      {/* Overlay para mobile quando sidebar aberta */}
+      {isMobile && sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-30 transition-opacity"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+      
+      <div className={cn(
+        "transition-all duration-300",
+        isMobile ? "pl-0" : "pl-64"
+      )}>
+        <Header onMenuClick={() => setSidebarOpen(true)} />
+        <main className="p-4 md:p-6">
           <Outlet />
         </main>
       </div>
