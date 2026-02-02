@@ -241,7 +241,7 @@ const Dashboard = () => {
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 transition-all hover:border-teal-500/50">
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 transition-all hover:border-teal-500/50 animate-fade-in-up">
           <div className="flex items-center justify-between mb-4">
             <span className="text-sm font-medium text-gray-400">Saldo Disponível</span>
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-500/10">
@@ -256,7 +256,7 @@ const Dashboard = () => {
           </p>
         </div>
 
-        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 transition-all hover:border-cyan-500/50">
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 transition-all hover:border-cyan-500/50 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
           <div className="flex items-center justify-between mb-4">
             <span className="text-sm font-medium text-gray-400">Total Investido</span>
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10">
@@ -269,7 +269,7 @@ const Dashboard = () => {
           </p>
         </div>
 
-        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 transition-all hover:border-green-500/50">
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 transition-all hover:border-green-500/50 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
           <div className="flex items-center justify-between mb-4">
             <span className="text-sm font-medium text-gray-400">Lucro Acumulado</span>
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-500/10">
@@ -282,7 +282,7 @@ const Dashboard = () => {
           </p>
         </div>
 
-        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 transition-all hover:border-yellow-500/50">
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 transition-all hover:border-yellow-500/50 animate-fade-in-up" style={{ animationDelay: '300ms' }}>
           <div className="flex items-center justify-between mb-4">
             <span className="text-sm font-medium text-gray-400">Patrimônio Total</span>
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-500/10">
