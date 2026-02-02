@@ -1,15 +1,24 @@
 
-# Plano: Adicionar Animacoes de Hover com Scale nos Cards de Estatisticas
+# Plano: Aplicar Animacoes de Hover nos Cards de Acoes Rapidas e Graficos
 
 ## Visao Geral
 
-Adicionar efeito de escala (scale) ao passar o mouse sobre os cards de estatisticas para criar um feedback visual mais dinamico e interativo. O efeito sera sutil para manter a elegancia do design.
+Aplicar as mesmas animacoes de hover com scale (1.02) e bordas coloridas nos cards de graficos e acoes rapidas para manter consistencia visual em todo o dashboard.
 
-## Efeito a Implementar
+## Cards a Atualizar
 
-- Escala de 1.02 (2% de aumento) ao hover
-- Transicao suave de 200ms
-- Combinado com os efeitos de borda colorida ja existentes
+### 1. Cards de Graficos
+- Card do Area Chart (Fluxo Financeiro Anual)
+- Card do Pie Chart (Investimentos por Robo)
+
+### 2. Cards de Acoes Rapidas e Cotacoes
+- Card container de Acoes Rapidas
+- Card container de Cotacoes
+- Botoes de acao individuais (Depositar, Ver Robos, etc.)
+
+### 3. Card de Investimentos Ativos
+- Card container principal
+- Cards individuais de cada investimento
 
 ---
 
@@ -19,65 +28,106 @@ Adicionar efeito de escala (scale) ao passar o mouse sobre os cards de estatisti
 
 | Arquivo | Acao |
 |---------|------|
-| src/pages/Dashboard.tsx | Adicionar classes hover:scale nos cards |
+| src/pages/Dashboard.tsx | Adicionar classes de hover em todos os cards |
 
-### Alteracoes nos Cards
+### 1. Card do Area Chart (linha 304)
 
-Adicionar `hover:scale-[1.02]` em cada card de estatisticas. A classe `transition-all` ja existe e garantira uma transicao suave.
-
-**Card 1 - Saldo Disponivel (linha 244)**
 ```tsx
-<div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 transition-all hover:border-teal-500/50 hover:scale-[1.02] animate-fade-in-up">
+// De:
+<div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 lg:col-span-2 animate-fade-in-up">
+
+// Para:
+<div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 lg:col-span-2 transition-all hover:border-teal-500/50 hover:scale-[1.01] animate-fade-in-up">
 ```
 
-**Card 2 - Total Investido (linha 259)**
+### 2. Card do Pie Chart (linha 392)
+
 ```tsx
-<div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 transition-all hover:border-cyan-500/50 hover:scale-[1.02] animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+// De:
+<div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 animate-fade-in-up" style={{ animationDelay: '150ms' }}>
+
+// Para:
+<div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 transition-all hover:border-purple-500/50 hover:scale-[1.02] animate-fade-in-up" style={{ animationDelay: '150ms' }}>
 ```
 
-**Card 3 - Lucro Acumulado (linha 272)**
+### 3. Card de Acoes Rapidas (linha 461)
+
 ```tsx
-<div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 transition-all hover:border-green-500/50 hover:scale-[1.02] animate-fade-in-up" style={{ animationDelay: '200ms' }}>
+// De:
+<div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6">
+
+// Para:
+<div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 transition-all hover:border-teal-500/50 hover:scale-[1.02]">
 ```
 
-**Card 4 - Patrimonio Total (linha 285)**
+### 4. Botoes de Acao Rapida (linhas 465-492)
+
+Adicionar `hover:scale-105` nos botoes internos:
+
 ```tsx
-<div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 transition-all hover:border-yellow-500/50 hover:scale-[1.02] animate-fade-in-up" style={{ animationDelay: '300ms' }}>
+// Botao Depositar (ja tem hover shadow)
+className="... transition-all hover:shadow-lg hover:shadow-teal-500/25 hover:scale-105"
+
+// Botoes Ver Robos, Meus Investimentos, Sacar
+className="... transition-all hover:bg-[#1e2a3a] hover:text-white hover:scale-105"
+```
+
+### 5. Card de Cotacoes (linha 497)
+
+```tsx
+// De:
+<div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6">
+
+// Para:
+<div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 transition-all hover:border-cyan-500/50 hover:scale-[1.02]">
+```
+
+### 6. Cards de Crypto individuais (linha 508)
+
+```tsx
+// De:
+className="... transition-all duration-200 hover:border-teal-500/30 hover:bg-[#0a0f14]/50"
+
+// Para:
+className="... transition-all duration-200 hover:border-teal-500/30 hover:bg-[#0a0f14]/50 hover:scale-[1.02]"
+```
+
+### 7. Card de Investimentos Ativos (linha 542)
+
+```tsx
+// De:
+<div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6">
+
+// Para:
+<div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 transition-all hover:border-green-500/50 hover:scale-[1.01]">
+```
+
+### 8. Cards de investimento individuais (linha 559)
+
+```tsx
+// De:
+className="... transition-all duration-200 hover:border-teal-500/30"
+
+// Para:
+className="... transition-all duration-200 hover:border-teal-500/30 hover:scale-[1.02]"
 ```
 
 ### Resumo das Alteracoes
 
-| Card | Classe Adicionada |
-|------|------------------|
-| Saldo Disponivel | hover:scale-[1.02] |
-| Total Investido | hover:scale-[1.02] |
-| Lucro Acumulado | hover:scale-[1.02] |
-| Patrimonio Total | hover:scale-[1.02] |
+| Elemento | Scale | Border Color |
+|----------|-------|--------------|
+| Card Area Chart | 1.01 (menor por ser grande) | teal-500/50 |
+| Card Pie Chart | 1.02 | purple-500/50 |
+| Card Acoes Rapidas | 1.02 | teal-500/50 |
+| Botoes de Acao | 1.05 (mais destaque) | - |
+| Card Cotacoes | 1.02 | cyan-500/50 |
+| Cards Crypto | 1.02 | - (ja tem) |
+| Card Investimentos Ativos | 1.01 (menor por ser grande) | green-500/50 |
+| Cards Investimento | 1.02 | - (ja tem) |
 
-### Por que scale-[1.02]?
+### Notas de Design
 
-- **Sutil**: 2% de aumento e imperceptivel consciente mas cria sensacao de resposta
-- **Performatico**: Transform scale usa GPU e nao causa reflow
-- **Elegante**: Combina com o design premium dark do projeto
-- **Consistente**: Segue o padrao de micro-interacoes do projeto
-
-### Resultado Visual
-
-```text
-Estado Normal:
-+------------------+
-|  Card            |
-|  Scale: 1.0      |
-+------------------+
-
-Estado Hover:
-+--------------------+
-|   Card             |
-|   Scale: 1.02      |
-|   Border Colorida  |
-+--------------------+
-```
-
-### Acessibilidade
-
-O efeito de scale respeita automaticamente `prefers-reduced-motion` quando combinado com a classe `transition-all` do Tailwind.
+- **Cards grandes (graficos, investimentos)**: scale-[1.01] para evitar sobreposicao
+- **Cards medios**: scale-[1.02] padrao
+- **Botoes pequenos**: scale-105 para feedback mais visivel
+- **Cores de borda**: seguem o esquema de cores ja estabelecido no projeto
