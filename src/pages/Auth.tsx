@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { z } from 'zod';
-import { Bot, TrendingUp, Shield, ArrowRight, Sparkles, Gift } from 'lucide-react';
+import { Bot, TrendingUp, Shield, ArrowRight, Sparkles, Gift, Mail } from 'lucide-react';
 
 const emailSchema = z.string().email('Email inválido');
 const passwordSchema = z.string().min(6, 'Senha deve ter pelo menos 6 caracteres');
@@ -18,7 +18,7 @@ const nameSchema = z.string().min(2, 'Nome deve ter pelo menos 2 caracteres');
 const Auth = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user, signIn, signUp, isLoading } = useAuth();
+  const { user, signIn, signUp, resetPassword, isLoading } = useAuth();
   const { toast } = useToast();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -28,6 +28,11 @@ const Auth = () => {
   const [registerEmail, setRegisterEmail] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
   const [registerConfirmPassword, setRegisterConfirmPassword] = useState('');
+  
+  // Forgot password modal state
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+  const [isSendingReset, setIsSendingReset] = useState(false);
 
   // Capturar código de indicação da URL
   const referralCode = searchParams.get('ref') || '';
@@ -144,6 +149,42 @@ const Auth = () => {
       }
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSendingReset(true);
+
+    try {
+      emailSchema.parse(forgotPasswordEmail);
+
+      const { error } = await resetPassword(forgotPasswordEmail);
+
+      if (error) {
+        toast({
+          title: 'Erro',
+          description: 'Não foi possível enviar o email de recuperação. Tente novamente.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Email enviado!',
+          description: 'Verifique sua caixa de entrada para redefinir sua senha.',
+        });
+        setShowForgotPassword(false);
+        setForgotPasswordEmail('');
+      }
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        toast({
+          title: 'Erro de validação',
+          description: err.errors[0].message,
+          variant: 'destructive',
+        });
+      }
+    } finally {
+      setIsSendingReset(false);
     }
   };
 
@@ -285,6 +326,13 @@ const Auth = () => {
                       {isSubmitting ? 'Entrando...' : 'Entrar'}
                       <ArrowRight className="h-4 w-4" />
                     </button>
+                    <button 
+                      type="button"
+                      onClick={() => setShowForgotPassword(true)}
+                      className="w-full text-center text-sm text-teal-400 hover:text-teal-300 transition-colors mt-2"
+                    >
+                      Esqueci minha senha
+                    </button>
                   </form>
                 </TabsContent>
 
@@ -349,6 +397,43 @@ const Auth = () => {
           </Card>
         </div>
       </div>
+
+      {/* Forgot Password Modal */}
+      <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
+        <DialogContent className="bg-[#111820] border-[#1e2a3a] sm:max-w-md">
+          <DialogHeader>
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 shadow-lg shadow-teal-500/25">
+              <Mail className="h-6 w-6 text-white" />
+            </div>
+            <DialogTitle className="text-center text-white">Recuperar senha</DialogTitle>
+            <DialogDescription className="text-center text-gray-400">
+              Digite seu email para receber o link de recuperação
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleForgotPassword} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="forgot-email" className="text-gray-300">Email</Label>
+              <Input
+                id="forgot-email"
+                type="email"
+                placeholder="seu@email.com"
+                value={forgotPasswordEmail}
+                onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                required
+                className="h-11 rounded-xl bg-[#0a0f14] border-[#1e2a3a] text-white placeholder:text-gray-500 focus:border-teal-500 focus:ring-teal-500"
+              />
+            </div>
+            <button 
+              type="submit" 
+              className="w-full h-11 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium transition-all hover:shadow-lg hover:shadow-teal-500/25 flex items-center justify-center gap-2 disabled:opacity-50" 
+              disabled={isSendingReset}
+            >
+              {isSendingReset ? 'Enviando...' : 'Enviar link de recuperação'}
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

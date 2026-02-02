@@ -16,6 +16,7 @@ import Withdrawals from "./pages/Withdrawals";
 import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
 import MLMNetwork from "./pages/MLMNetwork";
+import ResetPassword from "./pages/ResetPassword";
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -41,6 +42,7 @@ const App = () => (
             {/* Public Routes */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/auth/reset-password" element={<ResetPassword />} />
 
             {/* Protected Routes - User */}
             <Route element={<DashboardLayout />}>
