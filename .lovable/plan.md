@@ -1,27 +1,34 @@
 
-# Plano: Adicionar Animacoes de Entrada nos Graficos
+# Plano: Adicionar Animacoes de Entrada nos Cards de Estatisticas
 
 ## Visao Geral
 
-Adicionar animacoes suaves de entrada nos graficos do dashboard para melhorar a experiencia visual do usuario. O recharts ja possui suporte nativo para animacoes, entao vamos habilitar e configurar essas animacoes.
+Adicionar animacoes de entrada suaves e escalonadas nos 4 cards de estatisticas do dashboard (Saldo Disponivel, Total Investido, Lucro Acumulado, Patrimonio Total) para criar uma experiencia visual mais dinamica e profissional.
 
 ## Animacoes a Implementar
 
-### 1. Grafico de Area (Fluxo Financeiro Anual)
-- Animacao de desenho progressivo das areas
-- Duracao de 1.5 segundos
-- Easing suave (easeInOutCubic)
-- Delay escalonado entre as linhas
+### Cards de Estatisticas
+- Animacao `animate-fade-in-up` em cada card
+- Delay escalonado entre os cards (0ms, 100ms, 200ms, 300ms)
+- Efeito de entrada progressiva da esquerda para direita
 
-### 2. Grafico de Rosca (Investimentos por Robo)
-- Animacao de crescimento radial do centro para fora
-- Duracao de 1 segundo
-- Efeito de "desenrolar" dos segmentos
+## Visual Esperado
 
-### 3. Containers dos Graficos
-- Animacao fade-in-up nos cards
-- Delay escalonado entre os dois graficos
-- Classes CSS ja disponiveis no projeto (animate-fade-in-up)
+```text
+Carregamento da pagina:
+   |
+   v (0ms)
+[Card 1: Saldo Disponivel - fade-in-up]
+   |
+   v (100ms)
+[Card 2: Total Investido - fade-in-up]
+   |
+   v (200ms)
+[Card 3: Lucro Acumulado - fade-in-up]
+   |
+   v (300ms)
+[Card 4: Patrimonio Total - fade-in-up]
+```
 
 ---
 
@@ -31,140 +38,75 @@ Adicionar animacoes suaves de entrada nos graficos do dashboard para melhorar a 
 
 | Arquivo | Acao |
 |---------|------|
-| src/pages/Dashboard.tsx | Adicionar props de animacao nos graficos |
+| src/pages/Dashboard.tsx | Adicionar classes de animacao nos cards |
 
-### 1. Animacao no AreaChart
+### Alteracoes nos Cards
 
-Adicionar propriedades `isAnimationActive`, `animationDuration`, `animationEasing` e `animationBegin` em cada componente Area:
-
+**Card 1 - Saldo Disponivel (linha 244)**
 ```tsx
-<Area 
-  type="monotone" 
-  dataKey="investido" 
-  name="Investido"
-  stroke="#14b8a6" 
-  fillOpacity={1}
-  fill="url(#colorInvestido)"
-  isAnimationActive={true}
-  animationDuration={1500}
-  animationEasing="ease-in-out"
-  animationBegin={0}
-/>
-<Area 
-  type="monotone" 
-  dataKey="retornos" 
-  name="Retornos"
-  stroke="#22c55e" 
-  fillOpacity={1}
-  fill="url(#colorRetornos)"
-  isAnimationActive={true}
-  animationDuration={1500}
-  animationEasing="ease-in-out"
-  animationBegin={200}
-/>
-<Area 
-  type="monotone" 
-  dataKey="saques" 
-  name="Saques"
-  stroke="#f59e0b" 
-  fillOpacity={1}
-  fill="url(#colorSaques)"
-  isAnimationActive={true}
-  animationDuration={1500}
-  animationEasing="ease-in-out"
-  animationBegin={400}
-/>
+<div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 transition-all hover:border-teal-500/50 animate-fade-in-up">
 ```
 
-### 2. Animacao no PieChart
-
-Adicionar propriedades de animacao no componente Pie:
-
+**Card 2 - Total Investido (linha 259)**
 ```tsx
-<Pie
-  data={robotDistribution}
-  cx="50%"
-  cy="50%"
-  innerRadius={60}
-  outerRadius={80}
-  paddingAngle={2}
-  dataKey="value"
-  isAnimationActive={true}
-  animationDuration={1000}
-  animationEasing="ease-out"
-  animationBegin={300}
->
+<div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 transition-all hover:border-cyan-500/50 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
 ```
 
-### 3. Animacao nos Containers (CSS)
-
-Adicionar classes de animacao nos divs containers dos graficos:
-
+**Card 3 - Lucro Acumulado (linha 272)**
 ```tsx
-{/* Area Chart Container */}
-<div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 lg:col-span-2 animate-fade-in-up">
-
-{/* Pie Chart Container */}
-<div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 animate-fade-in-up" style={{ animationDelay: '150ms' }}>
+<div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 transition-all hover:border-green-500/50 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
 ```
 
-### 4. Animacao na Legenda do Pie (Lista de Robos)
-
-Adicionar animacao escalonada nos items da legenda:
-
+**Card 4 - Patrimonio Total (linha 285)**
 ```tsx
-{robotDistribution.map((robot, index) => {
-  const total = robotDistribution.reduce((sum, r) => sum + r.value, 0);
-  const percentage = total > 0 ? ((robot.value / total) * 100).toFixed(0) : 0;
-  return (
-    <div 
-      key={index} 
-      className="flex items-center justify-between animate-fade-in-up"
-      style={{ animationDelay: `${(index + 1) * 100}ms` }}
-    >
-      ...
-    </div>
-  );
-})}
+<div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 transition-all hover:border-yellow-500/50 animate-fade-in-up" style={{ animationDelay: '300ms' }}>
 ```
 
-### Resumo das Propriedades de Animacao do Recharts
+### Resumo das Alteracoes
 
-| Propriedade | Descricao | Valor |
-|-------------|-----------|-------|
-| isAnimationActive | Habilita animacao | true |
-| animationDuration | Duracao em ms | 1000-1500 |
-| animationEasing | Tipo de easing | "ease-in-out", "ease-out" |
-| animationBegin | Delay inicial em ms | 0, 200, 400... |
+| Card | Classe Adicionada | Animation Delay |
+|------|------------------|-----------------|
+| Saldo Disponivel | animate-fade-in-up | 0ms (padrao) |
+| Total Investido | animate-fade-in-up | 100ms |
+| Lucro Acumulado | animate-fade-in-up | 200ms |
+| Patrimonio Total | animate-fade-in-up | 300ms |
 
-### Visual Esperado
+### Classe CSS Utilizada
 
-```text
-Carregamento da pagina:
-   |
-   v (0ms)
-[Card Area Chart aparece com fade-in-up]
-   |
-   v (0-1500ms)
-[Linhas do grafico desenham progressivamente]
-   - Investido: desenha primeiro (0-1500ms)
-   - Retornos: desenha com delay (200-1700ms)
-   - Saques: desenha por ultimo (400-1900ms)
-   |
-   v (150ms)
-[Card Pie Chart aparece com fade-in-up]
-   |
-   v (300-1300ms)
-[Segmentos do donut "crescem" do centro]
-   |
-   v (escalonado)
-[Itens da legenda aparecem um a um]
+A classe `animate-fade-in-up` ja existe no projeto (tailwind.config.ts) com a seguinte definicao:
+
+```typescript
+keyframes: {
+  "fade-in-up": {
+    "0%": {
+      opacity: "0",
+      transform: "translateY(20px)",
+    },
+    "100%": {
+      opacity: "1",
+      transform: "translateY(0)",
+    },
+  },
+},
+animation: {
+  "fade-in-up": "fade-in-up 0.5s ease-out",
+},
 ```
 
-### Resultado
+### Acessibilidade
 
-Os graficos terao uma entrada suave e profissional que:
-- Guia a atencao do usuario
-- Cria sensacao de dinamismo
-- Melhora a percepcao de performance
-- Segue o design system ja existente
+O projeto ja possui suporte a `prefers-reduced-motion` no CSS (index.css), desabilitando animacoes para usuarios que preferem movimento reduzido:
+
+```css
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up { animation: none !important; }
+}
+```
+
+### Resultado Esperado
+
+Os cards de estatisticas terao uma entrada suave e escalonada que:
+- Guia o olhar do usuario da esquerda para direita
+- Cria sensacao de carregamento progressivo
+- Complementa as animacoes ja existentes nos graficos
+- Mantem consistencia com o design system do projeto
