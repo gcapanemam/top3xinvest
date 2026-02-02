@@ -301,7 +301,7 @@ const Dashboard = () => {
       {/* Charts Section */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Area Chart - Fluxo Financeiro */}
-        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 lg:col-span-2">
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 lg:col-span-2 animate-fade-in-up">
           <h2 className="text-lg font-semibold text-white mb-6">Fluxo Financeiro Anual</h2>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
@@ -353,7 +353,11 @@ const Dashboard = () => {
                   name="Investido"
                   stroke="#14b8a6" 
                   fillOpacity={1}
-                  fill="url(#colorInvestido)" 
+                  fill="url(#colorInvestido)"
+                  isAnimationActive={true}
+                  animationDuration={1500}
+                  animationEasing="ease-in-out"
+                  animationBegin={0}
                 />
                 <Area 
                   type="monotone" 
@@ -361,7 +365,11 @@ const Dashboard = () => {
                   name="Retornos"
                   stroke="#22c55e" 
                   fillOpacity={1}
-                  fill="url(#colorRetornos)" 
+                  fill="url(#colorRetornos)"
+                  isAnimationActive={true}
+                  animationDuration={1500}
+                  animationEasing="ease-in-out"
+                  animationBegin={200}
                 />
                 <Area 
                   type="monotone" 
@@ -369,7 +377,11 @@ const Dashboard = () => {
                   name="Saques"
                   stroke="#f59e0b" 
                   fillOpacity={1}
-                  fill="url(#colorSaques)" 
+                  fill="url(#colorSaques)"
+                  isAnimationActive={true}
+                  animationDuration={1500}
+                  animationEasing="ease-in-out"
+                  animationBegin={400}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -377,7 +389,7 @@ const Dashboard = () => {
         </div>
 
         {/* Pie Chart - Investimentos por Robo */}
-        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6">
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 animate-fade-in-up" style={{ animationDelay: '150ms' }}>
           <h2 className="text-lg font-semibold text-white mb-6">Investimentos por Robô</h2>
           {robotDistribution.length > 0 ? (
             <>
@@ -392,6 +404,10 @@ const Dashboard = () => {
                       outerRadius={80}
                       paddingAngle={2}
                       dataKey="value"
+                      isAnimationActive={true}
+                      animationDuration={1000}
+                      animationEasing="ease-out"
+                      animationBegin={300}
                     >
                       {robotDistribution.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
@@ -414,7 +430,7 @@ const Dashboard = () => {
                   const total = robotDistribution.reduce((sum, r) => sum + r.value, 0);
                   const percentage = total > 0 ? ((robot.value / total) * 100).toFixed(0) : 0;
                   return (
-                    <div key={index} className="flex items-center justify-between">
+                    <div key={index} className="flex items-center justify-between animate-fade-in-up" style={{ animationDelay: `${(index + 1) * 100}ms` }}>
                       <div className="flex items-center gap-2">
                         <div 
                           className="h-3 w-3 rounded-full" 
