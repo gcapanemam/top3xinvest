@@ -1,6 +1,21 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { addDays } from 'date-fns';
 import { Bot, TrendingUp, Clock, DollarSign, Sparkles } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 
 interface Robot {
   id: string;
@@ -19,12 +34,28 @@ interface Robot {
 }
 
 const Robots = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  
   const [robots, setRobots] = useState<Robot[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Investment dialog state
+  const [selectedRobot, setSelectedRobot] = useState<Robot | null>(null);
+  const [investmentAmount, setInvestmentAmount] = useState<string>('');
+  const [isInvesting, setIsInvesting] = useState(false);
+  const [userBalance, setUserBalance] = useState<number>(0);
 
   useEffect(() => {
     fetchRobots();
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchUserBalance();
+    }
+  }, [user]);
 
   const fetchRobots = async () => {
     const { data, error } = await supabase
@@ -39,11 +70,140 @@ const Robots = () => {
     setIsLoading(false);
   };
 
+  const fetchUserBalance = async () => {
+    if (!user) return;
+    
+    const { data } = await supabase
+      .from('profiles')
+      .select('balance')
+      .eq('user_id', user.id)
+      .single();
+    
+    if (data) {
+      setUserBalance(data.balance);
+    }
+  };
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL',
     }).format(value);
+  };
+
+  const handleOpenInvestDialog = (robot: Robot) => {
+    if (!user) {
+      toast({
+        title: 'Faça login',
+        description: 'Você precisa estar logado para investir',
+        variant: 'destructive',
+      });
+      navigate('/auth');
+      return;
+    }
+    setSelectedRobot(robot);
+    setInvestmentAmount(robot.min_investment.toString());
+  };
+
+  const handleInvest = async () => {
+    if (!selectedRobot || !user || !investmentAmount) return;
+    
+    setIsInvesting(true);
+    
+    const amount = parseFloat(investmentAmount.replace(',', '.'));
+    
+    // Validations
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        title: 'Erro',
+        description: 'Digite um valor válido',
+        variant: 'destructive',
+      });
+      setIsInvesting(false);
+      return;
+    }
+    
+    if (amount < selectedRobot.min_investment) {
+      toast({
+        title: 'Erro',
+        description: `O investimento mínimo é ${formatCurrency(selectedRobot.min_investment)}`,
+        variant: 'destructive',
+      });
+      setIsInvesting(false);
+      return;
+    }
+    
+    if (selectedRobot.max_investment && amount > selectedRobot.max_investment) {
+      toast({
+        title: 'Erro',
+        description: `O investimento máximo é ${formatCurrency(selectedRobot.max_investment)}`,
+        variant: 'destructive',
+      });
+      setIsInvesting(false);
+      return;
+    }
+    
+    if (amount > userBalance) {
+      toast({
+        title: 'Saldo insuficiente',
+        description: 'Você não tem saldo suficiente para este investimento',
+        variant: 'destructive',
+      });
+      setIsInvesting(false);
+      return;
+    }
+    
+    // Calculate lock date
+    const lockUntil = addDays(new Date(), selectedRobot.lock_period_days);
+    
+    // Create investment
+    const { error: investError } = await supabase
+      .from('investments')
+      .insert({
+        user_id: user.id,
+        robot_id: selectedRobot.id,
+        amount: amount,
+        lock_until: lockUntil.toISOString(),
+        status: 'active',
+      });
+    
+    if (investError) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível criar o investimento',
+        variant: 'destructive',
+      });
+      setIsInvesting(false);
+      return;
+    }
+    
+    // Update user balance
+    const { error: balanceError } = await supabase
+      .from('profiles')
+      .update({ balance: userBalance - amount })
+      .eq('user_id', user.id);
+    
+    if (balanceError) {
+      toast({
+        title: 'Aviso',
+        description: 'Investimento criado mas houve erro ao atualizar saldo',
+        variant: 'destructive',
+      });
+      setIsInvesting(false);
+      return;
+    }
+    
+    toast({
+      title: 'Investimento realizado!',
+      description: `Você investiu ${formatCurrency(amount)} no robô ${selectedRobot.name}`,
+    });
+    
+    setSelectedRobot(null);
+    setInvestmentAmount('');
+    setIsInvesting(false);
+    
+    // Redirect to investments page
+    navigate('/investments');
   };
 
   if (isLoading) {
@@ -144,7 +304,10 @@ const Robots = () => {
               </div>
 
               <div className="p-6 pt-0">
-                <button className="w-full py-3 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:shadow-teal-500/25">
+                <button 
+                  onClick={() => handleOpenInvestDialog(robot)}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:shadow-teal-500/25"
+                >
                   <Sparkles className="h-4 w-4" />
                   Investir Agora
                 </button>
@@ -153,6 +316,89 @@ const Robots = () => {
           ))}
         </div>
       )}
+
+      {/* Investment Dialog */}
+      <Dialog open={!!selectedRobot} onOpenChange={() => { setSelectedRobot(null); setInvestmentAmount(''); }}>
+        <DialogContent className="bg-[#111820] border-[#1e2a3a]">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Bot className="h-5 w-5 text-teal-400" />
+              Investir em {selectedRobot?.name}
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Configure o valor do seu investimento
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {/* Robot info */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-[#0a0f14] p-3 rounded-lg">
+                <p className="text-xs text-gray-500">Rentabilidade</p>
+                <p className="text-lg font-bold text-green-400">
+                  {selectedRobot?.profit_percentage}% / {selectedRobot?.profit_period_days} dias
+                </p>
+              </div>
+              <div className="bg-[#0a0f14] p-3 rounded-lg">
+                <p className="text-xs text-gray-500">Período Lock</p>
+                <p className="text-lg font-bold text-white">{selectedRobot?.lock_period_days} dias</p>
+              </div>
+            </div>
+            
+            {/* User balance */}
+            <div className="flex items-center justify-between p-3 bg-[#0a0f14] rounded-lg">
+              <span className="text-gray-400">Seu saldo disponível</span>
+              <span className="text-xl font-bold text-white">{formatCurrency(userBalance)}</span>
+            </div>
+            
+            {/* Amount input */}
+            <div className="space-y-2">
+              <Label className="text-gray-300">Valor do investimento</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">R$</span>
+                <Input
+                  type="text"
+                  placeholder="0,00"
+                  value={investmentAmount}
+                  onChange={(e) => setInvestmentAmount(e.target.value)}
+                  className="pl-10 bg-[#0a0f14] border-[#1e2a3a] text-white text-lg"
+                />
+              </div>
+              <p className="text-xs text-gray-500">
+                Mín: {formatCurrency(selectedRobot?.min_investment || 0)}
+                {selectedRobot?.max_investment && ` | Máx: ${formatCurrency(selectedRobot.max_investment)}`}
+              </p>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setSelectedRobot(null)}
+              className="border-[#1e2a3a] text-gray-300 hover:bg-[#1e2a3a]"
+            >
+              Cancelar
+            </Button>
+            <button
+              onClick={handleInvest}
+              disabled={isInvesting || !investmentAmount}
+              className="h-10 px-6 rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium flex items-center gap-2 disabled:opacity-50"
+            >
+              {isInvesting ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  Processando...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4" />
+                  Confirmar Investimento
+                </>
+              )}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
