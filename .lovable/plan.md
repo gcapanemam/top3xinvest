@@ -1,225 +1,313 @@
 
-# Plano: Tema Dark Premium na Pagina de Autenticacao
+# Plano: Recuperacao de Senha com Envio de Email
 
 ## Visao Geral
 
-Aplicar o tema dark premium (#0a0f14 como fundo, cards #111820, gradientes teal/cyan) na pagina de autenticacao (Auth.tsx) para manter consistencia visual com o Dashboard e demais paginas da aplicacao.
+Implementar funcionalidade completa de recuperacao de senha na pagina de autenticacao, incluindo:
+1. Formulario para solicitar reset de senha (envio de email)
+2. Pagina para definir nova senha (apos clicar no link do email)
+3. Edge function para envio de email personalizado usando Resend
 
-## Alteracoes Visuais
+## Funcionalidades
 
-### Estado Atual
-A pagina Auth.tsx utiliza variaveis CSS genericas (`bg-background`, `text-foreground`, etc.) que resultam em um visual diferente do resto da aplicacao.
+### 1. Solicitar Reset de Senha
+- Link "Esqueci minha senha" abaixo do formulario de login
+- Modal/formulario para digitar email
+- Envio de email com link de recuperacao
 
-### Novo Visual
-Aplicar as mesmas cores e estilos do Dashboard:
-- Fundo escuro `#0a0f14`
-- Cards com `#111820` e bordas `#1e2a3a`
-- Gradientes teal-to-cyan
-- Textos em `text-white` e `text-gray-400`
-- Efeitos de blur com cores teal/cyan
+### 2. Definir Nova Senha
+- Nova rota `/auth/reset-password` para processar o token
+- Formulario para digitar nova senha e confirmacao
+- Validacao e atualizacao da senha
 
-## Elementos a Modificar
+### 3. Edge Function para Email
+- Funcao `send-password-reset` usando Resend
+- Template de email estilizado com as cores da marca
 
-| Elemento | Antes | Depois |
-|----------|-------|--------|
-| Fundo da pagina | `bg-gradient-to-br from-background...` | `bg-[#0a0f14]` |
-| Blurs de fundo | `bg-primary/10`, `bg-accent/10` | `bg-teal-500/5`, `bg-cyan-500/5` |
-| Icone Bot | `gradient-primary` | `bg-gradient-to-r from-teal-500 to-cyan-500` |
-| Titulos | `text-foreground` | `text-white` |
-| Subtitulos | `text-muted-foreground` | `text-gray-400` |
-| Card principal | Classes genericas | `bg-[#111820] border-[#1e2a3a]` |
-| Inputs | `border-border/50` | `bg-[#0a0f14] border-[#1e2a3a] text-white` |
-| Labels | Classes genericas | `text-gray-300` |
-| TabsList | Classes genericas | `bg-[#1e2a3a]` |
-| TabsTrigger ativo | `gradient-primary` | `bg-gradient-to-r from-teal-500 to-cyan-500` |
-| Botoes | `variant="gradient"` | Estilo inline com gradiente teal/cyan |
-| Feature cards | Gradientes genericos | Gradientes teal/cyan com glow |
+## Prerequisito: API Key do Resend
+
+Para enviar emails personalizados, sera necessario configurar a chave API do Resend:
+1. Criar conta em https://resend.com (se ainda nao tiver)
+2. Validar dominio de email em https://resend.com/domains
+3. Criar API key em https://resend.com/api-keys
+4. Adicionar a chave como secret `RESEND_API_KEY`
+
+---
 
 ## Secao Tecnica
 
-### Arquivo a Modificar
-`src/pages/Auth.tsx`
+### Arquivos a Criar/Modificar
 
-### Estrutura das Alteracoes
+| Arquivo | Acao |
+|---------|------|
+| supabase/functions/send-password-reset/index.ts | Criar edge function |
+| supabase/config.toml | Adicionar configuracao da funcao |
+| src/pages/Auth.tsx | Adicionar modal de recuperacao |
+| src/pages/ResetPassword.tsx | Criar pagina de nova senha |
+| src/App.tsx | Adicionar rota /auth/reset-password |
+| src/contexts/AuthContext.tsx | Adicionar funcoes de reset |
 
-1. **Container Principal (linha 166)**
-```tsx
-// Antes
-<div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/10...">
+### 1. Edge Function: send-password-reset
 
-// Depois
-<div className="min-h-screen bg-[#0a0f14] relative overflow-hidden">
+```typescript
+// supabase/functions/send-password-reset/index.ts
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { Resend } from "npm:resend@2.0.0";
+
+const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type...",
+};
+
+interface PasswordResetRequest {
+  email: string;
+  resetUrl: string;
+}
+
+const handler = async (req: Request): Promise<Response> => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { email, resetUrl }: PasswordResetRequest = await req.json();
+
+    const emailResponse = await resend.emails.send({
+      from: "Invest Hub <noreply@SEU-DOMINIO.com>",
+      to: [email],
+      subject: "Recupere sua senha - Invest Hub",
+      html: `
+        <div style="background: #0a0f14; padding: 40px; font-family: sans-serif;">
+          <div style="max-width: 600px; margin: 0 auto; background: #111820; border-radius: 16px; padding: 40px; border: 1px solid #1e2a3a;">
+            <h1 style="color: white; margin-bottom: 20px;">Recuperacao de Senha</h1>
+            <p style="color: #9ca3af;">Voce solicitou a recuperacao de senha da sua conta.</p>
+            <a href="${resetUrl}" style="display: inline-block; background: linear-gradient(to right, #14b8a6, #06b6d4); color: white; padding: 12px 24px; border-radius: 12px; text-decoration: none; margin: 20px 0;">
+              Redefinir Senha
+            </a>
+            <p style="color: #6b7280; font-size: 14px;">Se voce nao solicitou isso, ignore este email.</p>
+          </div>
+        </div>
+      `,
+    });
+
+    return new Response(JSON.stringify(emailResponse), {
+      status: 200,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+  } catch (error: any) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+  }
+};
+
+serve(handler);
 ```
 
-2. **Elementos de Blur Decorativos (linhas 168-172)**
-```tsx
-// Antes
-<div className="absolute top-20 left-10 h-72 w-72 rounded-full bg-primary/10 blur-3xl...">
-<div className="absolute bottom-20 right-10 h-96 w-96 rounded-full bg-accent/10 blur-3xl...">
+### 2. Atualizacao do AuthContext
 
-// Depois
-<div className="absolute top-20 left-10 h-72 w-72 rounded-full bg-teal-500/5 blur-3xl...">
-<div className="absolute bottom-20 right-10 h-96 w-96 rounded-full bg-cyan-500/5 blur-3xl...">
+Adicionar funcao `resetPassword`:
+
+```typescript
+const resetPassword = async (email: string) => {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/auth/reset-password`,
+  });
+  return { error: error as Error | null };
+};
 ```
 
-3. **Icone da Logo (linhas 179-181)**
-```tsx
-// Antes
-<div className="flex h-14 w-14 items-center justify-center rounded-2xl gradient-primary shadow-glow...">
+Adicionar funcao `updatePassword`:
 
-// Depois
-<div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r from-teal-500 to-cyan-500 shadow-lg shadow-teal-500/25...">
+```typescript
+const updatePassword = async (newPassword: string) => {
+  const { error } = await supabase.auth.updateUser({
+    password: newPassword,
+  });
+  return { error: error as Error | null };
+};
 ```
 
-4. **Titulo e Subtitulo (linhas 182-186)**
-```tsx
-// Antes
-<h1 className="text-4xl font-bold text-foreground">
-<p className="text-xl text-muted-foreground">
+### 3. Modificacoes no Auth.tsx
 
-// Depois
-<h1 className="text-4xl font-bold text-white">
-<p className="text-xl text-gray-400">
+Adicionar estado para controlar modal:
+
+```typescript
+const [showForgotPassword, setShowForgotPassword] = useState(false);
+const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
 ```
 
-5. **Feature Cards (linhas 189-225)**
-```tsx
-// Antes
-<div className="flex h-12 w-12... rounded-xl gradient-primary shadow-glow">
-<h3 className="font-semibold text-foreground">
-<p className="text-sm text-muted-foreground">
+Adicionar link "Esqueci minha senha" apos o botao de login:
 
-// Depois
-<div className="flex h-12 w-12... rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 shadow-lg shadow-teal-500/25">
-<h3 className="font-semibold text-white">
-<p className="text-sm text-gray-400">
+```tsx
+<button 
+  type="button"
+  onClick={() => setShowForgotPassword(true)}
+  className="w-full text-center text-sm text-teal-400 hover:text-teal-300"
+>
+  Esqueci minha senha
+</button>
 ```
 
-6. **Card Principal de Auth (linha 230)**
-```tsx
-// Antes
-<Card className="w-full max-w-md border-border/50 shadow-2xl backdrop-blur-sm...">
+Adicionar Dialog para solicitar reset:
 
-// Depois
-<Card className="w-full max-w-md bg-[#111820] border border-[#1e2a3a] shadow-2xl...">
+```tsx
+<Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
+  <DialogContent className="bg-[#111820] border-[#1e2a3a]">
+    <DialogHeader>
+      <DialogTitle className="text-white">Recuperar senha</DialogTitle>
+      <DialogDescription className="text-gray-400">
+        Digite seu email para receber o link de recuperacao
+      </DialogDescription>
+    </DialogHeader>
+    <form onSubmit={handleForgotPassword}>
+      <Input
+        type="email"
+        placeholder="seu@email.com"
+        value={forgotPasswordEmail}
+        onChange={(e) => setForgotPasswordEmail(e.target.value)}
+        className="bg-[#0a0f14] border-[#1e2a3a] text-white"
+      />
+      <button type="submit" className="w-full mt-4 h-11 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500...">
+        Enviar link de recuperacao
+      </button>
+    </form>
+  </DialogContent>
+</Dialog>
 ```
 
-7. **Card Header (linhas 231-236)**
-```tsx
-// Antes
-<CardTitle className="text-2xl">
-<CardDescription>
+### 4. Nova Pagina: ResetPassword.tsx
 
-// Depois
-<CardTitle className="text-2xl text-white">
-<CardDescription className="text-gray-400">
+```tsx
+// src/pages/ResetPassword.tsx
+const ResetPassword = () => {
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const { updatePassword } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (password !== confirmPassword) {
+      toast({ title: 'Erro', description: 'As senhas nao coincidem', variant: 'destructive' });
+      return;
+    }
+
+    const { error } = await updatePassword(password);
+    
+    if (error) {
+      toast({ title: 'Erro', description: 'Nao foi possivel atualizar a senha', variant: 'destructive' });
+    } else {
+      toast({ title: 'Sucesso!', description: 'Senha atualizada com sucesso' });
+      navigate('/dashboard');
+    }
+  };
+
+  return (
+    // Layout igual ao Auth.tsx com formulario de nova senha
+  );
+};
 ```
 
-8. **TabsList (linha 249)**
-```tsx
-// Antes
-<TabsList className="grid w-full grid-cols-2 mb-6">
+### 5. Atualizacao do App.tsx
 
-// Depois
-<TabsList className="grid w-full grid-cols-2 mb-6 bg-[#1e2a3a] p-1 rounded-xl">
+Adicionar rota:
+
+```tsx
+<Route path="/auth/reset-password" element={<ResetPassword />} />
 ```
 
-9. **TabsTrigger (linhas 250-255)**
-```tsx
-// Antes
-<TabsTrigger value="login" className="data-[state=active]:gradient-primary...">
-
-// Depois
-<TabsTrigger value="login" className="rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-500 data-[state=active]:to-cyan-500 data-[state=active]:text-white text-gray-400">
-```
-
-10. **Labels e Inputs (linhas 261-283)**
-```tsx
-// Antes
-<Label htmlFor="login-email">Email</Label>
-<Input className="h-11 rounded-xl border-border/50...">
-
-// Depois
-<Label htmlFor="login-email" className="text-gray-300">Email</Label>
-<Input className="h-11 rounded-xl bg-[#0a0f14] border-[#1e2a3a] text-white placeholder:text-gray-500...">
-```
-
-11. **Botoes Submit (linhas 284-287, 341-344)**
-```tsx
-// Antes
-<Button type="submit" variant="gradient" className="w-full h-11"...>
-
-// Depois
-<button type="submit" className="w-full h-11 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium transition-all hover:shadow-lg hover:shadow-teal-500/25 flex items-center justify-center gap-2 disabled:opacity-50"...>
-```
-
-12. **Loading State (linhas 150-163)**
-```tsx
-// Antes
-<div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background...">
-<div className="h-16 w-16 rounded-2xl gradient-primary...">
-<p className="text-muted-foreground...">
-
-// Depois
-<div className="flex min-h-screen items-center justify-center bg-[#0a0f14]">
-<div className="h-16 w-16 rounded-2xl bg-gradient-to-r from-teal-500 to-cyan-500...">
-<p className="text-gray-400...">
-```
-
-### Resumo das Cores Utilizadas
+### Fluxo Completo
 
 ```text
-Cores Principais:
-  - Fundo: #0a0f14
-  - Cards: #111820
-  - Bordas: #1e2a3a
-  - Texto principal: white
-  - Texto secundario: gray-400
-  - Placeholders: gray-500
-  - Labels: gray-300
-
-Gradientes:
-  - Primario: from-teal-500 to-cyan-500
-  - Accent (icone seguranca): from-cyan-500 to-blue-500
-  - Success (icone rendimentos): from-green-500 to-emerald-500
-
-Efeitos:
-  - Shadow glow: shadow-lg shadow-teal-500/25
-  - Blur decorativo: bg-teal-500/5 blur-3xl
+Usuario esqueceu senha
+        |
+        v
+Clica "Esqueci minha senha"
+        |
+        v
+Modal abre, digita email
+        |
+        v
+supabase.auth.resetPasswordForEmail()
+        |
+        v
+Supabase envia email com link para /auth/reset-password?token=xxx
+        |
+        v
+Usuario clica no link do email
+        |
+        v
+Abre ResetPassword.tsx (Supabase ja autentica via token)
+        |
+        v
+Usuario digita nova senha
+        |
+        v
+supabase.auth.updateUser({ password })
+        |
+        v
+Redireciona para /dashboard
 ```
 
-### Fluxo de Implementacao
+### Opcao Alternativa: Email Customizado via Edge Function
+
+Se desejar usar email personalizado com Resend:
+
+1. Desativar email padrao do Supabase (opcional)
+2. Gerar token manualmente via edge function
+3. Enviar email via Resend com template customizado
+
+Para esta implementacao, usaremos o fluxo nativo do Supabase que ja envia email automaticamente, mas com a URL de redirect configurada para nossa pagina de reset.
+
+### Visual da Interface
 
 ```text
-1. Atualizar container principal e fundo
-   |
-   v
-2. Ajustar elementos de blur decorativos
-   |
-   v
-3. Estilizar lado esquerdo (branding)
-   |
-   v
-4. Estilizar Card de autenticacao
-   |
-   v
-5. Ajustar TabsList e TabsTriggers
-   |
-   v
-6. Estilizar inputs e labels
-   |
-   v
-7. Atualizar botoes de submit
-   |
-   v
-8. Ajustar estado de loading
++-------------------------------------------+
+|  Card de Login                            |
+|                                           |
+|  Email: [___________________]             |
+|  Senha: [___________________]             |
+|                                           |
+|  [        Entrar        ->]               |
+|                                           |
+|  Esqueci minha senha (link)               |
++-------------------------------------------+
+
+Modal de Recuperacao:
++-------------------------------------------+
+|  Recuperar senha                     [X]  |
+|                                           |
+|  Digite seu email para receber            |
+|  o link de recuperacao                    |
+|                                           |
+|  Email: [___________________]             |
+|                                           |
+|  [  Enviar link de recuperacao  ]         |
++-------------------------------------------+
+
+Pagina Reset Password:
++-------------------------------------------+
+|  Invest Hub                               |
+|                                           |
+|  Redefinir sua senha                      |
+|                                           |
+|  Nova senha: [___________________]        |
+|  Confirmar:  [___________________]        |
+|                                           |
+|  [      Salvar nova senha      ]          |
++-------------------------------------------+
 ```
 
-### Resultado Visual Esperado
+### Seguranca
 
-A pagina de autenticacao tera o mesmo visual "dark premium" do Dashboard:
-- Fundo escuro com sutis efeitos de blur em teal/cyan
-- Card centralizado com glassmorphism escuro
-- Inputs com fundo mais escuro que o card
-- Botoes com gradiente teal-to-cyan e efeito glow
-- Consistencia total com o restante da aplicacao
+- Validacao de email com Zod
+- Senha minima de 6 caracteres
+- Confirmacao de senha obrigatoria
+- Token de reset gerenciado pelo Supabase (expira em 1 hora)
+- CORS configurado na edge function
