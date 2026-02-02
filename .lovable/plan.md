@@ -1,25 +1,35 @@
 
-# Plano: Melhorar Responsividade do Dashboard
+
+# Plano: Melhorar Responsividade de Todas as Paginas
 
 ## Visao Geral
 
-Implementar melhorias de responsividade no dashboard para garantir uma experiencia otima em dispositivos moveis, tablets e desktops. Atualmente a sidebar fixa ocupa espaco em telas menores e alguns elementos nao se adaptam bem.
+Aplicar melhorias de responsividade em todas as paginas do projeto para garantir uma experiencia otima em dispositivos moveis, tablets e desktops. Foram identificados problemas em multiplas paginas onde textos, grids e espacamentos nao se adaptam corretamente em telas menores.
 
 ## Problemas Identificados
 
-### 1. Sidebar Fixa em Mobile
-- A sidebar usa `fixed left-0` com largura fixa (w-64 ou w-16)
-- O conteudo principal tem `pl-64` fixo, causando problemas em mobile
-- Nao ha menu hamburger para dispositivos moveis
+### 1. Robots.tsx (Pagina Atual)
+- Titulo sem responsividade (`text-2xl` fixo)
+- Grid de cards com gap fixo (`gap-6`)
+- Cards sem ajustes de padding para mobile
+- Dialog de investimento sem responsividade
 
-### 2. Layout do Dashboard
-- Cards de estatisticas: grid responsivo ja existe (`md:grid-cols-2 lg:grid-cols-4`)
-- Graficos: grid responsivo ja existe (`lg:grid-cols-3`)
-- Textos e valores podem ser muito grandes em mobile
+### 2. Investments.tsx
+- Titulo sem responsividade
+- Grid de resumo sem breakpoint para mobile (`md:grid-cols-3` direto)
+- Lista de investimentos com grid interno fixo (`grid-cols-2 gap-4 md:grid-cols-4`)
 
-### 3. DashboardLayout
-- Padding lateral fixo (pl-64) nao considera mobile
-- Sem suporte para sidebar colapsavel em mobile
+### 3. Deposits.tsx e Withdrawals.tsx
+- Titulo e botao na mesma linha podem quebrar em mobile
+- Botoes de acao grandes demais em mobile
+
+### 4. MLMNetwork.tsx
+- Padding fixo (`p-6`) na pagina
+- Card de link de indicacao com layout horizontal fixo
+- Valores de texto grandes (`text-3xl`) sem responsividade
+
+### 5. Notifications.tsx
+- Titulo e botao na mesma linha podem quebrar em mobile
 
 ---
 
@@ -27,264 +37,251 @@ Implementar melhorias de responsividade no dashboard para garantir uma experienc
 
 ### Arquivos a Modificar
 
-| Arquivo | Acao |
-|---------|------|
-| src/components/layout/DashboardLayout.tsx | Adicionar responsividade ao layout principal |
-| src/components/layout/Sidebar.tsx | Transformar em drawer em mobile |
-| src/components/layout/Header.tsx | Adicionar botao de menu hamburger |
-| src/pages/Dashboard.tsx | Ajustes de tamanho de fonte e espacamento |
+| Arquivo | Alteracoes |
+|---------|-----------|
+| src/pages/Robots.tsx | Titulo, grid, cards, dialog responsivos |
+| src/pages/Investments.tsx | Titulo, summary cards, lista responsiva |
+| src/pages/Deposits.tsx | Header, lista responsiva |
+| src/pages/Withdrawals.tsx | Header, lista responsiva |
+| src/pages/MLMNetwork.tsx | Padding, cards, textos responsivos |
+| src/pages/Notifications.tsx | Header responsivo |
 
 ---
 
-### 1. DashboardLayout.tsx - Layout Responsivo
+### 1. Robots.tsx - Melhorias de Responsividade
 
-Usar o hook `useIsMobile` para detectar dispositivos moveis e ajustar o padding:
-
+**Titulo (linha 225):**
 ```tsx
-import { useIsMobile } from '@/hooks/use-mobile';
+<h1 className="text-xl md:text-2xl font-bold text-white">Robôs de Investimento</h1>
+```
 
-export const DashboardLayout = () => {
-  const { user, isLoading } = useAuth();
-  const navigate = useNavigate();
-  const isMobile = useIsMobile();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+**Grid de cards (linha 242):**
+```tsx
+<div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+```
 
-  // ... resto do codigo
+**Cards internos - padding responsivo (linha 251):**
+```tsx
+<div className="p-4 md:p-6">
+```
 
-  return (
-    <div className="min-h-screen bg-[#0a0f14]">
-      <Sidebar 
-        isOpen={sidebarOpen} 
-        onClose={() => setSidebarOpen(false)} 
-      />
-      
-      {/* Overlay para mobile quando sidebar aberta */}
-      {isMobile && sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-30"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-      
-      <div className={cn(
-        "transition-all duration-300",
-        isMobile ? "pl-0" : "pl-64"
-      )}>
-        <Header onMenuClick={() => setSidebarOpen(true)} />
-        <main className="p-4 md:p-6">
-          <Outlet />
-        </main>
-      </div>
-    </div>
-  );
-};
+**Info grid dentro dos cards (linha 281):**
+```tsx
+<div className="grid grid-cols-2 gap-2 md:gap-3">
+```
+
+**Dialog content (linha 322):**
+```tsx
+<DialogContent className="bg-[#111820] border-[#1e2a3a] max-w-[95vw] md:max-w-md mx-auto">
+```
+
+**Dialog grid interno (linha 335):**
+```tsx
+<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 ```
 
 ---
 
-### 2. Sidebar.tsx - Drawer Mobile
+### 2. Investments.tsx - Melhorias de Responsividade
 
-Transformar a sidebar em um drawer deslizante em dispositivos moveis:
-
+**Titulo (linha 106):**
 ```tsx
-import { useIsMobile } from '@/hooks/use-mobile';
+<h1 className="text-xl md:text-2xl font-bold text-white">Meus Investimentos</h1>
+```
 
-interface SidebarProps {
-  isOpen?: boolean;
-  onClose?: () => void;
-}
+**Summary Cards (linha 113):**
+```tsx
+<div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-3">
+```
 
-export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
-  const isMobile = useIsMobile();
-  
-  // Em mobile: sidebar comeca fechada e desliza da esquerda
-  // Em desktop: sidebar sempre visivel
+**Valores nos cards (linhas 116, 121, 128):**
+```tsx
+<div className="text-xl md:text-2xl font-bold text-white">
+```
 
-  return (
-    <aside
-      className={cn(
-        'fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-[#1e2a3a] bg-[#0a0f14] transition-all duration-300',
-        // Desktop
-        !isMobile && (isCollapsed ? 'w-16' : 'w-64'),
-        // Mobile - drawer behavior
-        isMobile && 'w-64',
-        isMobile && !isOpen && '-translate-x-full'
-      )}
-    >
-      {/* Botao de fechar em mobile */}
-      {isMobile && (
-        <button 
-          onClick={onClose}
-          className="absolute right-2 top-4 p-2 text-gray-400 hover:text-white"
-        >
-          <X className="h-5 w-5" />
-        </button>
-      )}
-      
-      {/* ... resto do conteudo */}
-    </aside>
-  );
-};
+**Grid de detalhes de investimento (linha 169):**
+```tsx
+<div className="grid grid-cols-2 gap-3 md:gap-4 md:grid-cols-4">
 ```
 
 ---
 
-### 3. Header.tsx - Menu Hamburger
+### 3. Deposits.tsx - Melhorias de Responsividade
 
-Adicionar botao de menu para dispositivos moveis:
-
+**Header container (linha 167):**
 ```tsx
-import { Menu } from 'lucide-react';
-import { useIsMobile } from '@/hooks/use-mobile';
+<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+```
 
-interface HeaderProps {
-  onMenuClick?: () => void;
-}
+**Titulo (linha 169):**
+```tsx
+<h1 className="text-xl md:text-2xl font-bold text-white">Depósitos</h1>
+```
 
-export const Header = ({ onMenuClick }: HeaderProps) => {
-  const isMobile = useIsMobile();
+**Botao de novo deposito (linha 175):**
+```tsx
+<button className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium text-sm md:text-base transition-all hover:shadow-lg hover:shadow-teal-500/25 w-full sm:w-auto">
+```
 
-  return (
-    <header className="sticky top-0 z-30 flex h-14 md:h-16 items-center justify-between border-b border-[#1e2a3a] bg-[#0a0f14]/90 px-4 md:px-6 backdrop-blur-xl">
-      <div className="flex items-center gap-3 md:gap-4">
-        {/* Menu hamburger em mobile */}
-        {isMobile && (
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={onMenuClick}
-            className="hover:bg-[#111820] text-gray-400"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-        )}
-        
-        <h1 className="text-base md:text-lg font-semibold text-white">
-          {isAdmin ? 'Painel Admin' : 'Minha Conta'}
-        </h1>
-      </div>
-      
-      {/* ... resto do header */}
-    </header>
-  );
-};
+**Item da lista (linha 264):**
+```tsx
+<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-[#1e2a3a] p-4 hover:border-teal-500/30 transition-all">
 ```
 
 ---
 
-### 4. Dashboard.tsx - Ajustes de Tamanho
+### 4. Withdrawals.tsx - Melhorias de Responsividade
 
-Ajustar tamanhos de fonte e espacamento para melhor leitura em mobile:
-
-**Titulo de boas-vindas (linha 234):**
+**Header container (linha 203):**
 ```tsx
-<h1 className="text-xl md:text-2xl font-bold text-white">
-  Olá, {profile?.full_name || ...}! 👋
-</h1>
+<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
 ```
 
-**Cards de estatisticas (linhas 243-298):**
+**Titulo (linha 205):**
 ```tsx
-{/* Grid responsivo - ja existe, mas melhorar espacamento */}
-<div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-  
-  {/* Dentro de cada card */}
-  <div className="text-xl md:text-2xl font-bold text-teal-400">
-    {formatCurrency(profile?.balance || 0)}
-  </div>
-</div>
+<h1 className="text-xl md:text-2xl font-bold text-white">Saques</h1>
 ```
 
-**Secao de graficos (linha 302):**
+**Subtitulo com saldo (linha 206-208):**
 ```tsx
-<div className="grid gap-4 md:gap-6 lg:grid-cols-3">
+<p className="text-sm md:text-base text-gray-400">
+  Saldo disponível: <span className="text-teal-400 font-semibold">{formatCurrency(profile?.balance || 0)}</span>
+</p>
 ```
 
-**Altura do grafico de area (linha 306):**
+**Botao de solicitar saque (linha 213):**
 ```tsx
-<div className="h-60 md:h-80">
+<button className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium text-sm md:text-base transition-all hover:shadow-lg hover:shadow-teal-500/25 w-full sm:w-auto disabled:opacity-50">
 ```
 
-**Acoes rapidas e cotacoes (linha 459):**
+**Item da lista (linha 301):**
 ```tsx
-<div className="grid gap-4 md:gap-6 grid-cols-1 lg:grid-cols-2">
-```
-
-**Grid de botoes de acao (linha 464):**
-```tsx
-<div className="grid gap-2 md:gap-3 grid-cols-2">
+<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-[#1e2a3a] p-4 hover:border-teal-500/30 transition-all">
 ```
 
 ---
 
-### Resumo das Alteracoes
+### 5. MLMNetwork.tsx - Melhorias de Responsividade
 
-| Componente | Alteracao | Impacto |
-|------------|-----------|---------|
-| DashboardLayout | Padding responsivo (pl-0 em mobile) | Layout adapta sem sidebar fixa |
-| Sidebar | Drawer deslizante em mobile | Mais espaco para conteudo |
-| Header | Menu hamburger + altura menor | Navegacao acessivel em mobile |
-| Dashboard | Fontes e espacamentos responsivos | Melhor legibilidade |
+**Padding da pagina (linha 267):**
+```tsx
+<div className="min-h-screen bg-[#0a0f14] p-4 md:p-6">
+```
 
-### Breakpoints Utilizados
+**Header (linha 269):**
+```tsx
+<div className="mb-6 md:mb-8">
+```
 
-| Breakpoint | Largura | Uso |
-|------------|---------|-----|
-| Default | < 640px | Mobile - sidebar drawer, fontes menores |
-| sm | >= 640px | Cards 2 colunas |
-| md | >= 768px | Fontes maiores, espacamentos normais |
-| lg | >= 1024px | Sidebar fixa, grids completos |
+**Titulo (linha 274):**
+```tsx
+<h1 className="text-xl md:text-2xl font-bold text-white">Minha Rede</h1>
+```
+
+**Card de link - layout (linha 284):**
+```tsx
+<div className="flex flex-col gap-4">
+```
+
+**Container do link e botoes (linha 296):**
+```tsx
+<div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+```
+
+**Link display (linha 298):**
+```tsx
+<div className="flex-1 px-3 py-2 rounded-lg bg-[#0a0f14] border border-[#1e2a3a] text-gray-400 text-xs md:text-sm truncate">
+```
+
+**Stats Cards (linha 327):**
+```tsx
+<div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
+```
+
+**Valores dos stats (linhas 333, 349, 365, 381):**
+```tsx
+<p className="text-2xl md:text-3xl font-bold text-white mt-1">
+```
+
+**Network Tree grid (linha 393):**
+```tsx
+<div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-3">
+```
+
+---
+
+### 6. Notifications.tsx - Melhorias de Responsividade
+
+**Header container (linha 91):**
+```tsx
+<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+```
+
+**Titulo (linha 93):**
+```tsx
+<h1 className="text-xl md:text-2xl font-bold text-white">Notificações</h1>
+```
+
+**Botao marcar como lida (linha 103):**
+```tsx
+<button onClick={markAllAsRead} className="flex items-center justify-center gap-2 px-3 md:px-4 py-2 rounded-xl border border-[#1e2a3a] text-gray-300 font-medium text-sm transition-all hover:bg-[#1e2a3a] hover:text-white w-full sm:w-auto">
+```
+
+---
+
+### Resumo das Classes Responsivas
+
+| Elemento | Mobile | Tablet/Desktop |
+|----------|--------|----------------|
+| Titulos | text-xl | md:text-2xl |
+| Valores grandes | text-2xl | md:text-3xl |
+| Gaps | gap-3/gap-4 | md:gap-4/md:gap-6 |
+| Padding | p-4 | md:p-6 |
+| Grids | grid-cols-1/grid-cols-2 | md:grid-cols-2/lg:grid-cols-3/lg:grid-cols-4 |
+| Headers | flex-col | sm:flex-row |
+| Botoes | w-full | sm:w-auto |
 
 ### Comportamento Esperado
 
 ```text
-MOBILE (< 768px):
+MOBILE (< 640px):
 +------------------------+
-| [≡] Minha Conta  [🔔👤]|
+| [≡] Pagina      [🔔👤]|
++------------------------+
+| Titulo da Pagina       |
+| Subtitulo              |
+| [Botao Full Width]     |
 +------------------------+
 | [Card 1]               |
 | [Card 2]               |
-| [Card 3]               |
-| [Card 4]               |
-+------------------------+
-| [Grafico Area]         |
-+------------------------+
-| [Grafico Pizza]        |
 +------------------------+
 
-Ao clicar no menu hamburger:
-+--------+---------------+
-| SIDEBAR |  (overlay)   |
-| ....    |              |
-| ....    |              |
-+--------+---------------+
-
-
-TABLET (768px - 1024px):
+TABLET (640px - 1024px):
 +------------------------+
-| [≡] Minha Conta  [🔔👤]|
+| Titulo      [Botao]    |
 +------------------------+
 | [Card 1] [Card 2]      |
 | [Card 3] [Card 4]      |
 +------------------------+
-| [Grafico Area]         |
-| [Grafico Pizza]        |
-+------------------------+
-
 
 DESKTOP (>= 1024px):
 +---------+----------------------------+
-| SIDEBAR | Header                     |
+| SIDEBAR | Titulo          [Botao]    |
 |         +----------------------------+
-|         | [Card 1][Card 2][Card 3][4]|
-|         +----------------------------+
-|         | [Grafico Area] [Pizza]     |
+|         | [Card 1][Card 2][Card 3]   |
 +---------+----------------------------+
 ```
 
-### Acessibilidade
+### Padrao de Dialogs/Modals
 
-- Menu hamburger tera `aria-label="Abrir menu"`
-- Overlay de sidebar tera `aria-hidden="true"`
-- Focus trap quando sidebar aberta em mobile
-- Botao de fechar com `aria-label="Fechar menu"`
+Para garantir que os dialogs funcionem bem em mobile:
+
+```tsx
+<DialogContent className="max-w-[95vw] md:max-w-md mx-auto">
+```
+
+Isso garante que o dialog:
+- Ocupe 95% da largura em mobile
+- Tenha largura maxima de 28rem (md:max-w-md) em telas maiores
+- Fique centralizado
+
