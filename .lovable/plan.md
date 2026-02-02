@@ -1,133 +1,290 @@
 
-# Plano: Aplicar Animacoes de Hover nos Cards de Acoes Rapidas e Graficos
+# Plano: Melhorar Responsividade do Dashboard
 
 ## Visao Geral
 
-Aplicar as mesmas animacoes de hover com scale (1.02) e bordas coloridas nos cards de graficos e acoes rapidas para manter consistencia visual em todo o dashboard.
+Implementar melhorias de responsividade no dashboard para garantir uma experiencia otima em dispositivos moveis, tablets e desktops. Atualmente a sidebar fixa ocupa espaco em telas menores e alguns elementos nao se adaptam bem.
 
-## Cards a Atualizar
+## Problemas Identificados
 
-### 1. Cards de Graficos
-- Card do Area Chart (Fluxo Financeiro Anual)
-- Card do Pie Chart (Investimentos por Robo)
+### 1. Sidebar Fixa em Mobile
+- A sidebar usa `fixed left-0` com largura fixa (w-64 ou w-16)
+- O conteudo principal tem `pl-64` fixo, causando problemas em mobile
+- Nao ha menu hamburger para dispositivos moveis
 
-### 2. Cards de Acoes Rapidas e Cotacoes
-- Card container de Acoes Rapidas
-- Card container de Cotacoes
-- Botoes de acao individuais (Depositar, Ver Robos, etc.)
+### 2. Layout do Dashboard
+- Cards de estatisticas: grid responsivo ja existe (`md:grid-cols-2 lg:grid-cols-4`)
+- Graficos: grid responsivo ja existe (`lg:grid-cols-3`)
+- Textos e valores podem ser muito grandes em mobile
 
-### 3. Card de Investimentos Ativos
-- Card container principal
-- Cards individuais de cada investimento
+### 3. DashboardLayout
+- Padding lateral fixo (pl-64) nao considera mobile
+- Sem suporte para sidebar colapsavel em mobile
 
 ---
 
 ## Secao Tecnica
 
-### Arquivo a Modificar
+### Arquivos a Modificar
 
 | Arquivo | Acao |
 |---------|------|
-| src/pages/Dashboard.tsx | Adicionar classes de hover em todos os cards |
+| src/components/layout/DashboardLayout.tsx | Adicionar responsividade ao layout principal |
+| src/components/layout/Sidebar.tsx | Transformar em drawer em mobile |
+| src/components/layout/Header.tsx | Adicionar botao de menu hamburger |
+| src/pages/Dashboard.tsx | Ajustes de tamanho de fonte e espacamento |
 
-### 1. Card do Area Chart (linha 304)
+---
 
-```tsx
-// De:
-<div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 lg:col-span-2 animate-fade-in-up">
+### 1. DashboardLayout.tsx - Layout Responsivo
 
-// Para:
-<div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 lg:col-span-2 transition-all hover:border-teal-500/50 hover:scale-[1.01] animate-fade-in-up">
-```
-
-### 2. Card do Pie Chart (linha 392)
+Usar o hook `useIsMobile` para detectar dispositivos moveis e ajustar o padding:
 
 ```tsx
-// De:
-<div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 animate-fade-in-up" style={{ animationDelay: '150ms' }}>
+import { useIsMobile } from '@/hooks/use-mobile';
 
-// Para:
-<div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 transition-all hover:border-purple-500/50 hover:scale-[1.02] animate-fade-in-up" style={{ animationDelay: '150ms' }}>
+export const DashboardLayout = () => {
+  const { user, isLoading } = useAuth();
+  const navigate = useNavigate();
+  const isMobile = useIsMobile();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // ... resto do codigo
+
+  return (
+    <div className="min-h-screen bg-[#0a0f14]">
+      <Sidebar 
+        isOpen={sidebarOpen} 
+        onClose={() => setSidebarOpen(false)} 
+      />
+      
+      {/* Overlay para mobile quando sidebar aberta */}
+      {isMobile && sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-30"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+      
+      <div className={cn(
+        "transition-all duration-300",
+        isMobile ? "pl-0" : "pl-64"
+      )}>
+        <Header onMenuClick={() => setSidebarOpen(true)} />
+        <main className="p-4 md:p-6">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+};
 ```
 
-### 3. Card de Acoes Rapidas (linha 461)
+---
+
+### 2. Sidebar.tsx - Drawer Mobile
+
+Transformar a sidebar em um drawer deslizante em dispositivos moveis:
 
 ```tsx
-// De:
-<div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6">
+import { useIsMobile } from '@/hooks/use-mobile';
 
-// Para:
-<div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 transition-all hover:border-teal-500/50 hover:scale-[1.02]">
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
+  const isMobile = useIsMobile();
+  
+  // Em mobile: sidebar comeca fechada e desliza da esquerda
+  // Em desktop: sidebar sempre visivel
+
+  return (
+    <aside
+      className={cn(
+        'fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-[#1e2a3a] bg-[#0a0f14] transition-all duration-300',
+        // Desktop
+        !isMobile && (isCollapsed ? 'w-16' : 'w-64'),
+        // Mobile - drawer behavior
+        isMobile && 'w-64',
+        isMobile && !isOpen && '-translate-x-full'
+      )}
+    >
+      {/* Botao de fechar em mobile */}
+      {isMobile && (
+        <button 
+          onClick={onClose}
+          className="absolute right-2 top-4 p-2 text-gray-400 hover:text-white"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      )}
+      
+      {/* ... resto do conteudo */}
+    </aside>
+  );
+};
 ```
 
-### 4. Botoes de Acao Rapida (linhas 465-492)
+---
 
-Adicionar `hover:scale-105` nos botoes internos:
+### 3. Header.tsx - Menu Hamburger
+
+Adicionar botao de menu para dispositivos moveis:
 
 ```tsx
-// Botao Depositar (ja tem hover shadow)
-className="... transition-all hover:shadow-lg hover:shadow-teal-500/25 hover:scale-105"
+import { Menu } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
-// Botoes Ver Robos, Meus Investimentos, Sacar
-className="... transition-all hover:bg-[#1e2a3a] hover:text-white hover:scale-105"
+interface HeaderProps {
+  onMenuClick?: () => void;
+}
+
+export const Header = ({ onMenuClick }: HeaderProps) => {
+  const isMobile = useIsMobile();
+
+  return (
+    <header className="sticky top-0 z-30 flex h-14 md:h-16 items-center justify-between border-b border-[#1e2a3a] bg-[#0a0f14]/90 px-4 md:px-6 backdrop-blur-xl">
+      <div className="flex items-center gap-3 md:gap-4">
+        {/* Menu hamburger em mobile */}
+        {isMobile && (
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={onMenuClick}
+            className="hover:bg-[#111820] text-gray-400"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+        )}
+        
+        <h1 className="text-base md:text-lg font-semibold text-white">
+          {isAdmin ? 'Painel Admin' : 'Minha Conta'}
+        </h1>
+      </div>
+      
+      {/* ... resto do header */}
+    </header>
+  );
+};
 ```
 
-### 5. Card de Cotacoes (linha 497)
+---
 
+### 4. Dashboard.tsx - Ajustes de Tamanho
+
+Ajustar tamanhos de fonte e espacamento para melhor leitura em mobile:
+
+**Titulo de boas-vindas (linha 234):**
 ```tsx
-// De:
-<div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6">
-
-// Para:
-<div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 transition-all hover:border-cyan-500/50 hover:scale-[1.02]">
+<h1 className="text-xl md:text-2xl font-bold text-white">
+  Olá, {profile?.full_name || ...}! 👋
+</h1>
 ```
 
-### 6. Cards de Crypto individuais (linha 508)
-
+**Cards de estatisticas (linhas 243-298):**
 ```tsx
-// De:
-className="... transition-all duration-200 hover:border-teal-500/30 hover:bg-[#0a0f14]/50"
-
-// Para:
-className="... transition-all duration-200 hover:border-teal-500/30 hover:bg-[#0a0f14]/50 hover:scale-[1.02]"
+{/* Grid responsivo - ja existe, mas melhorar espacamento */}
+<div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+  
+  {/* Dentro de cada card */}
+  <div className="text-xl md:text-2xl font-bold text-teal-400">
+    {formatCurrency(profile?.balance || 0)}
+  </div>
+</div>
 ```
 
-### 7. Card de Investimentos Ativos (linha 542)
-
+**Secao de graficos (linha 302):**
 ```tsx
-// De:
-<div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6">
-
-// Para:
-<div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6 transition-all hover:border-green-500/50 hover:scale-[1.01]">
+<div className="grid gap-4 md:gap-6 lg:grid-cols-3">
 ```
 
-### 8. Cards de investimento individuais (linha 559)
-
+**Altura do grafico de area (linha 306):**
 ```tsx
-// De:
-className="... transition-all duration-200 hover:border-teal-500/30"
-
-// Para:
-className="... transition-all duration-200 hover:border-teal-500/30 hover:scale-[1.02]"
+<div className="h-60 md:h-80">
 ```
+
+**Acoes rapidas e cotacoes (linha 459):**
+```tsx
+<div className="grid gap-4 md:gap-6 grid-cols-1 lg:grid-cols-2">
+```
+
+**Grid de botoes de acao (linha 464):**
+```tsx
+<div className="grid gap-2 md:gap-3 grid-cols-2">
+```
+
+---
 
 ### Resumo das Alteracoes
 
-| Elemento | Scale | Border Color |
-|----------|-------|--------------|
-| Card Area Chart | 1.01 (menor por ser grande) | teal-500/50 |
-| Card Pie Chart | 1.02 | purple-500/50 |
-| Card Acoes Rapidas | 1.02 | teal-500/50 |
-| Botoes de Acao | 1.05 (mais destaque) | - |
-| Card Cotacoes | 1.02 | cyan-500/50 |
-| Cards Crypto | 1.02 | - (ja tem) |
-| Card Investimentos Ativos | 1.01 (menor por ser grande) | green-500/50 |
-| Cards Investimento | 1.02 | - (ja tem) |
+| Componente | Alteracao | Impacto |
+|------------|-----------|---------|
+| DashboardLayout | Padding responsivo (pl-0 em mobile) | Layout adapta sem sidebar fixa |
+| Sidebar | Drawer deslizante em mobile | Mais espaco para conteudo |
+| Header | Menu hamburger + altura menor | Navegacao acessivel em mobile |
+| Dashboard | Fontes e espacamentos responsivos | Melhor legibilidade |
 
-### Notas de Design
+### Breakpoints Utilizados
 
-- **Cards grandes (graficos, investimentos)**: scale-[1.01] para evitar sobreposicao
-- **Cards medios**: scale-[1.02] padrao
-- **Botoes pequenos**: scale-105 para feedback mais visivel
-- **Cores de borda**: seguem o esquema de cores ja estabelecido no projeto
+| Breakpoint | Largura | Uso |
+|------------|---------|-----|
+| Default | < 640px | Mobile - sidebar drawer, fontes menores |
+| sm | >= 640px | Cards 2 colunas |
+| md | >= 768px | Fontes maiores, espacamentos normais |
+| lg | >= 1024px | Sidebar fixa, grids completos |
+
+### Comportamento Esperado
+
+```text
+MOBILE (< 768px):
++------------------------+
+| [≡] Minha Conta  [🔔👤]|
++------------------------+
+| [Card 1]               |
+| [Card 2]               |
+| [Card 3]               |
+| [Card 4]               |
++------------------------+
+| [Grafico Area]         |
++------------------------+
+| [Grafico Pizza]        |
++------------------------+
+
+Ao clicar no menu hamburger:
++--------+---------------+
+| SIDEBAR |  (overlay)   |
+| ....    |              |
+| ....    |              |
++--------+---------------+
+
+
+TABLET (768px - 1024px):
++------------------------+
+| [≡] Minha Conta  [🔔👤]|
++------------------------+
+| [Card 1] [Card 2]      |
+| [Card 3] [Card 4]      |
++------------------------+
+| [Grafico Area]         |
+| [Grafico Pizza]        |
++------------------------+
+
+
+DESKTOP (>= 1024px):
++---------+----------------------------+
+| SIDEBAR | Header                     |
+|         +----------------------------+
+|         | [Card 1][Card 2][Card 3][4]|
+|         +----------------------------+
+|         | [Grafico Area] [Pizza]     |
++---------+----------------------------+
+```
+
+### Acessibilidade
+
+- Menu hamburger tera `aria-label="Abrir menu"`
+- Overlay de sidebar tera `aria-hidden="true"`
+- Focus trap quando sidebar aberta em mobile
+- Botao de fechar com `aria-label="Fechar menu"`
