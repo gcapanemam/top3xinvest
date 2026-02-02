@@ -88,10 +88,10 @@ const Notifications = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Notificações</h1>
-          <p className="text-gray-400">
+          <h1 className="text-xl md:text-2xl font-bold text-white">Notificações</h1>
+          <p className="text-sm md:text-base text-gray-400">
             {unreadCount > 0
               ? `${unreadCount} notificação(ões) não lida(s)`
               : 'Todas as notificações lidas'}
@@ -101,7 +101,7 @@ const Notifications = () => {
         {unreadCount > 0 && (
           <button 
             onClick={markAllAsRead} 
-            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[#1e2a3a] text-gray-300 font-medium transition-all hover:bg-[#1e2a3a] hover:text-white"
+            className="flex items-center justify-center gap-2 px-3 md:px-4 py-2 rounded-xl border border-[#1e2a3a] text-gray-300 font-medium text-sm transition-all hover:bg-[#1e2a3a] hover:text-white w-full sm:w-auto"
           >
             <CheckCheck className="h-4 w-4" />
             Marcar todas como lidas

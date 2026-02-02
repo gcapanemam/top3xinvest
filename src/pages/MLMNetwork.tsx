@@ -264,24 +264,24 @@ const MLMNetwork = () => {
   const userBadge = getLevelBadge(networkStats?.total_volume || 0);
 
   return (
-    <div className="min-h-screen bg-[#0a0f14] p-6">
+    <div className="min-h-screen bg-[#0a0f14] p-4 md:p-6">
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-6 md:mb-8">
         <div className="flex items-center gap-3 mb-2">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500">
             <Network className="h-5 w-5 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white">Minha Rede</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-white">Minha Rede</h1>
         </div>
-        <p className="text-gray-400">
+        <p className="text-sm md:text-base text-gray-400">
           Gerencie suas indicações e acompanhe seus ganhos
         </p>
       </div>
 
       {/* Referral Link Card */}
       <Card className="bg-gradient-to-r from-teal-500/10 to-cyan-500/10 border-teal-500/20 mb-6">
-        <CardContent className="p-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <CardContent className="p-4 md:p-6">
+          <div className="flex flex-col gap-4">
             <div className="flex items-center gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500">
                 <Link className="h-6 w-6 text-white" />
@@ -293,9 +293,9 @@ const MLMNetwork = () => {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 md:flex-none">
-                <div className="px-4 py-2 rounded-lg bg-[#0a0f14] border border-[#1e2a3a] text-gray-400 text-sm truncate max-w-xs">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <div className="flex-1">
+                <div className="px-3 py-2 rounded-lg bg-[#0a0f14] border border-[#1e2a3a] text-gray-400 text-xs md:text-sm truncate">
                   {referralLink || 'Carregando...'}
                 </div>
               </div>
@@ -324,13 +324,13 @@ const MLMNetwork = () => {
       </Card>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
         <Card className="bg-[#111820] border-[#1e2a3a]">
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-400">Total na Rede</p>
-                <p className="text-3xl font-bold text-white mt-1">
+                <p className="text-xs md:text-sm text-gray-400">Total na Rede</p>
+                <p className="text-2xl md:text-3xl font-bold text-white mt-1">
                   {networkStats?.total_members || 0}
                 </p>
               </div>
@@ -342,11 +342,11 @@ const MLMNetwork = () => {
         </Card>
 
         <Card className="bg-[#111820] border-[#1e2a3a]">
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-400">Indicados Diretos</p>
-                <p className="text-3xl font-bold text-white mt-1">
+                <p className="text-xs md:text-sm text-gray-400">Indicados Diretos</p>
+                <p className="text-2xl md:text-3xl font-bold text-white mt-1">
                   {networkStats?.direct_members || 0}
                 </p>
               </div>
@@ -358,11 +358,11 @@ const MLMNetwork = () => {
         </Card>
 
         <Card className="bg-[#111820] border-[#1e2a3a]">
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-400">Volume Total</p>
-                <p className="text-3xl font-bold text-white mt-1">
+                <p className="text-xs md:text-sm text-gray-400">Volume Total</p>
+                <p className="text-2xl md:text-3xl font-bold text-white mt-1">
                   {formatCurrencyShort(networkStats?.total_volume || 0)}
                 </p>
               </div>
@@ -374,11 +374,11 @@ const MLMNetwork = () => {
         </Card>
 
         <Card className="bg-[#111820] border-[#1e2a3a]">
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-400">Comissões Recebidas</p>
-                <p className="text-3xl font-bold text-green-400 mt-1">
+                <p className="text-xs md:text-sm text-gray-400">Comissões Recebidas</p>
+                <p className="text-2xl md:text-3xl font-bold text-green-400 mt-1">
                   {formatCurrencyShort(totalCommissions)}
                 </p>
               </div>
@@ -390,7 +390,7 @@ const MLMNetwork = () => {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-3">
         {/* Network Tree */}
         <Card className="bg-[#111820] border-[#1e2a3a] lg:col-span-2">
           <CardHeader>

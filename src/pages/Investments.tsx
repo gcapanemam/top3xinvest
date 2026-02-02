@@ -103,29 +103,29 @@ const Investments = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white">Meus Investimentos</h1>
+        <h1 className="text-xl md:text-2xl font-bold text-white">Meus Investimentos</h1>
         <p className="text-gray-400">
           Acompanhe seus investimentos e lucros
         </p>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6">
+      <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-3">
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-4 md:p-6">
           <p className="text-sm font-medium text-gray-400 mb-2">Total Investido</p>
-          <div className="text-2xl font-bold text-white">{formatCurrency(totalInvested)}</div>
+          <div className="text-xl md:text-2xl font-bold text-white">{formatCurrency(totalInvested)}</div>
         </div>
 
-        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6">
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-4 md:p-6">
           <p className="text-sm font-medium text-gray-400 mb-2">Lucro Acumulado</p>
-          <div className="text-2xl font-bold text-green-400">
+          <div className="text-xl md:text-2xl font-bold text-green-400">
             +{formatCurrency(totalProfit)}
           </div>
         </div>
 
-        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-6">
+        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-4 md:p-6">
           <p className="text-sm font-medium text-gray-400 mb-2">Investimentos Ativos</p>
-          <div className="text-2xl font-bold text-white">
+          <div className="text-xl md:text-2xl font-bold text-white">
             {investments.filter((i) => i.status === 'active').length}
           </div>
         </div>
@@ -166,7 +166,7 @@ const Investments = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                  <div className="grid grid-cols-2 gap-3 md:gap-4 md:grid-cols-4">
                     <div>
                       <p className="text-xs text-gray-400">Investido</p>
                       <p className="font-medium text-white">{formatCurrency(investment.amount)}</p>

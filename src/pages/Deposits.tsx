@@ -164,20 +164,20 @@ const Deposits = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Depósitos</h1>
-          <p className="text-gray-400">Adicione saldo à sua conta</p>
+          <h1 className="text-xl md:text-2xl font-bold text-white">Depósitos</h1>
+          <p className="text-sm md:text-base text-gray-400">Adicione saldo à sua conta</p>
         </div>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium transition-all hover:shadow-lg hover:shadow-teal-500/25">
+            <button className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium text-sm md:text-base transition-all hover:shadow-lg hover:shadow-teal-500/25 w-full sm:w-auto">
               <Plus className="h-4 w-4" />
               Novo Depósito
             </button>
           </DialogTrigger>
-          <DialogContent className="bg-[#111820] border-[#1e2a3a] text-white">
+          <DialogContent className="bg-[#111820] border-[#1e2a3a] text-white max-w-[95vw] md:max-w-md mx-auto">
             <DialogHeader>
               <DialogTitle className="text-white">Solicitar Depósito</DialogTitle>
               <DialogDescription className="text-gray-400">
@@ -261,7 +261,7 @@ const Deposits = () => {
             {deposits.map((deposit) => (
               <div
                 key={deposit.id}
-                className="flex items-center justify-between rounded-lg border border-[#1e2a3a] p-4 hover:border-teal-500/30 transition-all"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-[#1e2a3a] p-4 hover:border-teal-500/30 transition-all"
               >
                 <div className="flex items-center gap-4">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-teal-500/10">
