@@ -222,7 +222,7 @@ const Robots = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-white">Robôs de Investimento</h1>
+        <h1 className="text-xl md:text-2xl font-bold text-white">Robôs de Investimento</h1>
         <p className="text-gray-400">
           Escolha um robô e comece a investir agora
         </p>
@@ -239,7 +239,7 @@ const Robots = () => {
           </p>
         </div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {robots.map((robot) => (
             <div 
               key={robot.id} 
@@ -248,7 +248,7 @@ const Robots = () => {
               {/* Gradient top border */}
               <div className="h-1 bg-gradient-to-r from-teal-500 to-cyan-500" />
               
-              <div className="p-6">
+              <div className="p-4 md:p-6">
                 <div className="flex items-start justify-between">
                   <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r from-teal-500 to-cyan-500 shadow-lg shadow-teal-500/25">
                     <Bot className="h-7 w-7 text-white" />
@@ -278,7 +278,7 @@ const Robots = () => {
                   <Sparkles className="ml-auto h-5 w-5 text-white/60 animate-pulse" />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2 md:gap-3">
                   <div className="rounded-xl border border-[#1e2a3a] p-3 transition-all hover:border-teal-500/30">
                     <div className="flex items-center gap-2 text-gray-400">
                       <Clock className="h-4 w-4" />
@@ -319,7 +319,7 @@ const Robots = () => {
 
       {/* Investment Dialog */}
       <Dialog open={!!selectedRobot} onOpenChange={() => { setSelectedRobot(null); setInvestmentAmount(''); }}>
-        <DialogContent className="bg-[#111820] border-[#1e2a3a]">
+        <DialogContent className="bg-[#111820] border-[#1e2a3a] max-w-[95vw] md:max-w-md mx-auto">
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2">
               <Bot className="h-5 w-5 text-teal-400" />
@@ -332,7 +332,7 @@ const Robots = () => {
           
           <div className="space-y-4 py-4">
             {/* Robot info */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="bg-[#0a0f14] p-3 rounded-lg">
                 <p className="text-xs text-gray-500">Rentabilidade</p>
                 <p className="text-lg font-bold text-green-400">
