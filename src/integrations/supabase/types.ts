@@ -489,6 +489,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      credit_robot_profits: {
+        Args: { p_profit_percentage: number; p_robot_id: string }
+        Returns: number
+      }
+      distribute_investment_profit: {
+        Args: { p_investment_id: string; p_profit_amount: number }
+        Returns: boolean
+      }
       get_network_stats: {
         Args: { target_user_id: string }
         Returns: {
@@ -514,6 +522,13 @@ export type Database = {
           referral_code: string
           referrer_id: string
           total_invested: number
+          user_id: string
+        }[]
+      }
+      get_user_upline: {
+        Args: { p_user_id: string }
+        Returns: {
+          level: number
           user_id: string
         }[]
       }
