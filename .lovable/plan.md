@@ -1,313 +1,437 @@
 
-# Plano: Recuperacao de Senha com Envio de Email
+# Plano: Implementar Botoes "Editar Saldo" e "Ver Rede" na Gestao de Usuarios
 
 ## Visao Geral
 
-Implementar funcionalidade completa de recuperacao de senha na pagina de autenticacao, incluindo:
-1. Formulario para solicitar reset de senha (envio de email)
-2. Pagina para definir nova senha (apos clicar no link do email)
-3. Edge function para envio de email personalizado usando Resend
+Os botoes "Editar Saldo" e "Ver Rede" no dropdown de acoes da pagina de usuarios (`/admin/users`) estao presentes visualmente mas nao possuem funcionalidade. Sera implementado:
+
+1. **Editar Saldo**: Dialog para o admin alterar o saldo de um usuario
+2. **Ver Rede**: Dialog para visualizar a arvore de indicacoes do usuario
 
 ## Funcionalidades
 
-### 1. Solicitar Reset de Senha
-- Link "Esqueci minha senha" abaixo do formulario de login
-- Modal/formulario para digitar email
-- Envio de email com link de recuperacao
+### 1. Editar Saldo
+- Dialog com input para novo saldo
+- Mostra saldo atual do usuario
+- Opcao de adicionar/subtrair valor ou definir valor absoluto
+- Confirmacao antes de salvar
+- Registro na tabela de transacoes (opcional)
 
-### 2. Definir Nova Senha
-- Nova rota `/auth/reset-password` para processar o token
-- Formulario para digitar nova senha e confirmacao
-- Validacao e atualizacao da senha
-
-### 3. Edge Function para Email
-- Funcao `send-password-reset` usando Resend
-- Template de email estilizado com as cores da marca
-
-## Prerequisito: API Key do Resend
-
-Para enviar emails personalizados, sera necessario configurar a chave API do Resend:
-1. Criar conta em https://resend.com (se ainda nao tiver)
-2. Validar dominio de email em https://resend.com/domains
-3. Criar API key em https://resend.com/api-keys
-4. Adicionar a chave como secret `RESEND_API_KEY`
+### 2. Ver Rede
+- Dialog exibindo a rede de indicacoes do usuario
+- Reutiliza a funcao `get_network_tree` ja existente
+- Mostra membros por nivel (1-4)
+- Estatisticas resumidas da rede
 
 ---
 
 ## Secao Tecnica
 
-### Arquivos a Criar/Modificar
+### Arquivos a Modificar
 
 | Arquivo | Acao |
 |---------|------|
-| supabase/functions/send-password-reset/index.ts | Criar edge function |
-| supabase/config.toml | Adicionar configuracao da funcao |
-| src/pages/Auth.tsx | Adicionar modal de recuperacao |
-| src/pages/ResetPassword.tsx | Criar pagina de nova senha |
-| src/App.tsx | Adicionar rota /auth/reset-password |
-| src/contexts/AuthContext.tsx | Adicionar funcoes de reset |
+| src/pages/admin/AdminUsers.tsx | Adicionar dialogs e handlers |
 
-### 1. Edge Function: send-password-reset
+### 1. Novos Estados
 
 ```typescript
-// supabase/functions/send-password-reset/index.ts
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
+// Estado para dialog de editar saldo
+const [editBalanceUser, setEditBalanceUser] = useState<UserWithStats | null>(null);
+const [newBalance, setNewBalance] = useState<string>('');
+const [isUpdatingBalance, setIsUpdatingBalance] = useState(false);
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+// Estado para dialog de ver rede
+const [viewNetworkUser, setViewNetworkUser] = useState<UserWithStats | null>(null);
+const [networkData, setNetworkData] = useState<NetworkMember[]>([]);
+const [networkStats, setNetworkStats] = useState<NetworkStats | null>(null);
+const [isLoadingNetwork, setIsLoadingNetwork] = useState(false);
+```
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type...",
-};
+### 2. Interfaces Adicionais
 
-interface PasswordResetRequest {
-  email: string;
-  resetUrl: string;
+```typescript
+interface NetworkMember {
+  user_id: string;
+  referrer_id: string;
+  level: number;
+  full_name: string;
+  total_invested: number;
+  referral_code: string;
 }
 
-const handler = async (req: Request): Promise<Response> => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+interface NetworkStats {
+  total_members: number;
+  direct_members: number;
+  total_volume: number;
+  active_levels: number;
+  level_1_count: number;
+  level_1_volume: number;
+  level_2_count: number;
+  level_2_volume: number;
+  level_3_count: number;
+  level_3_volume: number;
+  level_4_count: number;
+  level_4_volume: number;
+}
+```
 
+### 3. Handler: Editar Saldo
+
+```typescript
+const handleEditBalance = async () => {
+  if (!editBalanceUser || !newBalance) return;
+  
+  setIsUpdatingBalance(true);
+  
+  const balanceValue = parseFloat(newBalance.replace(',', '.'));
+  
+  if (isNaN(balanceValue) || balanceValue < 0) {
+    toast({
+      title: 'Erro',
+      description: 'Valor invalido',
+      variant: 'destructive',
+    });
+    setIsUpdatingBalance(false);
+    return;
+  }
+  
+  const { error } = await supabase
+    .from('profiles')
+    .update({ balance: balanceValue })
+    .eq('id', editBalanceUser.id);
+  
+  if (error) {
+    toast({
+      title: 'Erro',
+      description: 'Nao foi possivel atualizar o saldo',
+      variant: 'destructive',
+    });
+  } else {
+    toast({
+      title: 'Sucesso!',
+      description: `Saldo atualizado para ${formatCurrency(balanceValue)}`,
+    });
+    fetchUsersWithStats();
+    setEditBalanceUser(null);
+    setNewBalance('');
+  }
+  
+  setIsUpdatingBalance(false);
+};
+```
+
+### 4. Handler: Ver Rede
+
+```typescript
+const handleViewNetwork = async (user: UserWithStats) => {
+  setViewNetworkUser(user);
+  setIsLoadingNetwork(true);
+  
   try {
-    const { email, resetUrl }: PasswordResetRequest = await req.json();
-
-    const emailResponse = await resend.emails.send({
-      from: "Invest Hub <noreply@SEU-DOMINIO.com>",
-      to: [email],
-      subject: "Recupere sua senha - Invest Hub",
-      html: `
-        <div style="background: #0a0f14; padding: 40px; font-family: sans-serif;">
-          <div style="max-width: 600px; margin: 0 auto; background: #111820; border-radius: 16px; padding: 40px; border: 1px solid #1e2a3a;">
-            <h1 style="color: white; margin-bottom: 20px;">Recuperacao de Senha</h1>
-            <p style="color: #9ca3af;">Voce solicitou a recuperacao de senha da sua conta.</p>
-            <a href="${resetUrl}" style="display: inline-block; background: linear-gradient(to right, #14b8a6, #06b6d4); color: white; padding: 12px 24px; border-radius: 12px; text-decoration: none; margin: 20px 0;">
-              Redefinir Senha
-            </a>
-            <p style="color: #6b7280; font-size: 14px;">Se voce nao solicitou isso, ignore este email.</p>
-          </div>
-        </div>
-      `,
+    // Buscar arvore de rede
+    const { data: tree, error: treeError } = await supabase.rpc('get_network_tree', {
+      root_user_id: user.user_id,
     });
-
-    return new Response(JSON.stringify(emailResponse), {
-      status: 200,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
+    
+    if (treeError) throw treeError;
+    setNetworkData(tree || []);
+    
+    // Buscar estatisticas
+    const { data: stats, error: statsError } = await supabase.rpc('get_network_stats', {
+      target_user_id: user.user_id,
     });
-  } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
+    
+    if (statsError) throw statsError;
+    setNetworkStats(stats?.[0] || null);
+  } catch (error) {
+    toast({
+      title: 'Erro',
+      description: 'Nao foi possivel carregar a rede',
+      variant: 'destructive',
     });
   }
-};
-
-serve(handler);
-```
-
-### 2. Atualizacao do AuthContext
-
-Adicionar funcao `resetPassword`:
-
-```typescript
-const resetPassword = async (email: string) => {
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${window.location.origin}/auth/reset-password`,
-  });
-  return { error: error as Error | null };
+  
+  setIsLoadingNetwork(false);
 };
 ```
 
-Adicionar funcao `updatePassword`:
-
-```typescript
-const updatePassword = async (newPassword: string) => {
-  const { error } = await supabase.auth.updateUser({
-    password: newPassword,
-  });
-  return { error: error as Error | null };
-};
-```
-
-### 3. Modificacoes no Auth.tsx
-
-Adicionar estado para controlar modal:
-
-```typescript
-const [showForgotPassword, setShowForgotPassword] = useState(false);
-const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
-```
-
-Adicionar link "Esqueci minha senha" apos o botao de login:
+### 5. Dialog: Editar Saldo
 
 ```tsx
-<button 
-  type="button"
-  onClick={() => setShowForgotPassword(true)}
-  className="w-full text-center text-sm text-teal-400 hover:text-teal-300"
->
-  Esqueci minha senha
-</button>
-```
-
-Adicionar Dialog para solicitar reset:
-
-```tsx
-<Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
+<Dialog open={!!editBalanceUser} onOpenChange={() => { setEditBalanceUser(null); setNewBalance(''); }}>
   <DialogContent className="bg-[#111820] border-[#1e2a3a]">
     <DialogHeader>
-      <DialogTitle className="text-white">Recuperar senha</DialogTitle>
+      <DialogTitle className="text-white">Editar Saldo</DialogTitle>
       <DialogDescription className="text-gray-400">
-        Digite seu email para receber o link de recuperacao
+        Altere o saldo do usuario {editBalanceUser?.full_name || 'Sem nome'}
       </DialogDescription>
     </DialogHeader>
-    <form onSubmit={handleForgotPassword}>
-      <Input
-        type="email"
-        placeholder="seu@email.com"
-        value={forgotPasswordEmail}
-        onChange={(e) => setForgotPasswordEmail(e.target.value)}
-        className="bg-[#0a0f14] border-[#1e2a3a] text-white"
-      />
-      <button type="submit" className="w-full mt-4 h-11 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500...">
-        Enviar link de recuperacao
+    
+    <div className="space-y-4 py-4">
+      <div className="flex items-center gap-3 p-3 bg-[#0a0f14] rounded-lg">
+        <div className={`h-10 w-10 rounded-full bg-gradient-to-br ${getAvatarGradient(editBalanceUser?.full_name)} flex items-center justify-center`}>
+          <span className="text-white text-sm font-semibold">
+            {getInitials(editBalanceUser?.full_name)}
+          </span>
+        </div>
+        <div>
+          <p className="text-white font-medium">{editBalanceUser?.full_name}</p>
+          <p className="text-sm text-gray-500">Saldo atual: {formatCurrency(editBalanceUser?.balance || 0)}</p>
+        </div>
+      </div>
+      
+      <div className="space-y-2">
+        <Label className="text-gray-300">Novo saldo</Label>
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">R$</span>
+          <Input
+            type="text"
+            placeholder="0,00"
+            value={newBalance}
+            onChange={(e) => setNewBalance(e.target.value)}
+            className="pl-10 bg-[#0a0f14] border-[#1e2a3a] text-white"
+          />
+        </div>
+      </div>
+    </div>
+    
+    <DialogFooter>
+      <Button variant="outline" onClick={() => setEditBalanceUser(null)} className="border-[#1e2a3a] text-gray-300">
+        Cancelar
+      </Button>
+      <button
+        onClick={handleEditBalance}
+        disabled={isUpdatingBalance || !newBalance}
+        className="h-10 px-4 rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium disabled:opacity-50"
+      >
+        {isUpdatingBalance ? 'Salvando...' : 'Salvar'}
       </button>
-    </form>
+    </DialogFooter>
   </DialogContent>
 </Dialog>
 ```
 
-### 4. Nova Pagina: ResetPassword.tsx
+### 6. Dialog: Ver Rede
 
 ```tsx
-// src/pages/ResetPassword.tsx
-const ResetPassword = () => {
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const { updatePassword } = useAuth();
-  const navigate = useNavigate();
-  const { toast } = useToast();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+<Dialog open={!!viewNetworkUser} onOpenChange={() => { setViewNetworkUser(null); setNetworkData([]); setNetworkStats(null); }}>
+  <DialogContent className="bg-[#111820] border-[#1e2a3a] max-w-2xl max-h-[80vh] overflow-y-auto">
+    <DialogHeader>
+      <DialogTitle className="text-white flex items-center gap-2">
+        <UsersRound className="h-5 w-5 text-purple-400" />
+        Rede de {viewNetworkUser?.full_name || 'Usuario'}
+      </DialogTitle>
+      <DialogDescription className="text-gray-400">
+        Visualize a arvore de indicacoes deste usuario
+      </DialogDescription>
+    </DialogHeader>
     
-    if (password !== confirmPassword) {
-      toast({ title: 'Erro', description: 'As senhas nao coincidem', variant: 'destructive' });
-      return;
-    }
-
-    const { error } = await updatePassword(password);
-    
-    if (error) {
-      toast({ title: 'Erro', description: 'Nao foi possivel atualizar a senha', variant: 'destructive' });
-    } else {
-      toast({ title: 'Sucesso!', description: 'Senha atualizada com sucesso' });
-      navigate('/dashboard');
-    }
-  };
-
-  return (
-    // Layout igual ao Auth.tsx com formulario de nova senha
-  );
-};
+    {isLoadingNetwork ? (
+      <div className="flex items-center justify-center py-12">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-teal-500 border-t-transparent" />
+      </div>
+    ) : networkData.length === 0 ? (
+      <div className="flex flex-col items-center justify-center py-12">
+        <Users className="h-12 w-12 text-gray-600" />
+        <p className="mt-4 text-gray-500">Este usuario nao possui indicados</p>
+      </div>
+    ) : (
+      <div className="space-y-6 py-4">
+        {/* Stats Summary */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-[#0a0f14] p-3 rounded-lg">
+            <p className="text-xs text-gray-500">Total na Rede</p>
+            <p className="text-xl font-bold text-white">{networkStats?.total_members || 0}</p>
+          </div>
+          <div className="bg-[#0a0f14] p-3 rounded-lg">
+            <p className="text-xs text-gray-500">Diretos</p>
+            <p className="text-xl font-bold text-white">{networkStats?.direct_members || 0}</p>
+          </div>
+          <div className="bg-[#0a0f14] p-3 rounded-lg">
+            <p className="text-xs text-gray-500">Volume Total</p>
+            <p className="text-xl font-bold text-cyan-400">{formatCurrency(networkStats?.total_volume || 0)}</p>
+          </div>
+          <div className="bg-[#0a0f14] p-3 rounded-lg">
+            <p className="text-xs text-gray-500">Niveis Ativos</p>
+            <p className="text-xl font-bold text-white">{networkStats?.active_levels || 0}</p>
+          </div>
+        </div>
+        
+        {/* Network Tree by Level */}
+        {[1, 2, 3, 4].map((level) => {
+          const levelMembers = networkData.filter(m => m.level === level);
+          if (levelMembers.length === 0) return null;
+          
+          const levelColors = {
+            1: { bg: 'bg-amber-500/20', text: 'text-amber-400', border: 'border-amber-500/30' },
+            2: { bg: 'bg-green-500/20', text: 'text-green-400', border: 'border-green-500/30' },
+            3: { bg: 'bg-cyan-500/20', text: 'text-cyan-400', border: 'border-cyan-500/30' },
+            4: { bg: 'bg-purple-500/20', text: 'text-purple-400', border: 'border-purple-500/30' },
+          };
+          
+          const colors = levelColors[level as keyof typeof levelColors];
+          
+          return (
+            <div key={level}>
+              <div className={`flex items-center justify-between p-3 rounded-t-lg ${colors.bg} ${colors.border} border`}>
+                <span className={`font-medium ${colors.text}`}>Nivel {level}</span>
+                <span className="text-sm text-gray-400">{levelMembers.length} membros</span>
+              </div>
+              <div className="border-x border-b border-[#1e2a3a] rounded-b-lg divide-y divide-[#1e2a3a]/50">
+                {levelMembers.slice(0, 5).map((member) => (
+                  <div key={member.user_id} className="flex items-center justify-between p-3">
+                    <div className="flex items-center gap-2">
+                      <div className={`h-8 w-8 rounded-full bg-gradient-to-br ${getAvatarGradient(member.full_name)} flex items-center justify-center`}>
+                        <span className="text-white text-xs font-semibold">{getInitials(member.full_name)}</span>
+                      </div>
+                      <span className="text-white text-sm">{member.full_name || 'Sem nome'}</span>
+                    </div>
+                    <span className="text-cyan-400 text-sm">{formatCurrency(member.total_invested)}</span>
+                  </div>
+                ))}
+                {levelMembers.length > 5 && (
+                  <p className="text-center text-sm text-gray-500 py-2">+ {levelMembers.length - 5} membros</p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    )}
+  </DialogContent>
+</Dialog>
 ```
 
-### 5. Atualizacao do App.tsx
-
-Adicionar rota:
+### 7. Atualizar Dropdown Menu Items
 
 ```tsx
-<Route path="/auth/reset-password" element={<ResetPassword />} />
+<DropdownMenuItem
+  onClick={() => {
+    setEditBalanceUser(user);
+    setNewBalance(user.balance.toString());
+  }}
+  className="cursor-pointer text-gray-300 focus:text-white focus:bg-[#1e2a3a]"
+>
+  <Wallet className="mr-2 h-4 w-4" />
+  Editar Saldo
+</DropdownMenuItem>
+
+<DropdownMenuItem
+  onClick={() => handleViewNetwork(user)}
+  className="cursor-pointer text-gray-300 focus:text-white focus:bg-[#1e2a3a]"
+>
+  <UsersRound className="mr-2 h-4 w-4" />
+  Ver Rede
+</DropdownMenuItem>
 ```
 
-### Fluxo Completo
+### 8. Buscar Contagem Real da Rede
 
-```text
-Usuario esqueceu senha
-        |
-        v
-Clica "Esqueci minha senha"
-        |
-        v
-Modal abre, digita email
-        |
-        v
-supabase.auth.resetPasswordForEmail()
-        |
-        v
-Supabase envia email com link para /auth/reset-password?token=xxx
-        |
-        v
-Usuario clica no link do email
-        |
-        v
-Abre ResetPassword.tsx (Supabase ja autentica via token)
-        |
-        v
-Usuario digita nova senha
-        |
-        v
-supabase.auth.updateUser({ password })
-        |
-        v
-Redireciona para /dashboard
+Atualizar `fetchUsersWithStats` para buscar a contagem real de indicados usando a funcao `get_network_stats`:
+
+```typescript
+// Dentro do loop de profiles, substituir o networkCount simulado por:
+const { data: stats } = await supabase.rpc('get_network_stats', {
+  target_user_id: profile.user_id,
+});
+
+const networkCount = stats?.[0]?.total_members || 0;
 ```
 
-### Opcao Alternativa: Email Customizado via Edge Function
+### 9. Imports Adicionais
 
-Se desejar usar email personalizado com Resend:
+```typescript
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+```
 
-1. Desativar email padrao do Supabase (opcional)
-2. Gerar token manualmente via edge function
-3. Enviar email via Resend com template customizado
-
-Para esta implementacao, usaremos o fluxo nativo do Supabase que ja envia email automaticamente, mas com a URL de redirect configurada para nossa pagina de reset.
-
-### Visual da Interface
+### Fluxo de Implementacao
 
 ```text
-+-------------------------------------------+
-|  Card de Login                            |
-|                                           |
-|  Email: [___________________]             |
-|  Senha: [___________________]             |
-|                                           |
-|  [        Entrar        ->]               |
-|                                           |
-|  Esqueci minha senha (link)               |
-+-------------------------------------------+
+1. Adicionar imports (Dialog, Label)
+   |
+   v
+2. Adicionar interfaces NetworkMember e NetworkStats
+   |
+   v
+3. Adicionar estados para os dialogs
+   |
+   v
+4. Criar handler handleEditBalance
+   |
+   v
+5. Criar handler handleViewNetwork
+   |
+   v
+6. Atualizar onClick dos DropdownMenuItems
+   |
+   v
+7. Adicionar Dialog de Editar Saldo
+   |
+   v
+8. Adicionar Dialog de Ver Rede
+   |
+   v
+9. Atualizar fetchUsersWithStats para contagem real
+```
 
-Modal de Recuperacao:
-+-------------------------------------------+
-|  Recuperar senha                     [X]  |
-|                                           |
-|  Digite seu email para receber            |
-|  o link de recuperacao                    |
-|                                           |
-|  Email: [___________________]             |
-|                                           |
-|  [  Enviar link de recuperacao  ]         |
-+-------------------------------------------+
+### Visual Esperado
 
-Pagina Reset Password:
-+-------------------------------------------+
-|  Invest Hub                               |
-|                                           |
-|  Redefinir sua senha                      |
-|                                           |
-|  Nova senha: [___________________]        |
-|  Confirmar:  [___________________]        |
-|                                           |
-|  [      Salvar nova senha      ]          |
-+-------------------------------------------+
+**Dialog Editar Saldo:**
+```text
++------------------------------------------+
+|  Editar Saldo                       [X]  |
+|                                          |
+|  Altere o saldo do usuario Joao Silva    |
+|                                          |
+|  [Avatar] Joao Silva                     |
+|           Saldo atual: R$ 1.500,00       |
+|                                          |
+|  Novo saldo:                             |
+|  R$ [__________________]                 |
+|                                          |
+|  [Cancelar]  [Salvar]                    |
++------------------------------------------+
+```
+
+**Dialog Ver Rede:**
+```text
++------------------------------------------+
+|  Rede de Joao Silva                 [X]  |
+|                                          |
+|  +----------+  +----------+              |
+|  | Total: 8 |  | Diretos: 3 |            |
+|  +----------+  +----------+              |
+|  +----------+  +----------+              |
+|  | Volume   |  | Niveis: 3 |             |
+|  | R$25mil  |  |          |              |
+|  +----------+  +----------+              |
+|                                          |
+|  Nivel 1 - 3 membros                     |
+|  +--------------------------------------+|
+|  | [A] Ana Paula       R$ 5.000,00     ||
+|  | [M] Maria Silva     R$ 3.000,00     ||
+|  | [P] Pedro Santos    R$ 2.000,00     ||
+|  +--------------------------------------+|
+|                                          |
+|  Nivel 2 - 4 membros                     |
+|  +--------------------------------------+|
+|  | [J] Jose Carlos     R$ 4.000,00     ||
+|  | ...                                  ||
+|  +--------------------------------------+|
++------------------------------------------+
 ```
 
 ### Seguranca
 
-- Validacao de email com Zod
-- Senha minima de 6 caracteres
-- Confirmacao de senha obrigatoria
-- Token de reset gerenciado pelo Supabase (expira em 1 hora)
-- CORS configurado na edge function
+- Apenas admins podem acessar esta pagina (verificacao ja existe)
+- RLS policies garantem que apenas admins podem atualizar profiles
+- As funcoes `get_network_tree` e `get_network_stats` sao SECURITY DEFINER
