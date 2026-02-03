@@ -1,178 +1,245 @@
 
-# Plano: Botao para Gerar Operacoes Automaticas
+# Plano: Configuracao de Percentuais de Comissao MLM
 
 ## Visao Geral
 
-Adicionar um botao "Gerar Automaticamente" na aba de Nova Operacao que permite ao admin gerar operacoes simuladas de forma inteligente. O sistema criara sugestoes de operacoes com base em parametros configuraveis, e o admin pode revisar, editar e aprovar cada uma antes de inserir.
+Permitir que o admin edite os percentuais de comissao de cada nivel do sistema MLM. Atualmente os valores estao fixos no codigo (100%, 50%, 25%, 10%). Com esta funcionalidade, o admin podera alterar esses valores diretamente pelo painel.
 
 ---
 
 ## Como Vai Funcionar
 
-### Fluxo do Admin
+### Interface Visual
 
 ```text
-Aba "Nova Operacao"
-       |
-       v
-Clica em [Gerar Automaticamente]
-       |
-       v
-+----------------------------------+
-| Modal de Geracao                 |
-+----------------------------------+
-| Configuracoes:                   |
-| - Qtd operacoes: [3-8]           |
-| - Range de lucro: [0.1% - 0.5%]  |
-| - Pares: [BNB, ETH, SOL...]      |
-| - Data: [ontem]                  |
-+----------------------------------+
-|                                  |
-| [Gerar Sugestoes]                |
-|                                  |
-+----------------------------------+
-       |
-       v
-+----------------------------------+
-| Operacoes Geradas (para revisar) |
-+----------------------------------+
-| [x] BNB/USDT  +0.32%  BUY        |
-| [x] ETH/USDT  +0.18%  SELL       |
-| [ ] SOL/USDT  -0.05%  BUY        |
-| [x] BTC/USDT  +0.41%  BUY        |
-+----------------------------------+
-| [Cancelar]  [Adicionar Selecionadas] |
-+----------------------------------+
++--------------------------------------------------+
+| Rede MLM                                         |
++--------------------------------------------------+
+| [Icone Engrenagem] Configurar Comissoes          |
++--------------------------------------------------+
+|                                                  |
+| +----------------------------------------------+ |
+| | CONFIGURACOES DE COMISSAO              [X]   | |
+| +----------------------------------------------+ |
+| | Configure os percentuais de cada nivel:      | |
+| |                                              | |
+| | Nivel 1 (Indicacao Direta):                  | |
+| | [====100====]  100%                          | |
+| |                                              | |
+| | Nivel 2:                                     | |
+| | [=====50====]  50%                           | |
+| |                                              | |
+| | Nivel 3:                                     | |
+| | [=====25====]  25%                           | |
+| |                                              | |
+| | Nivel 4:                                     | |
+| | [=====10====]  10%                           | |
+| |                                              | |
+| +----------------------------------------------+ |
+| | [Cancelar]            [Salvar Alteracoes]    | |
+| +----------------------------------------------+ |
++--------------------------------------------------+
 ```
 
 ---
 
 ## Secao Tecnica
 
-### 1. Novos Estados
+### 1. Nova Tabela: mlm_settings
+
+Criar tabela para armazenar as configuracoes de comissao:
+
+```sql
+CREATE TABLE public.mlm_settings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  level INTEGER NOT NULL UNIQUE CHECK (level >= 1 AND level <= 4),
+  commission_percentage NUMERIC NOT NULL DEFAULT 0 CHECK (commission_percentage >= 0 AND commission_percentage <= 100),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+  updated_by UUID REFERENCES auth.users(id)
+);
+
+-- Inserir valores padrao
+INSERT INTO mlm_settings (level, commission_percentage) VALUES 
+  (1, 100),
+  (2, 50),
+  (3, 25),
+  (4, 10);
+
+-- RLS: Todos podem ver, apenas admins podem editar
+ALTER TABLE mlm_settings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Everyone can view MLM settings"
+ON mlm_settings FOR SELECT
+USING (true);
+
+CREATE POLICY "Admins can update MLM settings"
+ON mlm_settings FOR UPDATE
+USING (is_admin());
+```
+
+### 2. Atualizar Funcao de Distribuicao
+
+Modificar a funcao `distribute_investment_profit` para ler os percentuais da tabela:
+
+```sql
+CREATE OR REPLACE FUNCTION public.distribute_investment_profit(
+    p_investment_id uuid,
+    p_profit_amount numeric
+)
+RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_investor_id uuid;
+    v_upline_user_id uuid;
+    v_upline_level integer;
+    v_commission_percentage numeric;
+    v_commission_amount numeric;
+BEGIN
+    -- Buscar o investidor
+    SELECT user_id INTO v_investor_id
+    FROM public.investments
+    WHERE id = p_investment_id;
+    
+    IF v_investor_id IS NULL THEN
+        RETURN FALSE;
+    END IF;
+    
+    -- Atualizar o lucro acumulado do investimento
+    UPDATE public.investments
+    SET profit_accumulated = profit_accumulated + p_profit_amount,
+        updated_at = now()
+    WHERE id = p_investment_id;
+    
+    -- Distribuir comissoes para a upline
+    FOR v_upline_user_id, v_upline_level IN 
+        SELECT get_user_upline.user_id, get_user_upline.level FROM public.get_user_upline(v_investor_id)
+    LOOP
+        -- Buscar percentual da tabela mlm_settings
+        SELECT commission_percentage INTO v_commission_percentage
+        FROM public.mlm_settings
+        WHERE level = v_upline_level;
+        
+        -- Fallback para valores padrao se nao encontrar
+        IF v_commission_percentage IS NULL THEN
+            v_commission_percentage := CASE v_upline_level
+                WHEN 1 THEN 100
+                WHEN 2 THEN 50
+                WHEN 3 THEN 25
+                WHEN 4 THEN 10
+                ELSE 0
+            END;
+        END IF;
+        
+        -- Calcular valor da comissao
+        v_commission_amount := (p_profit_amount * v_commission_percentage) / 100;
+        
+        IF v_commission_amount > 0 THEN
+            -- Inserir registro de comissao
+            INSERT INTO public.referral_commissions 
+                (user_id, from_user_id, investment_id, level, percentage, amount)
+            VALUES 
+                (v_upline_user_id, v_investor_id, p_investment_id, 
+                 v_upline_level, v_commission_percentage, v_commission_amount);
+            
+            -- Atualizar saldo do usuario
+            UPDATE public.profiles
+            SET balance = balance + v_commission_amount,
+                updated_at = now()
+            WHERE user_id = v_upline_user_id;
+        END IF;
+    END LOOP;
+    
+    RETURN TRUE;
+END;
+$$;
+```
+
+### 3. Alteracoes no AdminMLM.tsx
+
+**Novos estados:**
 
 ```typescript
-// Auto-generate state
-const [showAutoGenerate, setShowAutoGenerate] = useState(false);
-const [autoGenConfig, setAutoGenConfig] = useState({
-  operationCount: 5,
-  minProfit: 0.1,
-  maxProfit: 0.5,
-  allowNegative: false,  // Permite operacoes negativas
-  negativeChance: 10,    // % de chance de ser negativa
-  selectedPairs: ['BNB/USDT', 'ETH/USDT', 'BTC/USDT'],
-  operationDate: format(subDays(new Date(), 1), 'yyyy-MM-dd'), // Ontem
-});
-const [generatedOperations, setGeneratedOperations] = useState<GeneratedOperation[]>([]);
-const [selectedOperations, setSelectedOperations] = useState<Set<number>>(new Set());
-const [isGenerating, setIsGenerating] = useState(false);
-const [isAddingBulk, setIsAddingBulk] = useState(false);
+const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+const [commissionSettings, setCommissionSettings] = useState<CommissionSetting[]>([]);
+const [isSavingSettings, setIsSavingSettings] = useState(false);
 
-interface GeneratedOperation {
-  id: number;
-  cryptocurrency_symbol: string;
-  operation_type: 'buy' | 'sell';
-  profit_percentage: number;
-  entry_price: number;
-  exit_price: number;
+interface CommissionSetting {
+  id: string;
+  level: number;
+  commission_percentage: number;
 }
 ```
 
-### 2. Funcao de Geracao
+**Query para buscar configuracoes:**
 
 ```typescript
-const generateOperations = () => {
-  setIsGenerating(true);
-  
-  const operations: GeneratedOperation[] = [];
-  
-  for (let i = 0; i < autoGenConfig.operationCount; i++) {
-    // Escolher par aleatorio
-    const pair = autoGenConfig.selectedPairs[
-      Math.floor(Math.random() * autoGenConfig.selectedPairs.length)
-    ];
+const { data: mlmSettings = [], refetch: refetchSettings } = useQuery({
+  queryKey: ['mlm-settings'],
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from('mlm_settings')
+      .select('*')
+      .order('level');
     
-    // Determinar se vai ser negativa
-    const isNegative = autoGenConfig.allowNegative && 
-      Math.random() * 100 < autoGenConfig.negativeChance;
+    if (error) throw error;
+    return data as CommissionSetting[];
+  },
+});
+
+// Atualizar LEVEL_CONFIG dinamicamente
+const getLevelConfig = () => {
+  return [1, 2, 3, 4].map((level) => {
+    const setting = mlmSettings.find((s) => s.level === level);
+    const percentage = setting?.commission_percentage ?? [100, 50, 25, 10][level - 1];
     
-    // Gerar lucro no range configurado
-    let profit = autoGenConfig.minProfit + 
-      Math.random() * (autoGenConfig.maxProfit - autoGenConfig.minProfit);
+    const colors = {
+      1: { color: 'amber', bgColor: 'bg-amber-500/20', textColor: 'text-amber-400', borderColor: 'border-amber-500/30' },
+      2: { color: 'green', bgColor: 'bg-green-500/20', textColor: 'text-green-400', borderColor: 'border-green-500/30' },
+      3: { color: 'cyan', bgColor: 'bg-cyan-500/20', textColor: 'text-cyan-400', borderColor: 'border-cyan-500/30' },
+      4: { color: 'purple', bgColor: 'bg-purple-500/20', textColor: 'text-purple-400', borderColor: 'border-purple-500/30' },
+    };
     
-    if (isNegative) {
-      profit = -profit * 0.5; // Negativas sao menores
-    }
-    
-    // Tipo de operacao aleatorio
-    const type = Math.random() > 0.5 ? 'buy' : 'sell';
-    
-    // Precos simulados
-    const entryPrice = 100 + Math.random() * 900;
-    const exitPrice = entryPrice * (1 + profit / 100);
-    
-    operations.push({
-      id: i,
-      cryptocurrency_symbol: pair,
-      operation_type: type,
-      profit_percentage: parseFloat(profit.toFixed(2)),
-      entry_price: parseFloat(entryPrice.toFixed(2)),
-      exit_price: parseFloat(exitPrice.toFixed(2)),
-    });
-  }
-  
-  setGeneratedOperations(operations);
-  // Selecionar todas por padrao (exceto negativas)
-  setSelectedOperations(new Set(
-    operations
-      .filter(op => op.profit_percentage >= 0)
-      .map(op => op.id)
-  ));
-  
-  setIsGenerating(false);
+    return { level, percentage, ...colors[level as 1|2|3|4] };
+  });
 };
 ```
 
-### 3. Funcao de Adicionar em Massa
+**Funcao para salvar configuracoes:**
 
 ```typescript
-const handleAddSelectedOperations = async () => {
-  if (!selectedRobotForStats || selectedOperations.size === 0) return;
-  
-  setIsAddingBulk(true);
+const handleSaveSettings = async () => {
+  setIsSavingSettings(true);
   
   try {
-    const operationsToAdd = generatedOperations
-      .filter(op => selectedOperations.has(op.id));
+    for (const setting of commissionSettings) {
+      const { error } = await supabase
+        .from('mlm_settings')
+        .update({ 
+          commission_percentage: setting.commission_percentage,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('level', setting.level);
+      
+      if (error) throw error;
+    }
     
-    const insertData = operationsToAdd.map(op => ({
-      robot_id: selectedRobotForStats.id,
-      cryptocurrency_symbol: op.cryptocurrency_symbol,
-      operation_type: op.operation_type,
-      entry_price: op.entry_price,
-      exit_price: op.exit_price,
-      profit_percentage: op.profit_percentage,
-      status: 'closed',
-      created_at: new Date(autoGenConfig.operationDate).toISOString(),
-      closed_at: new Date(autoGenConfig.operationDate).toISOString(),
-    }));
-    
-    const { error } = await supabase
-      .from('robot_operations')
-      .insert(insertData);
-    
-    if (error) throw error;
-    
-    toast({
-      title: 'Operacoes adicionadas!',
-      description: `${insertData.length} operacao(es) inserida(s) com sucesso`,
+    // Registrar log de auditoria
+    await createAuditLog({
+      action: 'mlm_settings_updated',
+      entityType: 'mlm_settings',
+      details: {
+        levels: commissionSettings.map(s => ({
+          level: s.level,
+          percentage: s.commission_percentage,
+        })),
+      },
     });
     
-    // Recarregar e fechar modal
-    await openStatsDialog(selectedRobotForStats);
-    setShowAutoGenerate(false);
-    setGeneratedOperations([]);
-    setStatsTab('operations');
+    toast({ title: 'Configuracoes salvas!' });
+    refetchSettings();
+    setShowSettingsDialog(false);
   } catch (error: any) {
     toast({
       title: 'Erro',
@@ -180,112 +247,152 @@ const handleAddSelectedOperations = async () => {
       variant: 'destructive',
     });
   } finally {
-    setIsAddingBulk(false);
+    setIsSavingSettings(false);
   }
 };
 ```
 
-### 4. Interface Visual
-
-#### Botao na Aba Nova Operacao
+### 4. Interface do Dialog de Configuracoes
 
 ```typescript
-{/* Separador com texto */}
-<div className="relative my-6">
-  <div className="absolute inset-0 flex items-center">
-    <div className="w-full border-t border-[#1e2a3a]"></div>
+<Dialog open={showSettingsDialog} onOpenChange={setShowSettingsDialog}>
+  <DialogContent className="bg-[#111820] border-[#1e2a3a] text-white">
+    <DialogHeader>
+      <DialogTitle className="flex items-center gap-2">
+        <Settings className="h-5 w-5 text-teal-400" />
+        Configurar Comissoes MLM
+      </DialogTitle>
+      <DialogDescription className="text-gray-400">
+        Defina os percentuais de comissao para cada nivel da rede
+      </DialogDescription>
+    </DialogHeader>
+
+    <div className="space-y-6 py-4">
+      {commissionSettings.map((setting, index) => (
+        <div key={setting.level} className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-white">
+              Nivel {setting.level}
+              {setting.level === 1 && (
+                <span className="text-gray-400 text-xs ml-2">(Indicacao Direta)</span>
+              )}
+            </Label>
+            <span className="text-teal-400 font-bold">
+              {setting.commission_percentage}%
+            </span>
+          </div>
+          <Slider
+            value={[setting.commission_percentage]}
+            onValueChange={(value) => {
+              const updated = [...commissionSettings];
+              updated[index] = { ...setting, commission_percentage: value[0] };
+              setCommissionSettings(updated);
+            }}
+            max={100}
+            min={0}
+            step={5}
+            className="w-full"
+          />
+        </div>
+      ))}
+    </div>
+
+    <DialogFooter>
+      <Button variant="outline" onClick={() => setShowSettingsDialog(false)}>
+        Cancelar
+      </Button>
+      <Button 
+        onClick={handleSaveSettings}
+        disabled={isSavingSettings}
+        className="bg-gradient-to-r from-teal-500 to-cyan-500"
+      >
+        {isSavingSettings ? 'Salvando...' : 'Salvar Alteracoes'}
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+```
+
+### 5. Botao no Header da Pagina
+
+```typescript
+<div className="flex items-center gap-3 mb-2">
+  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500">
+    <Network className="h-5 w-5 text-white" />
   </div>
-  <div className="relative flex justify-center">
-    <span className="bg-[#0a0f14] px-4 text-sm text-gray-500">
-      ou
-    </span>
-  </div>
+  <h1 className="text-2xl font-bold text-white">Rede MLM</h1>
+  
+  {/* Botao de configuracoes */}
+  <Button
+    variant="outline"
+    size="sm"
+    onClick={() => {
+      setCommissionSettings([...mlmSettings]);
+      setShowSettingsDialog(true);
+    }}
+    className="ml-auto border-[#1e2a3a] text-gray-400 hover:text-white"
+  >
+    <Settings className="h-4 w-4 mr-2" />
+    Configurar Comissoes
+  </Button>
 </div>
-
-{/* Botao Gerar Automaticamente */}
-<Button
-  variant="outline"
-  onClick={() => setShowAutoGenerate(true)}
-  className="w-full border-dashed border-[#1e2a3a] text-gray-400 hover:border-cyan-500/50 hover:text-cyan-400"
->
-  <Sparkles className="h-4 w-4 mr-2" />
-  Gerar Operacoes Automaticamente
-</Button>
 ```
 
-#### Modal de Geracao
+### 6. Atualizar Tipos de Auditoria
 
-```text
-+--------------------------------------------------+
-| Gerar Operacoes Automaticas              [X]     |
-+--------------------------------------------------+
-| Configure as operacoes a serem geradas:          |
-+--------------------------------------------------+
-| Quantidade: [5] operacoes                        |
-|                                                  |
-| Range de Lucro:                                  |
-| Min: [0.10]%    Max: [0.50]%                    |
-|                                                  |
-| [x] Permitir operacoes negativas                 |
-| Chance de negativa: [10]%                        |
-|                                                  |
-| Pares a incluir:                                 |
-| [x] BNB/USDT  [x] ETH/USDT  [x] BTC/USDT        |
-| [x] SOL/USDT  [ ] XRP/USDT  [ ] DOGE/USDT       |
-|                                                  |
-| Data das operacoes: [01/02/2026] (ontem)         |
-+--------------------------------------------------+
-| [Gerar Sugestoes]                                |
-+--------------------------------------------------+
-|                                                  |
-| Operacoes Geradas:                               |
-| +----------------------------------------------+ |
-| | [x]  BNB/USDT   +0.32%   BUY                | |
-| | [x]  ETH/USDT   +0.18%   SELL               | |
-| | [ ]  SOL/USDT   -0.05%   BUY    (negativa)  | |
-| | [x]  BTC/USDT   +0.41%   BUY                | |
-| | [x]  BNB/USDT   +0.27%   SELL               | |
-| +----------------------------------------------+ |
-|                                                  |
-| Total lucro selecionado: +1.18%                  |
-+--------------------------------------------------+
-| [Cancelar]          [Adicionar 4 Operacoes]      |
-+--------------------------------------------------+
-```
-
-### 5. Imports Necessarios
+Adicionar novo tipo de acao na lib de auditoria:
 
 ```typescript
-import { Sparkles, RefreshCw } from 'lucide-react';
-import { subDays } from 'date-fns';
-import { Checkbox } from '@/components/ui/checkbox';
+// src/lib/auditLog.ts
+type ActionType = 
+  // ... acoes existentes
+  | 'mlm_settings_updated';
+
+type EntityType = 
+  // ... tipos existentes
+  | 'mlm_settings';
 ```
 
 ---
 
-### Resumo das Funcionalidades
-
-| Funcionalidade | Descricao |
-|----------------|-----------|
-| Configuracao de quantidade | Admin define quantas operacoes gerar |
-| Range de lucro | Min/max do percentual de ganho |
-| Operacoes negativas | Opcional, com % de chance configuravel |
-| Selecao de pares | Quais criptos incluir na geracao |
-| Selecao de data | Geralmente ontem, mas pode ser qualquer data |
-| Revisao antes de inserir | Admin ve preview e seleciona quais manter |
-| Insercao em massa | Adiciona todas selecionadas de uma vez |
-
-### Consideracoes
-
-1. **Realismo**: As operacoes geradas seguem padroes reais de trading
-2. **Controle Total**: Admin revisa e seleciona cada operacao
-3. **Flexibilidade**: Pode editar antes de inserir
-4. **Auditoria**: Todas operacoes ficam registradas normalmente
-5. **Produtividade**: Muito mais rapido que inserir uma a uma
-
-### Arquivo a Modificar
+### Resumo das Alteracoes
 
 | Arquivo | Alteracoes |
 |---------|-----------|
-| src/pages/admin/AdminRobots.tsx | Adicionar modal de geracao automatica |
+| Migracao SQL | Criar tabela mlm_settings e atualizar funcao |
+| src/pages/admin/AdminMLM.tsx | Adicionar dialog de configuracao |
+| src/lib/auditLog.ts | Adicionar novos tipos de acao |
 
+### Fluxo do Admin
+
+```text
+Pagina Rede MLM
+       |
+       v
+Clica em [Configurar Comissoes]
+       |
+       v
++----------------------------------+
+| Dialog de Configuracao           |
++----------------------------------+
+| Nivel 1: [=====] 100%            |
+| Nivel 2: [=====] 50%             |
+| Nivel 3: [=====] 25%             |
+| Nivel 4: [=====] 10%             |
++----------------------------------+
+| [Cancelar] [Salvar Alteracoes]   |
++----------------------------------+
+       |
+       v
+- Salva na tabela mlm_settings
+- Registra log de auditoria
+- Proximas distribuicoes usam novos valores
+```
+
+### Consideracoes
+
+1. **Retroatividade**: Alteracoes afetam apenas distribuicoes futuras
+2. **Historico**: Comissoes ja pagas mantem o percentual original (registrado em referral_commissions)
+3. **Auditoria**: Todas alteracoes sao registradas com detalhes
+4. **Fallback**: Se a tabela nao existir, usa valores padrao
+5. **Validacao**: Percentuais limitados entre 0% e 100%
