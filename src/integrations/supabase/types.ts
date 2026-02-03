@@ -351,6 +351,42 @@ export type Database = {
         }
         Relationships: []
       }
+      robot_cryptocurrencies: {
+        Row: {
+          created_at: string
+          cryptocurrency_id: string
+          id: string
+          robot_id: string
+        }
+        Insert: {
+          created_at?: string
+          cryptocurrency_id: string
+          id?: string
+          robot_id: string
+        }
+        Update: {
+          created_at?: string
+          cryptocurrency_id?: string
+          id?: string
+          robot_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "robot_cryptocurrencies_cryptocurrency_id_fkey"
+            columns: ["cryptocurrency_id"]
+            isOneToOne: false
+            referencedRelation: "cryptocurrencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "robot_cryptocurrencies_robot_id_fkey"
+            columns: ["robot_id"]
+            isOneToOne: false
+            referencedRelation: "robots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       robot_operations: {
         Row: {
           closed_at: string | null

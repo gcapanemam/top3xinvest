@@ -32,6 +32,9 @@ interface Robot {
     symbol: string;
     name: string;
   } | null;
+  robot_cryptocurrencies?: Array<{
+    cryptocurrency: { symbol: string; name: string };
+  }>;
 }
 
 const Robots = () => {
@@ -64,7 +67,13 @@ const Robots = () => {
   const fetchRobots = async () => {
     const { data, error } = await supabase
       .from('robots')
-      .select('*, cryptocurrency:cryptocurrencies(symbol, name)')
+      .select(`
+        *,
+        cryptocurrency:cryptocurrencies(symbol, name),
+        robot_cryptocurrencies(
+          cryptocurrency:cryptocurrencies(symbol, name)
+        )
+      `)
       .eq('is_active', true)
       .order('profit_percentage_max', { ascending: false });
 
@@ -93,6 +102,18 @@ const Robots = () => {
       style: 'currency',
       currency: 'BRL',
     }).format(value);
+  };
+
+  // Função para exibir símbolos de criptomoedas
+  const getCryptoDisplay = (robot: Robot) => {
+    if (robot.robot_cryptocurrencies && robot.robot_cryptocurrencies.length > 0) {
+      const symbols = robot.robot_cryptocurrencies.map(rc => rc.cryptocurrency.symbol);
+      if (symbols.length <= 3) {
+        return symbols.join(' / ');
+      }
+      return `${symbols.slice(0, 3).join(' / ')} +${symbols.length - 3}`;
+    }
+    return robot.cryptocurrency?.symbol || 'Multi';
   };
 
   const handleOpenInvestDialog = (robot: Robot) => {
@@ -257,11 +278,11 @@ const Robots = () => {
                   <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r from-teal-500 to-cyan-500 shadow-lg shadow-teal-500/25">
                     <Bot className="h-7 w-7 text-white" />
                   </div>
-                  {robot.cryptocurrency && (
+                  {(robot.robot_cryptocurrencies && robot.robot_cryptocurrencies.length > 0) || robot.cryptocurrency ? (
                     <span className="px-3 py-1 rounded-full bg-[#1e2a3a] text-cyan-400 text-sm font-semibold">
-                      {robot.cryptocurrency.symbol}
+                      {getCryptoDisplay(robot)}
                     </span>
-                  )}
+                  ) : null}
                 </div>
                 <div className="mt-4 flex items-center gap-2">
                   <h3 className="text-lg font-semibold text-white group-hover:text-teal-400 transition-colors">{robot.name}</h3>
@@ -434,11 +455,11 @@ const Robots = () => {
                 </div>
                 <div>
                   <h3 className="font-semibold text-white text-lg">{detailsRobot.name}</h3>
-                  {detailsRobot.cryptocurrency && (
+                  {(detailsRobot.robot_cryptocurrencies && detailsRobot.robot_cryptocurrencies.length > 0) || detailsRobot.cryptocurrency ? (
                     <span className="px-2 py-0.5 rounded-full bg-[#1e2a3a] text-cyan-400 text-xs font-medium">
-                      {detailsRobot.cryptocurrency.symbol}
+                      {getCryptoDisplay(detailsRobot)}
                     </span>
-                  )}
+                  ) : null}
                 </div>
               </div>
               <div className="p-4 bg-[#0a0f14] rounded-xl border border-[#1e2a3a]">
