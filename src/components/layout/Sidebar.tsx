@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  ClipboardList,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
@@ -50,6 +51,7 @@ const adminNavItems: NavItem[] = [
   { label: 'Saques', href: '/admin/withdrawals', icon: ArrowUpCircle, adminOnly: true },
   { label: 'Cotações', href: '/admin/prices', icon: Coins, adminOnly: true },
   { label: 'Notificações', href: '/admin/notifications', icon: Bell, adminOnly: true },
+  { label: 'Logs de Auditoria', href: '/admin/logs', icon: ClipboardList, adminOnly: true },
 ];
 
 export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {

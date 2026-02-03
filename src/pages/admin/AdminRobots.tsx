@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Plus, Bot, Edit, Trash2, DollarSign, TrendingUp } from 'lucide-react';
+import { createAuditLog } from '@/lib/auditLog';
 
 interface Robot {
   id: string;
@@ -197,6 +198,19 @@ const AdminRobots = () => {
       if (error) throw error;
 
       const processedCount = data as number;
+
+      // Create audit log
+      await createAuditLog({
+        action: 'robot_profit_credited',
+        entityType: 'robot',
+        entityId: selectedRobotForCredit.id,
+        details: {
+          robot_name: selectedRobotForCredit.name,
+          percentage: percentage,
+          processed_investments: processedCount,
+          estimated_total: estimatedProfit,
+        },
+      });
       
       toast({
         title: 'Lucro creditado com sucesso!',
@@ -263,6 +277,18 @@ const AdminRobots = () => {
         variant: 'destructive',
       });
     } else {
+      // Create audit log
+      await createAuditLog({
+        action: editingRobot ? 'robot_edited' : 'robot_created',
+        entityType: 'robot',
+        entityId: editingRobot?.id,
+        details: {
+          robot_name: formData.name,
+          profit_percentage: parseFloat(formData.profit_percentage),
+          is_active: formData.is_active,
+        },
+      });
+
       toast({
         title: 'Sucesso',
         description: editingRobot ? 'Robô atualizado!' : 'Robô criado!',
@@ -278,7 +304,20 @@ const AdminRobots = () => {
   const deleteRobot = async (id: string) => {
     if (!confirm('Tem certeza que deseja excluir este robô?')) return;
 
+    const robotToDelete = robots.find(r => r.id === id);
+
     await supabase.from('robots').delete().eq('id', id);
+
+    // Create audit log
+    await createAuditLog({
+      action: 'robot_deleted',
+      entityType: 'robot',
+      entityId: id,
+      details: {
+        robot_name: robotToDelete?.name,
+      },
+    });
+
     fetchData();
     toast({
       title: 'Robô excluído',

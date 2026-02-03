@@ -16,6 +16,7 @@ import {
 import { ArrowDownCircle, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { createAuditLog } from '@/lib/auditLog';
 
 interface Deposit {
   id: string;
@@ -122,6 +123,18 @@ const AdminDeposits = () => {
         ? `Seu depósito de R$ ${selectedDeposit.amount.toFixed(2)} foi aprovado e o saldo já está disponível.`
         : `Seu depósito de R$ ${selectedDeposit.amount.toFixed(2)} foi recusado. ${adminNotes || ''}`,
       type: approve ? 'info' : 'alert',
+    });
+
+    // Create audit log
+    await createAuditLog({
+      action: approve ? 'deposit_approved' : 'deposit_rejected',
+      entityType: 'deposit',
+      entityId: selectedDeposit.id,
+      details: {
+        user_id: selectedDeposit.user_id,
+        amount: selectedDeposit.amount,
+        admin_notes: adminNotes || null,
+      },
     });
 
     toast({
