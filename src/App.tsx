@@ -23,6 +23,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminRobots from "./pages/admin/AdminRobots";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminDeposits from "./pages/admin/AdminDeposits";
+import AdminDepositWallets from "./pages/admin/AdminDepositWallets";
 import AdminWithdrawals from "./pages/admin/AdminWithdrawals";
 import AdminPrices from "./pages/admin/AdminPrices";
 import AdminNotifications from "./pages/admin/AdminNotifications";
@@ -61,6 +62,7 @@ const App = () => (
               <Route path="/admin/users" element={<AdminUsers />} />
               <Route path="/admin/mlm" element={<AdminMLM />} />
               <Route path="/admin/deposits" element={<AdminDeposits />} />
+              <Route path="/admin/wallets" element={<AdminDepositWallets />} />
               <Route path="/admin/withdrawals" element={<AdminWithdrawals />} />
               <Route path="/admin/prices" element={<AdminPrices />} />
               <Route path="/admin/notifications" element={<AdminNotifications />} />

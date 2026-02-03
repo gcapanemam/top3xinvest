@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ArrowDownCircle, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { ArrowDownCircle, CheckCircle, XCircle, Clock, Bitcoin } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { createAuditLog } from '@/lib/auditLog';
@@ -25,6 +25,9 @@ interface Deposit {
   status: string;
   admin_notes: string | null;
   created_at: string;
+  payment_method: string | null;
+  network_name: string | null;
+  cryptocurrency?: { symbol: string; name: string } | null;
   profile?: { full_name: string | null } | null;
 }
 
@@ -52,7 +55,10 @@ const AdminDeposits = () => {
   const fetchDeposits = async () => {
     const { data } = await supabase
       .from('deposits')
-      .select('*')
+      .select(`
+        *,
+        cryptocurrency:cryptocurrencies(symbol, name)
+      `)
       .order('created_at', { ascending: false });
 
     if (data) {
@@ -148,11 +154,33 @@ const AdminDeposits = () => {
     fetchDeposits();
   };
 
-  const formatCurrency = (value: number) => {
+  const formatCurrency = (value: number, method?: string | null) => {
+    if (method === 'crypto') {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+      }).format(value);
+    }
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL',
     }).format(value);
+  };
+
+  const getPaymentMethodBadge = (deposit: Deposit) => {
+    if (deposit.payment_method === 'crypto') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-orange-500/20 text-orange-400 text-xs">
+          <Bitcoin className="h-3 w-3" />
+          {deposit.cryptocurrency?.symbol} - {deposit.network_name}
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-green-500/20 text-green-400 text-xs">
+        PIX
+      </span>
+    );
   };
 
   const getStatusBadge = (status: string) => {
@@ -233,7 +261,10 @@ const AdminDeposits = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
-                  <p className="text-xl font-bold text-white">{formatCurrency(deposit.amount)}</p>
+                  <div className="text-right">
+                    <p className="text-xl font-bold text-white">{formatCurrency(deposit.amount, deposit.payment_method)}</p>
+                    <div className="mt-1">{getPaymentMethodBadge(deposit)}</div>
+                  </div>
                   <div className="flex gap-2">
                     <button
                       className="px-3 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-sm font-medium flex items-center gap-1 hover:bg-green-500/30 transition-all"
@@ -277,20 +308,27 @@ const AdminDeposits = () => {
                 className="flex items-center justify-between rounded-lg border border-[#1e2a3a] p-4"
               >
                 <div className="flex items-center gap-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1e2a3a]">
-                    <ArrowDownCircle className="h-5 w-5 text-gray-400" />
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-full ${deposit.payment_method === 'crypto' ? 'bg-orange-500/20' : 'bg-[#1e2a3a]'}`}>
+                    {deposit.payment_method === 'crypto' ? (
+                      <Bitcoin className="h-5 w-5 text-orange-400" />
+                    ) : (
+                      <ArrowDownCircle className="h-5 w-5 text-gray-400" />
+                    )}
                   </div>
                   <div>
                     <p className="font-medium text-white">{deposit.profile?.full_name || 'Usuário'}</p>
-                    <p className="text-sm text-gray-400">
-                      {format(new Date(deposit.created_at), "dd/MM/yy 'às' HH:mm", {
-                        locale: ptBR,
-                      })}
-                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <p className="text-sm text-gray-400">
+                        {format(new Date(deposit.created_at), "dd/MM/yy 'às' HH:mm", {
+                          locale: ptBR,
+                        })}
+                      </p>
+                      {getPaymentMethodBadge(deposit)}
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
-                  <p className="font-bold text-white">{formatCurrency(deposit.amount)}</p>
+                  <p className="font-bold text-white">{formatCurrency(deposit.amount, deposit.payment_method)}</p>
                   {getStatusBadge(deposit.status)}
                 </div>
               </div>
