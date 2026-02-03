@@ -1,354 +1,352 @@
 
-# Plano: Permitir Múltiplas Criptomoedas por Robô
+# Plano: Animacao para Robos Ativos e Historico de Operacoes
 
-## Visão Geral
+## Visao Geral
 
-Alterar o sistema para que cada robô possa operar com múltiplas criptomoedas, permitindo que o admin selecione várias moedas ao criar/editar um robô. A seleção será feita através de checkboxes em vez de um dropdown de seleção única.
-
----
-
-## Alteração Visual
-
-### Antes (Dropdown Único)
-```text
-Criptomoeda
-+----------------------+
-| BTC - Bitcoin      v |
-+----------------------+
-```
-
-### Depois (Múltipla Seleção)
-```text
-Criptomoedas
-+----------------------------------+
-| [x] BTC - Bitcoin                |
-| [x] ETH - Ethereum               |
-| [ ] BNB - Binance Coin           |
-| [x] SOL - Solana                 |
-| [ ] XRP - Ripple                 |
-| [ ] ADA - Cardano                |
-| [ ] DOGE - Dogecoin              |
-| [ ] DOT - Polkadot               |
-+----------------------------------+
-```
+Adicionar uma animacao visual para investimentos ativos (indicando que o robo esta "em operacao") e um botao "Historico de Trades" que abre um dialog exibindo todas as operacoes de trading registradas pelo admin para aquele robo.
 
 ---
 
-## Seção Técnica
+## Alteracao Visual
 
-### 1. Alteração no Banco de Dados
-
-Criar tabela de relacionamento muitos-para-muitos:
-
-```sql
--- Tabela de relacionamento robô <-> criptomoedas
-CREATE TABLE public.robot_cryptocurrencies (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  robot_id UUID NOT NULL REFERENCES robots(id) ON DELETE CASCADE,
-  cryptocurrency_id UUID NOT NULL REFERENCES cryptocurrencies(id) ON DELETE CASCADE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-  UNIQUE(robot_id, cryptocurrency_id)
-);
-
--- RLS policies
-ALTER TABLE robot_cryptocurrencies ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Everyone can view robot cryptocurrencies"
-ON robot_cryptocurrencies FOR SELECT
-USING (true);
-
-CREATE POLICY "Admins can manage robot cryptocurrencies"
-ON robot_cryptocurrencies FOR ALL
-USING (is_admin());
-
--- Migrar dados existentes (robôs com cryptocurrency_id)
-INSERT INTO robot_cryptocurrencies (robot_id, cryptocurrency_id)
-SELECT id, cryptocurrency_id FROM robots WHERE cryptocurrency_id IS NOT NULL;
+### Card de Investimento Ativo (Antes)
+```text
++-----------------------------------------------------+
+| [Bot Icon]  S-BOT (STARTER BOT)  [Em Lock]          |
+| 0.3 - 0.3% / 30 dias                                |
++-----------------------------------------------------+
 ```
 
-### 2. Alterações no AdminRobots.tsx
+### Card de Investimento Ativo (Depois)
+```text
++-----------------------------------------------------+
+| [Bot Icon Animado + Pulso Verde]  S-BOT  [ACTIVE]   |
+|           ^-- Borda brilhante animada               |
+| 0.3 - 0.3% / 30 dias                                |
+|                                                     |
+|                   [HISTORICO DE TRADES]  <-- Botao  |
++-----------------------------------------------------+
+```
 
-**Interface Robot atualizada:**
+### Dialog de Historico de Trades
+```text
++--------------------------------------------------+
+|  Historico de Trades - S-BOT                     |
+|  23 operacoes realizadas                         |
++--------------------------------------------------+
+|                                                  |
+| +----------------------------------------------+ |
+| | BUY  BTC/USDT   +0.45%   02/02/26 14:30    | |
+| | Entrada: $45,230.00  Saida: $45,433.53     | |
+| +----------------------------------------------+ |
+|                                                  |
+| +----------------------------------------------+ |
+| | SELL ETH/USDT   +0.32%   01/02/26 09:15    | |
+| | Entrada: $2,450.00   Saida: $2,457.84      | |
+| +----------------------------------------------+ |
+|                                                  |
+| +----------------------------------------------+ |
+| | BUY  SOL/USDT   +0.28%   31/01/26 16:45    | |
+| | Entrada: $123.50     Saida: $123.85        | |
+| +----------------------------------------------+ |
+|                                                  |
++--------------------------------------------------+
+```
+
+---
+
+## Secao Tecnica
+
+### 1. Novos Keyframes de Animacao (tailwind.config.ts)
+
+Adicionar animacao de pulso verde para indicar robo em operacao:
+
 ```typescript
-interface Robot {
+keyframes: {
+  // Animacoes existentes...
+  
+  "pulse-ring": {
+    "0%": {
+      transform: "scale(0.8)",
+      opacity: "0.8",
+    },
+    "50%": {
+      transform: "scale(1.2)",
+      opacity: "0",
+    },
+    "100%": {
+      transform: "scale(0.8)",
+      opacity: "0",
+    },
+  },
+  "active-glow": {
+    "0%, 100%": {
+      boxShadow: "0 0 15px rgba(34, 197, 94, 0.4), inset 0 0 15px rgba(34, 197, 94, 0.1)",
+      borderColor: "rgba(34, 197, 94, 0.5)",
+    },
+    "50%": {
+      boxShadow: "0 0 25px rgba(34, 197, 94, 0.6), inset 0 0 20px rgba(34, 197, 94, 0.15)",
+      borderColor: "rgba(34, 197, 94, 0.8)",
+    },
+  },
+},
+animation: {
+  // Animacoes existentes...
+  "pulse-ring": "pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+  "active-glow": "active-glow 2s ease-in-out infinite",
+},
+```
+
+### 2. Alteracoes no Investments.tsx
+
+**Novos imports:**
+```typescript
+import { Bot, TrendingUp, Lock, Unlock, History, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+```
+
+**Interface atualizada:**
+```typescript
+interface Investment {
   id: string;
-  name: string;
-  description: string | null;
-  cryptocurrency_id: string | null; // Mantido para compatibilidade
-  profit_percentage_min: number;
-  profit_percentage_max: number;
-  profit_period_days: number;
-  lock_period_days: number;
-  min_investment: number;
-  max_investment: number | null;
-  is_active: boolean;
-  cryptocurrency?: { symbol: string; name: string } | null;
-  robot_cryptocurrencies?: Array<{
-    cryptocurrency_id: string;
-    cryptocurrency: { symbol: string; name: string };
-  }>;
+  amount: number;
+  profit_accumulated: number;
+  status: string;
+  lock_until: string;
+  created_at: string;
+  robot_id: string | null;  // Adicionar para buscar operacoes
+  robot: {
+    name: string;
+    profit_percentage_min: number;
+    profit_percentage_max: number;
+    profit_period_days: number;
+  } | null;
+}
+
+interface Operation {
+  id: string;
+  cryptocurrency_symbol: string;
+  operation_type: string;
+  entry_price: number;
+  exit_price: number | null;
+  profit_percentage: number | null;
+  status: string;
+  created_at: string;
+  closed_at: string | null;
 }
 ```
 
-**Estado do Formulário:**
+**Novos estados:**
 ```typescript
-const [formData, setFormData] = useState({
-  name: '',
-  description: '',
-  selected_cryptocurrencies: [] as string[], // Array de IDs
-  profit_percentage_min: '',
-  profit_percentage_max: '',
-  profit_period_days: '30',
-  lock_period_days: '7',
-  min_investment: '100',
-  max_investment: '',
-  is_active: true,
-});
+const [operationsDialogOpen, setOperationsDialogOpen] = useState(false);
+const [selectedInvestment, setSelectedInvestment] = useState<Investment | null>(null);
+const [operations, setOperations] = useState<Operation[]>([]);
+const [isLoadingOperations, setIsLoadingOperations] = useState(false);
 ```
 
-**Novo Componente de Seleção (substituir o Select):**
+**Funcao para buscar operacoes:**
 ```typescript
-<div className="space-y-2">
-  <Label className="text-gray-300">Criptomoedas</Label>
-  <div className="rounded-lg border border-[#1e2a3a] bg-[#0a0f14] p-3 max-h-48 overflow-y-auto space-y-2">
-    {cryptos.map((crypto) => (
-      <div key={crypto.id} className="flex items-center gap-2">
-        <Checkbox
-          id={`crypto-${crypto.id}`}
-          checked={formData.selected_cryptocurrencies.includes(crypto.id)}
-          onCheckedChange={(checked) => {
-            if (checked) {
-              setFormData(prev => ({
-                ...prev,
-                selected_cryptocurrencies: [...prev.selected_cryptocurrencies, crypto.id]
-              }));
-            } else {
-              setFormData(prev => ({
-                ...prev,
-                selected_cryptocurrencies: prev.selected_cryptocurrencies.filter(id => id !== crypto.id)
-              }));
-            }
-          }}
-          className="border-[#1e2a3a] data-[state=checked]:bg-teal-500"
-        />
-        <Label 
-          htmlFor={`crypto-${crypto.id}`} 
-          className="text-white cursor-pointer flex items-center gap-2"
-        >
-          <span className="text-teal-400 font-mono">{crypto.symbol}</span>
-          <span className="text-gray-400">-</span>
-          <span>{crypto.name}</span>
-        </Label>
-      </div>
-    ))}
-  </div>
-  {formData.selected_cryptocurrencies.length > 0 && (
-    <p className="text-xs text-teal-400">
-      {formData.selected_cryptocurrencies.length} moeda(s) selecionada(s)
-    </p>
+const fetchOperations = async (robotId: string) => {
+  setIsLoadingOperations(true);
+  const { data } = await supabase
+    .from('robot_operations')
+    .select('*')
+    .eq('robot_id', robotId)
+    .order('created_at', { ascending: false });
+  
+  if (data) {
+    setOperations(data);
+  }
+  setIsLoadingOperations(false);
+};
+
+const openOperationsDialog = async (investment: Investment) => {
+  setSelectedInvestment(investment);
+  setOperationsDialogOpen(true);
+  if (investment.robot_id) {
+    await fetchOperations(investment.robot_id);
+  }
+};
+```
+
+**Card de investimento com animacao (para status === 'active'):**
+```typescript
+<div 
+  key={investment.id} 
+  className={cn(
+    "rounded-xl bg-[#111820] border p-6 transition-all duration-300",
+    investment.status === 'active' 
+      ? "border-green-500/50 animate-active-glow" 
+      : "border-[#1e2a3a]"
   )}
+>
+  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div className="flex items-center gap-4">
+      {/* Icone do robo com animacao */}
+      <div className="relative">
+        <div className={cn(
+          "flex h-12 w-12 items-center justify-center rounded-xl",
+          investment.status === 'active'
+            ? "bg-gradient-to-r from-green-500/30 to-emerald-500/30"
+            : "bg-gradient-to-r from-teal-500/20 to-cyan-500/20"
+        )}>
+          <Bot className={cn(
+            "h-6 w-6",
+            investment.status === 'active' ? "text-green-400" : "text-teal-400"
+          )} />
+        </div>
+        {/* Anel de pulso para ativos */}
+        {investment.status === 'active' && (
+          <span className="absolute inset-0 rounded-xl bg-green-500/30 animate-pulse-ring" />
+        )}
+      </div>
+      {/* ... resto do conteudo ... */}
+    </div>
+    
+    {/* ... grid com dados ... */}
+    
+    {/* Botao de Historico de Trades */}
+    {investment.status === 'active' && investment.robot_id && (
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => openOperationsDialog(investment)}
+        className="border-green-500/50 text-green-400 hover:bg-green-500/10 hover:text-green-300"
+      >
+        <History className="h-4 w-4 mr-2" />
+        Historico de Trades
+      </Button>
+    )}
+  </div>
 </div>
 ```
 
-**Função openEditDialog atualizada:**
+**Dialog de Historico de Operacoes:**
 ```typescript
-const openEditDialog = async (robot: Robot) => {
-  setEditingRobot(robot);
-  
-  // Buscar criptomoedas do robô
-  const { data: robotCryptos } = await supabase
-    .from('robot_cryptocurrencies')
-    .select('cryptocurrency_id')
-    .eq('robot_id', robot.id);
-  
-  const selectedIds = robotCryptos?.map(rc => rc.cryptocurrency_id) || [];
-  
-  // Fallback para campo antigo se não tiver na nova tabela
-  if (selectedIds.length === 0 && robot.cryptocurrency_id) {
-    selectedIds.push(robot.cryptocurrency_id);
-  }
-  
-  setFormData({
-    name: robot.name,
-    description: robot.description || '',
-    selected_cryptocurrencies: selectedIds,
-    profit_percentage_min: robot.profit_percentage_min.toString(),
-    profit_percentage_max: robot.profit_percentage_max.toString(),
-    profit_period_days: robot.profit_period_days.toString(),
-    lock_period_days: robot.lock_period_days.toString(),
-    min_investment: robot.min_investment.toString(),
-    max_investment: robot.max_investment?.toString() || '',
-    is_active: robot.is_active,
-  });
-  setIsDialogOpen(true);
-};
-```
+<Dialog open={operationsDialogOpen} onOpenChange={setOperationsDialogOpen}>
+  <DialogContent className="max-w-2xl max-h-[80vh] bg-[#111820] border-[#1e2a3a] text-white flex flex-col">
+    <DialogHeader>
+      <DialogTitle className="text-white flex items-center gap-2">
+        <History className="h-5 w-5 text-green-400" />
+        Historico de Trades - {selectedInvestment?.robot?.name}
+      </DialogTitle>
+      <DialogDescription className="text-gray-400">
+        {operations.length} operacao(es) realizada(s)
+      </DialogDescription>
+    </DialogHeader>
 
-**Função handleSubmit atualizada:**
-```typescript
-const handleSubmit = async () => {
-  // ... validações existentes ...
-
-  setIsSubmitting(true);
-
-  const robotData = {
-    name: formData.name,
-    description: formData.description || null,
-    cryptocurrency_id: formData.selected_cryptocurrencies[0] || null, // Mantém compatibilidade
-    profit_percentage_min: parseFloat(formData.profit_percentage_min),
-    profit_percentage_max: parseFloat(formData.profit_percentage_max),
-    profit_period_days: parseInt(formData.profit_period_days),
-    lock_period_days: parseInt(formData.lock_period_days),
-    min_investment: parseFloat(formData.min_investment),
-    max_investment: formData.max_investment ? parseFloat(formData.max_investment) : null,
-    is_active: formData.is_active,
-  };
-
-  try {
-    let robotId: string;
-    
-    if (editingRobot) {
-      // Update existing robot
-      const { error } = await supabase
-        .from('robots')
-        .update(robotData)
-        .eq('id', editingRobot.id);
-      if (error) throw error;
-      robotId = editingRobot.id;
-      
-      // Remove criptomoedas antigas
-      await supabase
-        .from('robot_cryptocurrencies')
-        .delete()
-        .eq('robot_id', robotId);
-    } else {
-      // Create new robot
-      const { data, error } = await supabase
-        .from('robots')
-        .insert(robotData)
-        .select('id')
-        .single();
-      if (error) throw error;
-      robotId = data.id;
-    }
-    
-    // Inserir novas criptomoedas
-    if (formData.selected_cryptocurrencies.length > 0) {
-      const { error: cryptoError } = await supabase
-        .from('robot_cryptocurrencies')
-        .insert(
-          formData.selected_cryptocurrencies.map(cryptoId => ({
-            robot_id: robotId,
-            cryptocurrency_id: cryptoId,
-          }))
-        );
-      if (cryptoError) throw cryptoError;
-    }
-
-    // ... resto do código (audit log, toast, etc) ...
-  } catch (error) {
-    // ... tratamento de erro ...
-  }
-};
-```
-
-**Função fetchData atualizada:**
-```typescript
-const fetchData = async () => {
-  const { data: robotsData } = await supabase
-    .from('robots')
-    .select(`
-      *,
-      cryptocurrency:cryptocurrencies(symbol, name),
-      robot_cryptocurrencies(
-        cryptocurrency_id,
-        cryptocurrency:cryptocurrencies(symbol, name)
-      )
-    `)
-    .order('created_at', { ascending: false });
-
-  // ... resto do código ...
-};
-```
-
-**Exibição no Card do Robô:**
-```typescript
-// Ao exibir as moedas no card
-const getCryptoSymbols = (robot: Robot) => {
-  if (robot.robot_cryptocurrencies && robot.robot_cryptocurrencies.length > 0) {
-    return robot.robot_cryptocurrencies
-      .map(rc => rc.cryptocurrency.symbol)
-      .join(', ');
-  }
-  return robot.cryptocurrency?.symbol || '-';
-};
-```
-
-### 3. Alterações no Robots.tsx (Visão do Usuário)
-
-Atualizar a interface e exibição para mostrar múltiplas moedas:
-
-```typescript
-interface Robot {
-  id: string;
-  name: string;
-  // ... outros campos ...
-  cryptocurrency: { symbol: string; name: string } | null;
-  robot_cryptocurrencies?: Array<{
-    cryptocurrency: { symbol: string; name: string };
-  }>;
-}
-
-// Função para exibir símbolos
-const getCryptoDisplay = (robot: Robot) => {
-  if (robot.robot_cryptocurrencies && robot.robot_cryptocurrencies.length > 0) {
-    const symbols = robot.robot_cryptocurrencies.map(rc => rc.cryptocurrency.symbol);
-    if (symbols.length <= 3) {
-      return symbols.join(' / ');
-    }
-    return `${symbols.slice(0, 3).join(' / ')} +${symbols.length - 3}`;
-  }
-  return robot.cryptocurrency?.symbol || 'Multi';
-};
+    <div className="flex-1 overflow-y-auto space-y-3 py-4">
+      {isLoadingOperations ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-green-500 border-t-transparent" />
+        </div>
+      ) : operations.length === 0 ? (
+        <div className="text-center py-8 text-gray-400">
+          Nenhuma operacao registrada ainda
+        </div>
+      ) : (
+        operations.map((op) => (
+          <div 
+            key={op.id}
+            className="rounded-lg bg-[#0a0f14] border border-[#1e2a3a] p-4"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  "flex h-8 w-8 items-center justify-center rounded-lg",
+                  op.operation_type === 'buy' 
+                    ? "bg-green-500/20" 
+                    : "bg-red-500/20"
+                )}>
+                  {op.operation_type === 'buy' ? (
+                    <ArrowUpRight className="h-4 w-4 text-green-400" />
+                  ) : (
+                    <ArrowDownRight className="h-4 w-4 text-red-400" />
+                  )}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className={cn(
+                      "text-xs font-bold px-2 py-0.5 rounded",
+                      op.operation_type === 'buy' 
+                        ? "bg-green-500/20 text-green-400" 
+                        : "bg-red-500/20 text-red-400"
+                    )}>
+                      {op.operation_type.toUpperCase()}
+                    </span>
+                    <span className="text-white font-medium">
+                      {op.cryptocurrency_symbol}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Entrada: ${op.entry_price.toLocaleString()}
+                    {op.exit_price && ` → Saida: $${op.exit_price.toLocaleString()}`}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className={cn(
+                  "font-bold",
+                  (op.profit_percentage || 0) >= 0 ? "text-green-400" : "text-red-400"
+                )}>
+                  {(op.profit_percentage || 0) >= 0 ? '+' : ''}{op.profit_percentage?.toFixed(2)}%
+                </p>
+                <p className="text-xs text-gray-400">
+                  {format(new Date(op.created_at), 'dd/MM/yy HH:mm', { locale: ptBR })}
+                </p>
+              </div>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  </DialogContent>
+</Dialog>
 ```
 
 ---
 
-## Resumo das Alterações
+## Resumo das Alteracoes
 
-| Arquivo | Alterações |
+| Arquivo | Alteracoes |
 |---------|-----------|
-| Migração SQL | Criar tabela robot_cryptocurrencies e migrar dados |
-| src/pages/admin/AdminRobots.tsx | Checkboxes para múltipla seleção, salvar relações |
-| src/pages/Robots.tsx | Exibir múltiplas moedas no card |
-| src/pages/Investments.tsx | Exibir múltiplas moedas (se aplicável) |
+| tailwind.config.ts | Novas animacoes pulse-ring e active-glow |
+| src/pages/Investments.tsx | Card animado + botao + dialog de operacoes |
 
 ### Fluxo
 
 ```text
-Admin edita/cria robô
+Usuario abre "Meus Investimentos"
         |
         v
 +----------------------------------+
-| Criptomoedas:                    |
-| [x] BTC - Bitcoin                |
-| [x] ETH - Ethereum               |
-| [ ] BNB - Binance Coin           |
-| [x] SOL - Solana                 |
+| Investimento ATIVO:              |
+| - Borda verde pulsante           |
+| - Icone com animacao de pulso    |
+| - Badge "ACTIVE" verde           |
+| - Botao [HISTORICO DE TRADES]    |
 +----------------------------------+
         |
-        v
-Salva na tabela robot_cryptocurrencies
-(robot_id, cryptocurrency_id)
-        |
-        v
-Usuário vê no card:
-"BTC / ETH / SOL"
+        v (clique no botao)
++----------------------------------+
+| Dialog com lista de operacoes:   |
+| - BUY BTC/USDT +0.45% 02/02/26   |
+| - SELL ETH/USDT +0.32% 01/02/26  |
+| - BUY SOL/USDT +0.28% 31/01/26   |
++----------------------------------+
 ```
 
-### Considerações
+### Consideracoes
 
-1. **Retrocompatibilidade**: O campo cryptocurrency_id na tabela robots é mantido (preenchido com a primeira moeda selecionada)
-2. **Migração**: Dados existentes serão migrados automaticamente para a nova tabela
-3. **Exibição**: Se houver mais de 3 moedas, mostra "BTC / ETH / SOL +2"
-4. **RLS**: Todos podem ver as criptomoedas dos robôs, apenas admins podem gerenciar
+1. **Animacao sutil**: O brilho verde pulsa suavemente para nao distrair o usuario
+2. **Performance**: As operacoes sao carregadas apenas ao abrir o dialog
+3. **Responsividade**: O botao de historico se adapta ao layout mobile
+4. **Consistencia visual**: Usa as mesmas cores e estilos do sistema (verde para positivo, vermelho para negativo)
+5. **Indicador visual**: O anel de pulso ao redor do icone do robo indica que o sistema esta "trabalhando"
