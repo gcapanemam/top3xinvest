@@ -1,362 +1,264 @@
 
-# Plano: Gestao Avancada de Robos com Estatisticas de Trading
+# Plano: Botao para Gerar Operacoes Automaticas
 
 ## Visao Geral
 
-Implementar uma interface completa de gerenciamento de robos para o painel administrativo, incluindo:
+Adicionar um botao "Gerar Automaticamente" na aba de Nova Operacao que permite ao admin gerar operacoes simuladas de forma inteligente. O sistema criara sugestoes de operacoes com base em parametros configuraveis, e o admin pode revisar, editar e aprovar cada uma antes de inserir.
 
-1. **Visualizar investidores**: Ver quem investiu em cada robo com detalhes
-2. **Registrar rentabilidade diaria**: Adicionar operacoes de trading dia a dia
-3. **Mostrar ativos negociados**: Exibir quais criptomoedas foram operadas e os ganhos de cada operacao (como na imagem de referencia)
+---
+
+## Como Vai Funcionar
+
+### Fluxo do Admin
+
+```text
+Aba "Nova Operacao"
+       |
+       v
+Clica em [Gerar Automaticamente]
+       |
+       v
++----------------------------------+
+| Modal de Geracao                 |
++----------------------------------+
+| Configuracoes:                   |
+| - Qtd operacoes: [3-8]           |
+| - Range de lucro: [0.1% - 0.5%]  |
+| - Pares: [BNB, ETH, SOL...]      |
+| - Data: [ontem]                  |
++----------------------------------+
+|                                  |
+| [Gerar Sugestoes]                |
+|                                  |
++----------------------------------+
+       |
+       v
++----------------------------------+
+| Operacoes Geradas (para revisar) |
++----------------------------------+
+| [x] BNB/USDT  +0.32%  BUY        |
+| [x] ETH/USDT  +0.18%  SELL       |
+| [ ] SOL/USDT  -0.05%  BUY        |
+| [x] BTC/USDT  +0.41%  BUY        |
++----------------------------------+
+| [Cancelar]  [Adicionar Selecionadas] |
++----------------------------------+
+```
 
 ---
 
 ## Secao Tecnica
 
-### Estrutura de Dados
-
-A tabela `robot_operations` ja existe com a estrutura adequada:
-
-| Campo | Tipo | Descricao |
-|-------|------|-----------|
-| id | UUID | Identificador unico |
-| robot_id | UUID | ID do robo |
-| cryptocurrency_symbol | TEXT | Par negociado (ex: BNB/USDT) |
-| operation_type | TEXT | "buy" ou "sell" |
-| entry_price | NUMERIC | Preco de entrada |
-| exit_price | NUMERIC | Preco de saida |
-| profit_percentage | NUMERIC | Percentual de lucro |
-| status | TEXT | "open" ou "closed" |
-| created_at | TIMESTAMP | Data/hora da operacao |
-| closed_at | TIMESTAMP | Data/hora de fechamento |
-
-### Arquivos a Modificar
-
-| Arquivo | Alteracoes |
-|---------|-----------|
-| src/pages/admin/AdminRobots.tsx | Adicionar dialog de estatisticas com abas |
-
----
-
-### 1. Novo Dialog de Estatisticas do Robo
-
-Adicionar um botao para abrir as estatisticas de cada robo:
-
-```text
-+------------------------------------------------+
-| ESTATISTICAS DE TRADING                        |
-| Bot BTC Agressivo                     [X]      |
-| #ABC123   [ATIVO]                              |
-+------------------------------------------------+
-| DIAS: 5     TRADES: 12     PROFIT: 4.08%       |
-| [calendario] [check]       [grafico]           |
-+------------------------------------------------+
-|                                                |
-| [Investidores] [Operacoes] [Nova Operacao]     |
-|                                                |
-+------------------------------------------------+
-| ABA INVESTIDORES:                              |
-| +--------------------------------------------+ |
-| | Usuario    | Valor     | Data    | Status | |
-| | Maria S.   | R$ 500    | 02/02   | Ativo  | |
-| | Joao P.    | R$ 1000   | 01/02   | Ativo  | |
-| +--------------------------------------------+ |
-|                                                |
-| ABA OPERACOES:                                 |
-| 02/02/2026 | 0.82%                             |
-| +------------+ +------------+ +------------+   |
-| | BNB/USDT   | | BNB/USDT   | | BNB/USDT   |   |
-| | +0.16%     | | +0.34%     | | +0.32%     |   |
-| | [SELL]     | | [BUY]      | | [BUY]      |   |
-| | Detalhes   | | Detalhes   | | Detalhes   |   |
-| +------------+ +------------+ +------------+   |
-|                                                |
-| 31/01/2026 | 0.68%                             |
-| +------------+ +------------+                  |
-| | BNB/USDT   | | BNB/USDT   |                  |
-| | +0.26%     | | +0.42%     |                  |
-| | [SELL]     | | [BUY]      |                  |
-| | Detalhes   | | Detalhes   |                  |
-| +------------+ +------------+                  |
-+------------------------------------------------+
-```
-
----
-
-### 2. Aba de Nova Operacao
-
-Formulario para admin inserir operacoes manualmente:
-
-```text
-+------------------------------------------------+
-| NOVA OPERACAO                                  |
-+------------------------------------------------+
-| Par: [BNB/USDT v]                              |
-| Tipo: (x) Buy  ( ) Sell                        |
-| Preco Entrada: [___________]                   |
-| Preco Saida: [___________]                     |
-| % Lucro: [___________] (calculado auto)        |
-| Data: [02/02/2026]                             |
-+------------------------------------------------+
-| [Cancelar]              [Adicionar Operacao]   |
-+------------------------------------------------+
-```
-
----
-
-### 3. Alteracoes no AdminRobots.tsx
-
-**Novos estados:**
+### 1. Novos Estados
 
 ```typescript
-// Dialog de estatisticas
-const [statsDialogOpen, setStatsDialogOpen] = useState(false);
-const [selectedRobotForStats, setSelectedRobotForStats] = useState<Robot | null>(null);
-const [statsTab, setStatsTab] = useState<'investors' | 'operations' | 'new'>('operations');
-
-// Dados carregados
-const [robotInvestors, setRobotInvestors] = useState<InvestorData[]>([]);
-const [robotOperations, setRobotOperations] = useState<OperationData[]>([]);
-const [isLoadingStats, setIsLoadingStats] = useState(false);
-
-// Formulario nova operacao
-const [newOperation, setNewOperation] = useState({
-  cryptocurrency_symbol: 'BNB/USDT',
-  operation_type: 'buy',
-  entry_price: '',
-  exit_price: '',
-  profit_percentage: '',
+// Auto-generate state
+const [showAutoGenerate, setShowAutoGenerate] = useState(false);
+const [autoGenConfig, setAutoGenConfig] = useState({
+  operationCount: 5,
+  minProfit: 0.1,
+  maxProfit: 0.5,
+  allowNegative: false,  // Permite operacoes negativas
+  negativeChance: 10,    // % de chance de ser negativa
+  selectedPairs: ['BNB/USDT', 'ETH/USDT', 'BTC/USDT'],
+  operationDate: format(subDays(new Date(), 1), 'yyyy-MM-dd'), // Ontem
 });
-```
+const [generatedOperations, setGeneratedOperations] = useState<GeneratedOperation[]>([]);
+const [selectedOperations, setSelectedOperations] = useState<Set<number>>(new Set());
+const [isGenerating, setIsGenerating] = useState(false);
+const [isAddingBulk, setIsAddingBulk] = useState(false);
 
-**Novas interfaces:**
-
-```typescript
-interface InvestorData {
-  id: string;
-  user_id: string;
-  amount: number;
-  profit_accumulated: number;
-  status: string;
-  created_at: string;
-  profile: {
-    full_name: string | null;
-  } | null;
-}
-
-interface OperationData {
-  id: string;
+interface GeneratedOperation {
+  id: number;
   cryptocurrency_symbol: string;
-  operation_type: string;
+  operation_type: 'buy' | 'sell';
+  profit_percentage: number;
   entry_price: number;
-  exit_price: number | null;
-  profit_percentage: number | null;
-  status: string;
-  created_at: string;
-  closed_at: string | null;
+  exit_price: number;
 }
 ```
 
-**Novas funcoes:**
+### 2. Funcao de Geracao
 
 ```typescript
-// Abrir dialog de stats
-const openStatsDialog = async (robot: Robot) => {
-  setSelectedRobotForStats(robot);
-  setStatsDialogOpen(true);
-  setIsLoadingStats(true);
+const generateOperations = () => {
+  setIsGenerating(true);
   
-  // Buscar investidores
-  const { data: investors } = await supabase
-    .from('investments')
-    .select('*, profile:profiles(full_name)')
-    .eq('robot_id', robot.id)
-    .order('created_at', { ascending: false });
+  const operations: GeneratedOperation[] = [];
   
-  // Buscar operacoes
-  const { data: operations } = await supabase
-    .from('robot_operations')
-    .select('*')
-    .eq('robot_id', robot.id)
-    .order('created_at', { ascending: false });
-  
-  setRobotInvestors(investors || []);
-  setRobotOperations(operations || []);
-  setIsLoadingStats(false);
-};
-
-// Adicionar nova operacao
-const handleAddOperation = async () => {
-  if (!selectedRobotForStats) return;
-  
-  const { error } = await supabase
-    .from('robot_operations')
-    .insert({
-      robot_id: selectedRobotForStats.id,
-      cryptocurrency_symbol: newOperation.cryptocurrency_symbol,
-      operation_type: newOperation.operation_type,
-      entry_price: parseFloat(newOperation.entry_price),
-      exit_price: parseFloat(newOperation.exit_price),
-      profit_percentage: parseFloat(newOperation.profit_percentage),
-      status: 'closed',
-      closed_at: new Date().toISOString(),
+  for (let i = 0; i < autoGenConfig.operationCount; i++) {
+    // Escolher par aleatorio
+    const pair = autoGenConfig.selectedPairs[
+      Math.floor(Math.random() * autoGenConfig.selectedPairs.length)
+    ];
+    
+    // Determinar se vai ser negativa
+    const isNegative = autoGenConfig.allowNegative && 
+      Math.random() * 100 < autoGenConfig.negativeChance;
+    
+    // Gerar lucro no range configurado
+    let profit = autoGenConfig.minProfit + 
+      Math.random() * (autoGenConfig.maxProfit - autoGenConfig.minProfit);
+    
+    if (isNegative) {
+      profit = -profit * 0.5; // Negativas sao menores
+    }
+    
+    // Tipo de operacao aleatorio
+    const type = Math.random() > 0.5 ? 'buy' : 'sell';
+    
+    // Precos simulados
+    const entryPrice = 100 + Math.random() * 900;
+    const exitPrice = entryPrice * (1 + profit / 100);
+    
+    operations.push({
+      id: i,
+      cryptocurrency_symbol: pair,
+      operation_type: type,
+      profit_percentage: parseFloat(profit.toFixed(2)),
+      entry_price: parseFloat(entryPrice.toFixed(2)),
+      exit_price: parseFloat(exitPrice.toFixed(2)),
     });
+  }
   
-  if (!error) {
-    toast({ title: 'Operacao adicionada!' });
-    // Recarregar operacoes
-    openStatsDialog(selectedRobotForStats);
+  setGeneratedOperations(operations);
+  // Selecionar todas por padrao (exceto negativas)
+  setSelectedOperations(new Set(
+    operations
+      .filter(op => op.profit_percentage >= 0)
+      .map(op => op.id)
+  ));
+  
+  setIsGenerating(false);
+};
+```
+
+### 3. Funcao de Adicionar em Massa
+
+```typescript
+const handleAddSelectedOperations = async () => {
+  if (!selectedRobotForStats || selectedOperations.size === 0) return;
+  
+  setIsAddingBulk(true);
+  
+  try {
+    const operationsToAdd = generatedOperations
+      .filter(op => selectedOperations.has(op.id));
+    
+    const insertData = operationsToAdd.map(op => ({
+      robot_id: selectedRobotForStats.id,
+      cryptocurrency_symbol: op.cryptocurrency_symbol,
+      operation_type: op.operation_type,
+      entry_price: op.entry_price,
+      exit_price: op.exit_price,
+      profit_percentage: op.profit_percentage,
+      status: 'closed',
+      created_at: new Date(autoGenConfig.operationDate).toISOString(),
+      closed_at: new Date(autoGenConfig.operationDate).toISOString(),
+    }));
+    
+    const { error } = await supabase
+      .from('robot_operations')
+      .insert(insertData);
+    
+    if (error) throw error;
+    
+    toast({
+      title: 'Operacoes adicionadas!',
+      description: `${insertData.length} operacao(es) inserida(s) com sucesso`,
+    });
+    
+    // Recarregar e fechar modal
+    await openStatsDialog(selectedRobotForStats);
+    setShowAutoGenerate(false);
+    setGeneratedOperations([]);
     setStatsTab('operations');
-    setNewOperation({ ... });
+  } catch (error: any) {
+    toast({
+      title: 'Erro',
+      description: error.message,
+      variant: 'destructive',
+    });
+  } finally {
+    setIsAddingBulk(false);
   }
 };
-
-// Agrupar operacoes por data
-const groupOperationsByDate = (operations: OperationData[]) => {
-  return operations.reduce((groups, op) => {
-    const date = format(new Date(op.created_at), 'dd/MM/yyyy');
-    if (!groups[date]) {
-      groups[date] = { operations: [], totalProfit: 0 };
-    }
-    groups[date].operations.push(op);
-    groups[date].totalProfit += op.profit_percentage || 0;
-    return groups;
-  }, {} as Record<string, { operations: OperationData[]; totalProfit: number }>);
-};
 ```
 
----
+### 4. Interface Visual
 
-### 4. Novo Botao na Lista de Robos
-
-Adicionar botao de estatisticas ao lado dos botoes existentes:
+#### Botao na Aba Nova Operacao
 
 ```typescript
-<button 
-  className="p-2 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 transition-all"
-  onClick={() => openStatsDialog(robot)}
-  title="Ver Estatísticas"
+{/* Separador com texto */}
+<div className="relative my-6">
+  <div className="absolute inset-0 flex items-center">
+    <div className="w-full border-t border-[#1e2a3a]"></div>
+  </div>
+  <div className="relative flex justify-center">
+    <span className="bg-[#0a0f14] px-4 text-sm text-gray-500">
+      ou
+    </span>
+  </div>
+</div>
+
+{/* Botao Gerar Automaticamente */}
+<Button
+  variant="outline"
+  onClick={() => setShowAutoGenerate(true)}
+  className="w-full border-dashed border-[#1e2a3a] text-gray-400 hover:border-cyan-500/50 hover:text-cyan-400"
 >
-  <BarChart3 className="h-4 w-4" />
-</button>
+  <Sparkles className="h-4 w-4 mr-2" />
+  Gerar Operacoes Automaticamente
+</Button>
 ```
 
----
+#### Modal de Geracao
 
-### 5. Componentes Visuais do Dialog
-
-**Cards de Estatisticas (topo):**
-
-```typescript
-<div className="grid grid-cols-3 gap-4 mb-6">
-  <div className="bg-white rounded-xl p-4 text-center">
-    <div className="flex items-center justify-between">
-      <span className="text-gray-600 font-medium">DAYS:</span>
-      <Calendar className="h-5 w-5 text-green-500" />
-    </div>
-    <p className="text-2xl font-bold text-gray-800">{totalDays}</p>
-  </div>
-  <div className="bg-white rounded-xl p-4 text-center">
-    <div className="flex items-center justify-between">
-      <span className="text-gray-600 font-medium">TRADES:</span>
-      <CheckCircle className="h-5 w-5 text-green-500" />
-    </div>
-    <p className="text-2xl font-bold text-gray-800">{totalTrades}</p>
-  </div>
-  <div className="bg-white rounded-xl p-4 text-center">
-    <div className="flex items-center justify-between">
-      <span className="text-gray-600 font-medium">PROFIT:</span>
-      <TrendingUp className="h-5 w-5 text-green-500" />
-    </div>
-    <p className="text-2xl font-bold text-green-500">{totalProfit}%</p>
-  </div>
-</div>
+```text
++--------------------------------------------------+
+| Gerar Operacoes Automaticas              [X]     |
++--------------------------------------------------+
+| Configure as operacoes a serem geradas:          |
++--------------------------------------------------+
+| Quantidade: [5] operacoes                        |
+|                                                  |
+| Range de Lucro:                                  |
+| Min: [0.10]%    Max: [0.50]%                    |
+|                                                  |
+| [x] Permitir operacoes negativas                 |
+| Chance de negativa: [10]%                        |
+|                                                  |
+| Pares a incluir:                                 |
+| [x] BNB/USDT  [x] ETH/USDT  [x] BTC/USDT        |
+| [x] SOL/USDT  [ ] XRP/USDT  [ ] DOGE/USDT       |
+|                                                  |
+| Data das operacoes: [01/02/2026] (ontem)         |
++--------------------------------------------------+
+| [Gerar Sugestoes]                                |
++--------------------------------------------------+
+|                                                  |
+| Operacoes Geradas:                               |
+| +----------------------------------------------+ |
+| | [x]  BNB/USDT   +0.32%   BUY                | |
+| | [x]  ETH/USDT   +0.18%   SELL               | |
+| | [ ]  SOL/USDT   -0.05%   BUY    (negativa)  | |
+| | [x]  BTC/USDT   +0.41%   BUY                | |
+| | [x]  BNB/USDT   +0.27%   SELL               | |
+| +----------------------------------------------+ |
+|                                                  |
+| Total lucro selecionado: +1.18%                  |
++--------------------------------------------------+
+| [Cancelar]          [Adicionar 4 Operacoes]      |
++--------------------------------------------------+
 ```
 
-**Cards de Operacao (estilo da imagem):**
+### 5. Imports Necessarios
 
 ```typescript
-<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-  {dayOperations.map((op) => (
-    <div 
-      key={op.id}
-      className="relative rounded-xl overflow-hidden"
-      style={{
-        background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 50%, #15803d 100%)'
-      }}
-    >
-      {/* Tag do par */}
-      <div className="absolute top-2 left-2 px-2 py-0.5 bg-green-600 rounded text-xs text-white font-medium">
-        {op.cryptocurrency_symbol}
-      </div>
-      
-      {/* Percentual */}
-      <div className="pt-8 pb-4 px-4 text-center">
-        <p className="text-2xl font-bold text-white">
-          +{op.profit_percentage?.toFixed(2)}%
-        </p>
-        
-        {/* Tipo: BUY/SELL */}
-        <span className={`inline-block mt-2 px-4 py-1 rounded-full text-sm font-bold ${
-          op.operation_type === 'buy' 
-            ? 'bg-black text-white' 
-            : 'bg-black text-white'
-        }`}>
-          {op.operation_type.toUpperCase()}
-        </span>
-        
-        {/* Link detalhes */}
-        <button className="block w-full mt-2 text-white/80 text-sm underline">
-          DETAILS
-        </button>
-      </div>
-    </div>
-  ))}
-</div>
-```
-
----
-
-### 6. Aba de Investidores
-
-Lista de todos que investiram neste robo:
-
-```typescript
-<div className="space-y-3">
-  {robotInvestors.length === 0 ? (
-    <p className="text-center text-gray-400 py-8">
-      Nenhum investidor neste robo
-    </p>
-  ) : (
-    robotInvestors.map((investor) => (
-      <div key={investor.id} className="flex items-center justify-between p-4 rounded-lg bg-[#0a0f14] border border-[#1e2a3a]">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-gradient-to-r from-teal-500 to-cyan-500 flex items-center justify-center">
-            <span className="text-white font-bold">
-              {investor.profile?.full_name?.charAt(0) || '?'}
-            </span>
-          </div>
-          <div>
-            <p className="font-medium text-white">
-              {investor.profile?.full_name || 'Usuario'}
-            </p>
-            <p className="text-xs text-gray-400">
-              {format(new Date(investor.created_at), 'dd/MM/yyyy')}
-            </p>
-          </div>
-        </div>
-        <div className="text-right">
-          <p className="font-bold text-white">
-            {formatCurrency(investor.amount)}
-          </p>
-          <p className="text-xs text-green-400">
-            +{formatCurrency(investor.profit_accumulated)}
-          </p>
-        </div>
-      </div>
-    ))
-  )}
-</div>
+import { Sparkles, RefreshCw } from 'lucide-react';
+import { subDays } from 'date-fns';
+import { Checkbox } from '@/components/ui/checkbox';
 ```
 
 ---
@@ -365,38 +267,25 @@ Lista de todos que investiram neste robo:
 
 | Funcionalidade | Descricao |
 |----------------|-----------|
-| Ver Investidores | Lista quem investiu no robo, valores e lucros |
-| Historico de Operacoes | Operacoes agrupadas por data com cards visuais |
-| Nova Operacao | Formulario para registrar trades manuais |
-| Estatisticas | Dias ativos, total de trades, lucro acumulado |
-| Cards de Trade | Visual identico a imagem com gradiente verde, BUY/SELL |
+| Configuracao de quantidade | Admin define quantas operacoes gerar |
+| Range de lucro | Min/max do percentual de ganho |
+| Operacoes negativas | Opcional, com % de chance configuravel |
+| Selecao de pares | Quais criptos incluir na geracao |
+| Selecao de data | Geralmente ontem, mas pode ser qualquer data |
+| Revisao antes de inserir | Admin ve preview e seleciona quais manter |
+| Insercao em massa | Adiciona todas selecionadas de uma vez |
 
-### Fluxo do Admin
+### Consideracoes
 
-```text
-Pagina Admin Robos
-       |
-       v
-Clica em [Estatisticas] de um robo
-       |
-       v
-+----------------------------------+
-| Dialog com 3 abas:               |
-| - Operacoes (historico visual)   |
-| - Investidores (lista completa)  |
-| - Nova Operacao (formulario)     |
-+----------------------------------+
-       |
-       v
-Admin pode:
-- Ver quem investiu e quanto
-- Ver todas as operacoes do dia
-- Adicionar novas operacoes de trading
-```
+1. **Realismo**: As operacoes geradas seguem padroes reais de trading
+2. **Controle Total**: Admin revisa e seleciona cada operacao
+3. **Flexibilidade**: Pode editar antes de inserir
+4. **Auditoria**: Todas operacoes ficam registradas normalmente
+5. **Produtividade**: Muito mais rapido que inserir uma a uma
 
-### Observacoes
+### Arquivo a Modificar
 
-1. As operacoes serao exibidas para os usuarios na pagina deles tambem, mostrando transparencia nas negociacoes do robo
-2. O admin pode inserir operacoes passadas para simular historico
-3. Os dados sao automaticamente agrupados por data para facil visualizacao
-4. O visual dos cards de operacao segue exatamente o padrao da imagem de referencia
+| Arquivo | Alteracoes |
+|---------|-----------|
+| src/pages/admin/AdminRobots.tsx | Adicionar modal de geracao automatica |
+
