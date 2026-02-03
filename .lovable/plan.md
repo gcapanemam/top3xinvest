@@ -1,55 +1,79 @@
 
-# Plano: Animacao para Robos Ativos e Historico de Operacoes
+# Plano: Deposito por Criptomoeda
 
 ## Visao Geral
 
-Adicionar uma animacao visual para investimentos ativos (indicando que o robo esta "em operacao") e um botao "Historico de Trades" que abre um dialog exibindo todas as operacoes de trading registradas pelo admin para aquele robo.
+Implementar um sistema de deposito por criptomoeda onde o admin pode cadastrar carteiras de deposito (moeda, rede e endereco) e os usuarios podem escolher entre depositar via PIX ou Cripto.
 
 ---
 
 ## Alteracao Visual
 
-### Card de Investimento Ativo (Antes)
-```text
-+-----------------------------------------------------+
-| [Bot Icon]  S-BOT (STARTER BOT)  [Em Lock]          |
-| 0.3 - 0.3% / 30 dias                                |
-+-----------------------------------------------------+
-```
-
-### Card de Investimento Ativo (Depois)
-```text
-+-----------------------------------------------------+
-| [Bot Icon Animado + Pulso Verde]  S-BOT  [ACTIVE]   |
-|           ^-- Borda brilhante animada               |
-| 0.3 - 0.3% / 30 dias                                |
-|                                                     |
-|                   [HISTORICO DE TRADES]  <-- Botao  |
-+-----------------------------------------------------+
-```
-
-### Dialog de Historico de Trades
+### Painel Admin - Nova Pagina "Carteiras de Deposito"
 ```text
 +--------------------------------------------------+
-|  Historico de Trades - S-BOT                     |
-|  23 operacoes realizadas                         |
+| Carteiras de Deposito                [+ Nova]    |
 +--------------------------------------------------+
 |                                                  |
 | +----------------------------------------------+ |
-| | BUY  BTC/USDT   +0.45%   02/02/26 14:30    | |
-| | Entrada: $45,230.00  Saida: $45,433.53     | |
+| | BTC - Bitcoin                                | |
+| | Rede: Bitcoin Network                        | |
+| | Endereco: bc1qxy2kgdygjrsqtzq2n0yr...        | |
+| |                            [Editar] [Excluir]| |
 | +----------------------------------------------+ |
 |                                                  |
 | +----------------------------------------------+ |
-| | SELL ETH/USDT   +0.32%   01/02/26 09:15    | |
-| | Entrada: $2,450.00   Saida: $2,457.84      | |
+| | ETH - Ethereum                               | |
+| | Rede: ERC-20                                 | |
+| | Endereco: 0x742d35Cc6634C0532925a3b...       | |
+| |                            [Editar] [Excluir]| |
 | +----------------------------------------------+ |
 |                                                  |
 | +----------------------------------------------+ |
-| | BUY  SOL/USDT   +0.28%   31/01/26 16:45    | |
-| | Entrada: $123.50     Saida: $123.85        | |
+| | USDT - Tether                                | |
+| | Rede: TRC-20 (Tron)                          | |
+| | Endereco: TJYxzM2xvV2WnTfLvKeRh3...          | |
+| |                            [Editar] [Excluir]| |
 | +----------------------------------------------+ |
 |                                                  |
++--------------------------------------------------+
+```
+
+### Usuario - Dialog de Deposito (Novo Layout)
+```text
++--------------------------------------------------+
+| Solicitar Deposito                               |
++--------------------------------------------------+
+|                                                  |
+| Metodo de Pagamento:                             |
+| +--------------------+ +--------------------+    |
+| |    [x] PIX        | |    [ ] Cripto      |    |
+| +--------------------+ +--------------------+    |
+|                                                  |
+| [Se PIX selecionado - layout atual]              |
+|                                                  |
+| [Se Cripto selecionado]                          |
+| Selecione a Criptomoeda:                         |
+| +----------------------------------------------+ |
+| |  [x] BTC - Bitcoin Network                   | |
+| |  [ ] ETH - ERC-20                            | |
+| |  [ ] USDT - TRC-20                           | |
+| +----------------------------------------------+ |
+|                                                  |
+| Valor em USD:                                    |
+| +----------------------------------------------+ |
+| | $ 100.00                                     | |
+| +----------------------------------------------+ |
+|                                                  |
+| Endereco para Deposito:                          |
+| +----------------------------------------------+ |
+| | bc1qxy2kgdygjrsqtzq2n0yr...           [Copy] | |
+| +----------------------------------------------+ |
+|                                                  |
+| Rede: Bitcoin Network                            |
+| Minimo: $50.00                                   |
+|                                                  |
+|                   [Cancelar] [Confirmar Deposito]|
 +--------------------------------------------------+
 ```
 
@@ -57,258 +81,265 @@ Adicionar uma animacao visual para investimentos ativos (indicando que o robo es
 
 ## Secao Tecnica
 
-### 1. Novos Keyframes de Animacao (tailwind.config.ts)
+### 1. Nova Tabela no Banco de Dados
 
-Adicionar animacao de pulso verde para indicar robo em operacao:
+```sql
+-- Tabela de carteiras de deposito cripto
+CREATE TABLE public.deposit_wallets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  cryptocurrency_id UUID REFERENCES cryptocurrencies(id) ON DELETE CASCADE,
+  network_name TEXT NOT NULL,
+  wallet_address TEXT NOT NULL,
+  is_active BOOLEAN DEFAULT true NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
+);
 
-```typescript
-keyframes: {
-  // Animacoes existentes...
-  
-  "pulse-ring": {
-    "0%": {
-      transform: "scale(0.8)",
-      opacity: "0.8",
-    },
-    "50%": {
-      transform: "scale(1.2)",
-      opacity: "0",
-    },
-    "100%": {
-      transform: "scale(0.8)",
-      opacity: "0",
-    },
-  },
-  "active-glow": {
-    "0%, 100%": {
-      boxShadow: "0 0 15px rgba(34, 197, 94, 0.4), inset 0 0 15px rgba(34, 197, 94, 0.1)",
-      borderColor: "rgba(34, 197, 94, 0.5)",
-    },
-    "50%": {
-      boxShadow: "0 0 25px rgba(34, 197, 94, 0.6), inset 0 0 20px rgba(34, 197, 94, 0.15)",
-      borderColor: "rgba(34, 197, 94, 0.8)",
-    },
-  },
-},
-animation: {
-  // Animacoes existentes...
-  "pulse-ring": "pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
-  "active-glow": "active-glow 2s ease-in-out infinite",
-},
+-- RLS policies
+ALTER TABLE deposit_wallets ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Everyone can view active deposit wallets"
+ON deposit_wallets FOR SELECT
+USING (is_active = true OR is_admin());
+
+CREATE POLICY "Admins can manage deposit wallets"
+ON deposit_wallets FOR ALL
+USING (is_admin());
+
+-- Adicionar campo na tabela deposits para tipo de pagamento
+ALTER TABLE deposits ADD COLUMN payment_method TEXT DEFAULT 'pix';
+ALTER TABLE deposits ADD COLUMN cryptocurrency_id UUID REFERENCES cryptocurrencies(id);
+ALTER TABLE deposits ADD COLUMN network_name TEXT;
+ALTER TABLE deposits ADD COLUMN wallet_address TEXT;
 ```
 
-### 2. Alteracoes no Investments.tsx
+### 2. Nova Pagina Admin: AdminDepositWallets.tsx
 
-**Novos imports:**
 ```typescript
-import { Bot, TrendingUp, Lock, Unlock, History, ArrowUpRight, ArrowDownRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-```
-
-**Interface atualizada:**
-```typescript
-interface Investment {
+// Estrutura principal
+interface DepositWallet {
   id: string;
-  amount: number;
-  profit_accumulated: number;
-  status: string;
-  lock_until: string;
-  created_at: string;
-  robot_id: string | null;  // Adicionar para buscar operacoes
-  robot: {
-    name: string;
-    profit_percentage_min: number;
-    profit_percentage_max: number;
-    profit_period_days: number;
-  } | null;
+  cryptocurrency_id: string;
+  network_name: string;
+  wallet_address: string;
+  is_active: boolean;
+  cryptocurrency?: { symbol: string; name: string };
 }
 
-interface Operation {
-  id: string;
-  cryptocurrency_symbol: string;
-  operation_type: string;
-  entry_price: number;
-  exit_price: number | null;
-  profit_percentage: number | null;
-  status: string;
-  created_at: string;
-  closed_at: string | null;
-}
-```
+// Estados
+const [wallets, setWallets] = useState<DepositWallet[]>([]);
+const [isDialogOpen, setIsDialogOpen] = useState(false);
+const [editingWallet, setEditingWallet] = useState<DepositWallet | null>(null);
+const [formData, setFormData] = useState({
+  cryptocurrency_id: '',
+  network_name: '',
+  wallet_address: '',
+  is_active: true,
+});
 
-**Novos estados:**
-```typescript
-const [operationsDialogOpen, setOperationsDialogOpen] = useState(false);
-const [selectedInvestment, setSelectedInvestment] = useState<Investment | null>(null);
-const [operations, setOperations] = useState<Operation[]>([]);
-const [isLoadingOperations, setIsLoadingOperations] = useState(false);
-```
-
-**Funcao para buscar operacoes:**
-```typescript
-const fetchOperations = async (robotId: string) => {
-  setIsLoadingOperations(true);
-  const { data } = await supabase
-    .from('robot_operations')
-    .select('*')
-    .eq('robot_id', robotId)
-    .order('created_at', { ascending: false });
-  
-  if (data) {
-    setOperations(data);
-  }
-  setIsLoadingOperations(false);
-};
-
-const openOperationsDialog = async (investment: Investment) => {
-  setSelectedInvestment(investment);
-  setOperationsDialogOpen(true);
-  if (investment.robot_id) {
-    await fetchOperations(investment.robot_id);
-  }
-};
-```
-
-**Card de investimento com animacao (para status === 'active'):**
-```typescript
-<div 
-  key={investment.id} 
-  className={cn(
-    "rounded-xl bg-[#111820] border p-6 transition-all duration-300",
-    investment.status === 'active' 
-      ? "border-green-500/50 animate-active-glow" 
-      : "border-[#1e2a3a]"
-  )}
->
-  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-    <div className="flex items-center gap-4">
-      {/* Icone do robo com animacao */}
-      <div className="relative">
-        <div className={cn(
-          "flex h-12 w-12 items-center justify-center rounded-xl",
-          investment.status === 'active'
-            ? "bg-gradient-to-r from-green-500/30 to-emerald-500/30"
-            : "bg-gradient-to-r from-teal-500/20 to-cyan-500/20"
-        )}>
-          <Bot className={cn(
-            "h-6 w-6",
-            investment.status === 'active' ? "text-green-400" : "text-teal-400"
-          )} />
-        </div>
-        {/* Anel de pulso para ativos */}
-        {investment.status === 'active' && (
-          <span className="absolute inset-0 rounded-xl bg-green-500/30 animate-pulse-ring" />
-        )}
-      </div>
-      {/* ... resto do conteudo ... */}
-    </div>
-    
-    {/* ... grid com dados ... */}
-    
-    {/* Botao de Historico de Trades */}
-    {investment.status === 'active' && investment.robot_id && (
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => openOperationsDialog(investment)}
-        className="border-green-500/50 text-green-400 hover:bg-green-500/10 hover:text-green-300"
-      >
-        <History className="h-4 w-4 mr-2" />
-        Historico de Trades
-      </Button>
-    )}
+// Formulario de cadastro
+<div className="space-y-4">
+  <div>
+    <Label>Criptomoeda *</Label>
+    <Select value={formData.cryptocurrency_id} onValueChange={...}>
+      {cryptos.map((crypto) => (
+        <SelectItem key={crypto.id} value={crypto.id}>
+          {crypto.symbol} - {crypto.name}
+        </SelectItem>
+      ))}
+    </Select>
+  </div>
+  <div>
+    <Label>Nome da Rede *</Label>
+    <Input
+      placeholder="Ex: ERC-20, TRC-20, BEP-20, Bitcoin Network"
+      value={formData.network_name}
+      onChange={...}
+    />
+  </div>
+  <div>
+    <Label>Endereco da Carteira *</Label>
+    <Input
+      placeholder="0x..."
+      value={formData.wallet_address}
+      onChange={...}
+    />
+  </div>
+  <div className="flex items-center gap-2">
+    <Switch checked={formData.is_active} onCheckedChange={...} />
+    <Label>Ativo</Label>
   </div>
 </div>
 ```
 
-**Dialog de Historico de Operacoes:**
-```typescript
-<Dialog open={operationsDialogOpen} onOpenChange={setOperationsDialogOpen}>
-  <DialogContent className="max-w-2xl max-h-[80vh] bg-[#111820] border-[#1e2a3a] text-white flex flex-col">
-    <DialogHeader>
-      <DialogTitle className="text-white flex items-center gap-2">
-        <History className="h-5 w-5 text-green-400" />
-        Historico de Trades - {selectedInvestment?.robot?.name}
-      </DialogTitle>
-      <DialogDescription className="text-gray-400">
-        {operations.length} operacao(es) realizada(s)
-      </DialogDescription>
-    </DialogHeader>
+### 3. Atualizar Sidebar e Rotas
 
-    <div className="flex-1 overflow-y-auto space-y-3 py-4">
-      {isLoadingOperations ? (
-        <div className="flex items-center justify-center py-8">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-green-500 border-t-transparent" />
-        </div>
-      ) : operations.length === 0 ? (
-        <div className="text-center py-8 text-gray-400">
-          Nenhuma operacao registrada ainda
-        </div>
-      ) : (
-        operations.map((op) => (
-          <div 
-            key={op.id}
-            className="rounded-lg bg-[#0a0f14] border border-[#1e2a3a] p-4"
+Adicionar link no menu admin:
+```typescript
+// Em Sidebar.tsx ou similar
+{ icon: Wallet, label: 'Carteiras Cripto', href: '/admin/wallets' }
+
+// Em App.tsx
+<Route path="/admin/wallets" element={<AdminDepositWallets />} />
+```
+
+### 4. Atualizar Deposits.tsx (Usuario)
+
+```typescript
+// Novos estados
+const [paymentMethod, setPaymentMethod] = useState<'pix' | 'crypto'>('pix');
+const [selectedWallet, setSelectedWallet] = useState<DepositWallet | null>(null);
+const [depositWallets, setDepositWallets] = useState<DepositWallet[]>([]);
+
+// Buscar carteiras disponiveis
+const fetchDepositWallets = async () => {
+  const { data } = await supabase
+    .from('deposit_wallets')
+    .select(`
+      *,
+      cryptocurrency:cryptocurrencies(symbol, name, current_price)
+    `)
+    .eq('is_active', true);
+  
+  if (data) setDepositWallets(data);
+};
+
+// Novo layout do dialog com tabs
+<div className="flex gap-2 mb-4">
+  <button
+    className={cn(
+      "flex-1 px-4 py-2 rounded-lg font-medium transition-all",
+      paymentMethod === 'pix' 
+        ? "bg-teal-500 text-white" 
+        : "bg-[#1e2a3a] text-gray-400"
+    )}
+    onClick={() => setPaymentMethod('pix')}
+  >
+    PIX
+  </button>
+  <button
+    className={cn(
+      "flex-1 px-4 py-2 rounded-lg font-medium transition-all",
+      paymentMethod === 'crypto' 
+        ? "bg-teal-500 text-white" 
+        : "bg-[#1e2a3a] text-gray-400"
+    )}
+    onClick={() => setPaymentMethod('crypto')}
+  >
+    Criptomoeda
+  </button>
+</div>
+
+{paymentMethod === 'pix' ? (
+  // Layout atual do PIX
+) : (
+  <div className="space-y-4">
+    {/* Selecao de carteira */}
+    <div className="space-y-2">
+      <Label>Selecione a Criptomoeda</Label>
+      <div className="space-y-2">
+        {depositWallets.map((wallet) => (
+          <div
+            key={wallet.id}
+            onClick={() => setSelectedWallet(wallet)}
+            className={cn(
+              "p-3 rounded-lg border cursor-pointer transition-all",
+              selectedWallet?.id === wallet.id
+                ? "border-teal-500 bg-teal-500/10"
+                : "border-[#1e2a3a] hover:border-teal-500/50"
+            )}
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-lg",
-                  op.operation_type === 'buy' 
-                    ? "bg-green-500/20" 
-                    : "bg-red-500/20"
-                )}>
-                  {op.operation_type === 'buy' ? (
-                    <ArrowUpRight className="h-4 w-4 text-green-400" />
-                  ) : (
-                    <ArrowDownRight className="h-4 w-4 text-red-400" />
-                  )}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className={cn(
-                      "text-xs font-bold px-2 py-0.5 rounded",
-                      op.operation_type === 'buy' 
-                        ? "bg-green-500/20 text-green-400" 
-                        : "bg-red-500/20 text-red-400"
-                    )}>
-                      {op.operation_type.toUpperCase()}
-                    </span>
-                    <span className="text-white font-medium">
-                      {op.cryptocurrency_symbol}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-400 mt-1">
-                    Entrada: ${op.entry_price.toLocaleString()}
-                    {op.exit_price && ` → Saida: $${op.exit_price.toLocaleString()}`}
-                  </p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className={cn(
-                  "font-bold",
-                  (op.profit_percentage || 0) >= 0 ? "text-green-400" : "text-red-400"
-                )}>
-                  {(op.profit_percentage || 0) >= 0 ? '+' : ''}{op.profit_percentage?.toFixed(2)}%
-                </p>
-                <p className="text-xs text-gray-400">
-                  {format(new Date(op.created_at), 'dd/MM/yy HH:mm', { locale: ptBR })}
-                </p>
-              </div>
+            <div className="flex items-center gap-3">
+              <span className="font-bold text-teal-400">
+                {wallet.cryptocurrency?.symbol}
+              </span>
+              <span className="text-gray-400">-</span>
+              <span className="text-white">{wallet.network_name}</span>
             </div>
           </div>
-        ))
-      )}
+        ))}
+      </div>
     </div>
-  </DialogContent>
-</Dialog>
+    
+    {/* Campo de valor em USD */}
+    <div className="space-y-2">
+      <Label>Valor em USD</Label>
+      <Input
+        type="number"
+        placeholder="$ 0.00"
+        value={amount}
+        onChange={(e) => setAmount(e.target.value)}
+        min={50}
+      />
+      <p className="text-xs text-gray-400">Minimo: $50.00</p>
+    </div>
+    
+    {/* Exibir endereco da carteira selecionada */}
+    {selectedWallet && (
+      <div className="rounded-lg border border-[#1e2a3a] p-4 space-y-3 bg-[#0a0f14]">
+        <h4 className="font-medium text-white">
+          Envie para este endereco
+        </h4>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-400">Rede:</span>
+            <span className="text-sm text-white">{selectedWallet.network_name}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-400">Endereco:</span>
+            <div className="flex items-center gap-2">
+              <code className="text-xs text-cyan-400 truncate max-w-[180px]">
+                {selectedWallet.wallet_address}
+              </code>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => copyToClipboard(selectedWallet.wallet_address)}
+              >
+                <Copy className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
+)}
+
+// Atualizar handleDeposit para salvar metodo
+const handleDeposit = async () => {
+  const depositData = {
+    user_id: user!.id,
+    amount: numAmount,
+    status: 'pending',
+    payment_method: paymentMethod,
+    cryptocurrency_id: paymentMethod === 'crypto' ? selectedWallet?.cryptocurrency_id : null,
+    network_name: paymentMethod === 'crypto' ? selectedWallet?.network_name : null,
+    wallet_address: paymentMethod === 'crypto' ? selectedWallet?.wallet_address : null,
+  };
+  
+  const { error } = await supabase.from('deposits').insert(depositData);
+  // ...
+};
+```
+
+### 5. Atualizar AdminDeposits.tsx
+
+Exibir o metodo de pagamento no historico:
+
+```typescript
+// No card de deposito pendente
+<div className="flex items-center gap-2">
+  {deposit.payment_method === 'crypto' ? (
+    <span className="px-2 py-0.5 rounded bg-orange-500/20 text-orange-400 text-xs">
+      {deposit.cryptocurrency?.symbol} - {deposit.network_name}
+    </span>
+  ) : (
+    <span className="px-2 py-0.5 rounded bg-green-500/20 text-green-400 text-xs">
+      PIX
+    </span>
+  )}
+</div>
 ```
 
 ---
@@ -317,36 +348,59 @@ const openOperationsDialog = async (investment: Investment) => {
 
 | Arquivo | Alteracoes |
 |---------|-----------|
-| tailwind.config.ts | Novas animacoes pulse-ring e active-glow |
-| src/pages/Investments.tsx | Card animado + botao + dialog de operacoes |
+| Migracao SQL | Criar tabela deposit_wallets + campos em deposits |
+| src/pages/admin/AdminDepositWallets.tsx | Nova pagina para gerenciar carteiras |
+| src/pages/Deposits.tsx | Adicionar opcao PIX/Cripto com selecao de carteira |
+| src/pages/admin/AdminDeposits.tsx | Exibir metodo de pagamento |
+| src/components/layout/Sidebar.tsx | Adicionar link para nova pagina |
+| src/App.tsx | Adicionar rota /admin/wallets |
 
 ### Fluxo
 
 ```text
-Usuario abre "Meus Investimentos"
+ADMIN:
+Cadastra carteira de deposito
         |
         v
 +----------------------------------+
-| Investimento ATIVO:              |
-| - Borda verde pulsante           |
-| - Icone com animacao de pulso    |
-| - Badge "ACTIVE" verde           |
-| - Botao [HISTORICO DE TRADES]    |
+| Criptomoeda: USDT                |
+| Rede: TRC-20 (Tron)              |
+| Endereco: TJYxzM2xvV2WnTfL...    |
 +----------------------------------+
+
+USUARIO:
+Abre dialog de deposito
         |
-        v (clique no botao)
-+----------------------------------+
-| Dialog com lista de operacoes:   |
-| - BUY BTC/USDT +0.45% 02/02/26   |
-| - SELL ETH/USDT +0.32% 01/02/26  |
-| - BUY SOL/USDT +0.28% 31/01/26   |
-+----------------------------------+
+        v
+Escolhe: [PIX] ou [Cripto]
+        |
+        v (Se Cripto)
+Seleciona carteira disponivel
+        |
+        v
+Ve endereco + rede + copia
+        |
+        v
+Confirma deposito
+        |
+        v
+Deposito salvo com:
+- payment_method: 'crypto'
+- cryptocurrency_id: uuid
+- network_name: 'TRC-20'
+- wallet_address: '...'
+
+ADMIN:
+Ve deposito pendente com badge "USDT - TRC-20"
+        |
+        v
+Aprova/Recusa normalmente
 ```
 
 ### Consideracoes
 
-1. **Animacao sutil**: O brilho verde pulsa suavemente para nao distrair o usuario
-2. **Performance**: As operacoes sao carregadas apenas ao abrir o dialog
-3. **Responsividade**: O botao de historico se adapta ao layout mobile
-4. **Consistencia visual**: Usa as mesmas cores e estilos do sistema (verde para positivo, vermelho para negativo)
-5. **Indicador visual**: O anel de pulso ao redor do icone do robo indica que o sistema esta "trabalhando"
+1. **Multiplas redes por moeda**: Uma mesma cripto (ex: USDT) pode ter varias carteiras (ERC-20, TRC-20, BEP-20)
+2. **Validacao**: Valor minimo de $50.00 para depositos cripto
+3. **Historico**: O deposito salva a rede e endereco usados no momento (caso admin altere depois)
+4. **Audit Log**: Criar/editar/excluir carteiras gera log de auditoria
+5. **Moeda em USD**: Depositos cripto sao registrados em valor USD
