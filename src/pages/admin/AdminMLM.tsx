@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
+
 import { useToast } from '@/hooks/use-toast';
 import { createAuditLog } from '@/lib/auditLog';
 import {
@@ -669,32 +669,34 @@ const AdminMLM = () => {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6 py-4">
+          <div className="space-y-4 py-4">
             {commissionSettings.map((setting, index) => (
-              <div key={setting.level} className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-white">
+              <div key={setting.level} className="flex items-center justify-between p-4 rounded-lg bg-[#0a0f14] border border-[#1e2a3a]">
+                <div>
+                  <Label className="text-white font-medium">
                     Nível {setting.level}
-                    {setting.level === 1 && (
-                      <span className="text-gray-400 text-xs ml-2">(Indicação Direta)</span>
-                    )}
                   </Label>
-                  <span className="text-teal-400 font-bold text-lg">
-                    {setting.commission_percentage}%
-                  </span>
+                  {setting.level === 1 && (
+                    <p className="text-gray-400 text-xs mt-0.5">Indicação Direta</p>
+                  )}
                 </div>
-                <Slider
-                  value={[setting.commission_percentage]}
-                  onValueChange={(value) => {
-                    const updated = [...commissionSettings];
-                    updated[index] = { ...setting, commission_percentage: value[0] };
-                    setCommissionSettings(updated);
-                  }}
-                  max={100}
-                  min={0}
-                  step={5}
-                  className="w-full"
-                />
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={setting.commission_percentage}
+                    onChange={(e) => {
+                      let value = parseFloat(e.target.value) || 0;
+                      value = Math.min(100, Math.max(0, value));
+                      const updated = [...commissionSettings];
+                      updated[index] = { ...setting, commission_percentage: value };
+                      setCommissionSettings(updated);
+                    }}
+                    className="w-20 text-center bg-[#111820] border-[#1e2a3a] text-white font-bold"
+                  />
+                  <span className="text-teal-400 font-bold">%</span>
+                </div>
               </div>
             ))}
           </div>
