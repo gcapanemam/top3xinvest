@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { addDays } from 'date-fns';
-import { Bot, TrendingUp, Clock, DollarSign, Sparkles } from 'lucide-react';
+import { Bot, TrendingUp, Clock, DollarSign, Sparkles, Info } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -46,6 +46,9 @@ const Robots = () => {
   const [investmentAmount, setInvestmentAmount] = useState<string>('');
   const [isInvesting, setIsInvesting] = useState(false);
   const [userBalance, setUserBalance] = useState<number>(0);
+  
+  // Details dialog state
+  const [detailsRobot, setDetailsRobot] = useState<Robot | null>(null);
 
   useEffect(() => {
     fetchRobots();
@@ -259,8 +262,21 @@ const Robots = () => {
                     </span>
                   )}
                 </div>
-                <h3 className="mt-4 text-lg font-semibold text-white group-hover:text-teal-400 transition-colors">{robot.name}</h3>
-                <p className="text-sm text-gray-400 mt-1">{robot.description}</p>
+                <div className="mt-4 flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-white group-hover:text-teal-400 transition-colors">{robot.name}</h3>
+                  {robot.description && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDetailsRobot(robot);
+                      }}
+                      className="p-1 rounded-md bg-[#1e2a3a] hover:bg-teal-500/20 text-gray-400 hover:text-teal-400 transition-all"
+                      title="Ver detalhes"
+                    >
+                      <Info className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="px-6 pb-6 flex-1 space-y-4">
@@ -396,6 +412,49 @@ const Robots = () => {
                 </>
               )}
             </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Details Dialog */}
+      <Dialog open={!!detailsRobot} onOpenChange={() => setDetailsRobot(null)}>
+        <DialogContent className="bg-[#111820] border-[#1e2a3a] max-w-[95vw] md:max-w-lg mx-auto">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Info className="h-5 w-5 text-teal-400" />
+              Detalhes do Robô
+            </DialogTitle>
+          </DialogHeader>
+          {detailsRobot && (
+            <div className="space-y-4 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-teal-500/20 to-cyan-500/20">
+                  <Bot className="h-6 w-6 text-teal-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white text-lg">{detailsRobot.name}</h3>
+                  {detailsRobot.cryptocurrency && (
+                    <span className="px-2 py-0.5 rounded-full bg-[#1e2a3a] text-cyan-400 text-xs font-medium">
+                      {detailsRobot.cryptocurrency.symbol}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="p-4 bg-[#0a0f14] rounded-xl border border-[#1e2a3a]">
+                <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">
+                  {detailsRobot.description}
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setDetailsRobot(null)}
+              className="border-[#1e2a3a] text-gray-300 hover:bg-[#1e2a3a] hover:text-white"
+            >
+              Fechar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

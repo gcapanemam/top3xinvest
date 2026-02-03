@@ -39,7 +39,8 @@ import {
   Loader2,
   X,
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  Info
 } from 'lucide-react';
 import { createAuditLog } from '@/lib/auditLog';
 import { format, subDays } from 'date-fns';
@@ -158,6 +159,10 @@ const AdminRobots = () => {
   const [selectedOperations, setSelectedOperations] = useState<Set<number>>(new Set());
   const [isGenerating, setIsGenerating] = useState(false);
   const [isAddingBulk, setIsAddingBulk] = useState(false);
+
+  // Details dialog state
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [selectedRobotForDetails, setSelectedRobotForDetails] = useState<Robot | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -1549,8 +1554,19 @@ const AdminRobots = () => {
                           Inativo
                         </span>
                       )}
+                      {robot.description && (
+                        <button
+                          onClick={() => {
+                            setSelectedRobotForDetails(robot);
+                            setDetailsDialogOpen(true);
+                          }}
+                          className="p-1 rounded-md bg-[#1e2a3a] hover:bg-teal-500/20 text-gray-400 hover:text-teal-400 transition-all"
+                          title="Ver detalhes"
+                        >
+                          <Info className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </div>
-                    <p className="text-sm text-gray-400">{robot.description}</p>
                     {robotStats[robot.id] && (
                       <div className="flex items-center gap-4 mt-1">
                         <span className="text-xs text-gray-500">
@@ -1613,6 +1629,49 @@ const AdminRobots = () => {
           ))}
         </div>
       )}
+
+      {/* Details Dialog */}
+      <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
+        <DialogContent className="max-w-lg bg-[#111820] border-[#1e2a3a] text-white">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Info className="h-5 w-5 text-teal-400" />
+              Detalhes do Robô
+            </DialogTitle>
+          </DialogHeader>
+          {selectedRobotForDetails && (
+            <div className="space-y-4 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-teal-500/20 to-cyan-500/20">
+                  <Bot className="h-6 w-6 text-teal-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white text-lg">{selectedRobotForDetails.name}</h3>
+                  {selectedRobotForDetails.cryptocurrency && (
+                    <span className="px-2 py-0.5 rounded-full bg-[#1e2a3a] text-cyan-400 text-xs font-medium">
+                      {selectedRobotForDetails.cryptocurrency.symbol}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="p-4 bg-[#0a0f14] rounded-xl border border-[#1e2a3a]">
+                <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">
+                  {selectedRobotForDetails.description}
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setDetailsDialogOpen(false)}
+              className="border-[#1e2a3a] text-gray-300 hover:bg-[#1e2a3a] hover:text-white"
+            >
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
