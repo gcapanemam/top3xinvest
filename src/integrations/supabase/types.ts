@@ -409,7 +409,8 @@ export type Database = {
           max_investment: number | null
           min_investment: number
           name: string
-          profit_percentage: number
+          profit_percentage_max: number
+          profit_percentage_min: number
           profit_period_days: number
           updated_at: string
         }
@@ -423,7 +424,8 @@ export type Database = {
           max_investment?: number | null
           min_investment?: number
           name: string
-          profit_percentage: number
+          profit_percentage_max?: number
+          profit_percentage_min: number
           profit_period_days?: number
           updated_at?: string
         }
@@ -437,7 +439,8 @@ export type Database = {
           max_investment?: number | null
           min_investment?: number
           name?: string
-          profit_percentage?: number
+          profit_percentage_max?: number
+          profit_percentage_min?: number
           profit_period_days?: number
           updated_at?: string
         }

@@ -52,7 +52,8 @@ interface Robot {
   name: string;
   description: string | null;
   cryptocurrency_id: string | null;
-  profit_percentage: number;
+  profit_percentage_min: number;
+  profit_percentage_max: number;
   profit_period_days: number;
   lock_period_days: number;
   min_investment: number;
@@ -169,7 +170,8 @@ const AdminRobots = () => {
     name: '',
     description: '',
     cryptocurrency_id: '',
-    profit_percentage: '',
+    profit_percentage_min: '',
+    profit_percentage_max: '',
     profit_period_days: '30',
     lock_period_days: '7',
     min_investment: '100',
@@ -244,7 +246,8 @@ const AdminRobots = () => {
       name: '',
       description: '',
       cryptocurrency_id: '',
-      profit_percentage: '',
+      profit_percentage_min: '',
+      profit_percentage_max: '',
       profit_period_days: '30',
       lock_period_days: '7',
       min_investment: '100',
@@ -260,7 +263,8 @@ const AdminRobots = () => {
       name: robot.name,
       description: robot.description || '',
       cryptocurrency_id: robot.cryptocurrency_id || '',
-      profit_percentage: robot.profit_percentage.toString(),
+      profit_percentage_min: robot.profit_percentage_min.toString(),
+      profit_percentage_max: robot.profit_percentage_max.toString(),
       profit_period_days: robot.profit_period_days.toString(),
       lock_period_days: robot.lock_period_days.toString(),
       min_investment: robot.min_investment.toString(),
@@ -626,7 +630,7 @@ const AdminRobots = () => {
   };
 
   const handleSubmit = async () => {
-    if (!formData.name || !formData.profit_percentage) {
+    if (!formData.name || !formData.profit_percentage_min || !formData.profit_percentage_max) {
       toast({
         title: 'Erro',
         description: 'Preencha os campos obrigatórios',
@@ -641,7 +645,8 @@ const AdminRobots = () => {
       name: formData.name,
       description: formData.description || null,
       cryptocurrency_id: formData.cryptocurrency_id || null,
-      profit_percentage: parseFloat(formData.profit_percentage),
+      profit_percentage_min: parseFloat(formData.profit_percentage_min),
+      profit_percentage_max: parseFloat(formData.profit_percentage_max),
       profit_period_days: parseInt(formData.profit_period_days),
       lock_period_days: parseInt(formData.lock_period_days),
       min_investment: parseFloat(formData.min_investment),
@@ -676,7 +681,8 @@ const AdminRobots = () => {
         entityId: editingRobot?.id,
         details: {
           robot_name: formData.name,
-          profit_percentage: parseFloat(formData.profit_percentage),
+          profit_percentage_min: parseFloat(formData.profit_percentage_min),
+          profit_percentage_max: parseFloat(formData.profit_percentage_max),
           is_active: formData.is_active,
         },
       });
@@ -809,29 +815,38 @@ const AdminRobots = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="profit" className="text-gray-300">Rentabilidade (%) *</Label>
+              <div className="space-y-2">
+                <Label className="text-gray-300">Rentabilidade (%) *</Label>
+                <div className="flex items-center gap-2">
                   <Input
-                    id="profit"
                     type="number"
                     step="0.01"
-                    value={formData.profit_percentage}
-                    onChange={(e) => setFormData({ ...formData, profit_percentage: e.target.value })}
-                    placeholder="Ex: 15"
+                    value={formData.profit_percentage_min}
+                    onChange={(e) => setFormData({ ...formData, profit_percentage_min: e.target.value })}
+                    placeholder="Min"
+                    className="bg-[#0a0f14] border-[#1e2a3a] text-white placeholder:text-gray-500"
+                  />
+                  <span className="text-gray-400">-</span>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={formData.profit_percentage_max}
+                    onChange={(e) => setFormData({ ...formData, profit_percentage_max: e.target.value })}
+                    placeholder="Max"
                     className="bg-[#0a0f14] border-[#1e2a3a] text-white placeholder:text-gray-500"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="period" className="text-gray-300">Período (dias)</Label>
-                  <Input
-                    id="period"
-                    type="number"
-                    value={formData.profit_period_days}
-                    onChange={(e) => setFormData({ ...formData, profit_period_days: e.target.value })}
-                    className="bg-[#0a0f14] border-[#1e2a3a] text-white"
-                  />
-                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="period" className="text-gray-300">Período (dias)</Label>
+                <Input
+                  id="period"
+                  type="number"
+                  value={formData.profit_period_days}
+                  onChange={(e) => setFormData({ ...formData, profit_period_days: e.target.value })}
+                  className="bg-[#0a0f14] border-[#1e2a3a] text-white"
+                />
               </div>
 
               <div className="grid grid-cols-3 gap-4">
@@ -1584,7 +1599,7 @@ const AdminRobots = () => {
                   <div className="text-center">
                     <p className="text-sm text-gray-400">Rentabilidade</p>
                     <p className="font-bold text-green-400">
-                      {robot.profit_percentage}% / {robot.profit_period_days}d
+                      {robot.profit_percentage_min} - {robot.profit_percentage_max}% / {robot.profit_period_days}d
                     </p>
                   </div>
                   <div className="text-center">
