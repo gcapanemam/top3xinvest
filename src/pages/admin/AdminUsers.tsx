@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -19,6 +20,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { 
@@ -33,13 +35,21 @@ import {
   TrendingUp,
   Star,
   Wallet,
-  UsersRound
+  UsersRound,
+  Shield,
+  Edit,
+  Trash2,
+  AlertTriangle,
+  Mail,
+  Phone,
+  KeyRound
 } from 'lucide-react';
 
 interface UserWithStats {
   id: string;
   user_id: string;
   full_name: string | null;
+  phone: string | null;
   balance: number;
   is_blocked: boolean;
   created_at: string;
@@ -48,6 +58,8 @@ interface UserWithStats {
   network_count: number;
   level: string;
   activity_percentage: number;
+  is_admin: boolean;
+  email?: string;
 }
 
 interface NetworkMember {
@@ -75,23 +87,35 @@ interface NetworkStats {
 }
 
 const AdminUsers = () => {
-  const { isAdmin, isLoading } = useAuth();
+  const { isAdmin, isLoading, user: currentUser } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [users, setUsers] = useState<UserWithStats[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoadingData, setIsLoadingData] = useState(true);
 
-  // Estados para dialog de editar saldo
-  const [editBalanceUser, setEditBalanceUser] = useState<UserWithStats | null>(null);
-  const [newBalance, setNewBalance] = useState<string>('');
-  const [isUpdatingBalance, setIsUpdatingBalance] = useState(false);
+  // Estados para dialog de editar usuário
+  const [editUser, setEditUser] = useState<UserWithStats | null>(null);
+  const [editData, setEditData] = useState({
+    full_name: '',
+    phone: '',
+    balance: '',
+  });
+  const [isUpdating, setIsUpdating] = useState(false);
 
   // Estados para dialog de ver rede
   const [viewNetworkUser, setViewNetworkUser] = useState<UserWithStats | null>(null);
   const [networkData, setNetworkData] = useState<NetworkMember[]>([]);
   const [networkStats, setNetworkStats] = useState<NetworkStats | null>(null);
   const [isLoadingNetwork, setIsLoadingNetwork] = useState(false);
+
+  // Estados para confirmação de exclusão
+  const [deleteConfirmUser, setDeleteConfirmUser] = useState<UserWithStats | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Estados para ações de admin
+  const [isSendingReset, setIsSendingReset] = useState(false);
+  const [isTogglingAdmin, setIsTogglingAdmin] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !isAdmin) {
@@ -136,6 +160,14 @@ const AdminUsers = () => {
       .from('investments')
       .select('user_id, amount, profit_accumulated, status');
 
+    // Fetch admin roles
+    const { data: adminRoles } = await supabase
+      .from('user_roles')
+      .select('user_id, role')
+      .eq('role', 'admin');
+
+    const adminUserIds = new Set(adminRoles?.map(r => r.user_id) || []);
+
     // Calculate stats per user
     const usersWithStats: UserWithStats[] = await Promise.all(
       profiles.map(async (profile) => {
@@ -158,6 +190,7 @@ const AdminUsers = () => {
           id: profile.id,
           user_id: profile.user_id,
           full_name: profile.full_name,
+          phone: profile.phone,
           balance: profile.balance,
           is_blocked: profile.is_blocked,
           created_at: profile.created_at,
@@ -166,6 +199,7 @@ const AdminUsers = () => {
           network_count: networkCount,
           level,
           activity_percentage: activityPercentage,
+          is_admin: adminUserIds.has(profile.user_id),
         };
       })
     );
@@ -195,45 +229,196 @@ const AdminUsers = () => {
     }
   };
 
-  const handleEditBalance = async () => {
-    if (!editBalanceUser || !newBalance) return;
+  const openEditDialog = async (user: UserWithStats) => {
+    // Buscar email do usuário via edge function
+    const { data, error } = await supabase.functions.invoke('admin-user-actions', {
+      body: { action: 'get_user_email', user_id: user.user_id },
+    });
+
+    setEditUser({
+      ...user,
+      email: error ? undefined : data?.email,
+    });
+    setEditData({
+      full_name: user.full_name || '',
+      phone: user.phone || '',
+      balance: user.balance.toString(),
+    });
+  };
+
+  const handleUpdateUser = async () => {
+    if (!editUser) return;
     
-    setIsUpdatingBalance(true);
+    setIsUpdating(true);
     
-    const balanceValue = parseFloat(newBalance.replace(',', '.'));
+    const balanceValue = parseFloat(editData.balance.replace(',', '.'));
     
     if (isNaN(balanceValue) || balanceValue < 0) {
       toast({
         title: 'Erro',
-        description: 'Valor inválido',
+        description: 'Valor de saldo inválido',
         variant: 'destructive',
       });
-      setIsUpdatingBalance(false);
+      setIsUpdating(false);
       return;
     }
     
     const { error } = await supabase
       .from('profiles')
-      .update({ balance: balanceValue })
-      .eq('id', editBalanceUser.id);
+      .update({
+        full_name: editData.full_name || null,
+        phone: editData.phone || null,
+        balance: balanceValue,
+      })
+      .eq('id', editUser.id);
     
     if (error) {
       toast({
         title: 'Erro',
-        description: 'Não foi possível atualizar o saldo',
+        description: 'Não foi possível atualizar o usuário',
         variant: 'destructive',
       });
     } else {
       toast({
         title: 'Sucesso!',
-        description: `Saldo atualizado para ${formatCurrency(balanceValue)}`,
+        description: 'Dados do usuário atualizados com sucesso',
       });
       fetchUsersWithStats();
-      setEditBalanceUser(null);
-      setNewBalance('');
+      setEditUser(null);
     }
     
-    setIsUpdatingBalance(false);
+    setIsUpdating(false);
+  };
+
+  const handleToggleAdmin = async (user: UserWithStats) => {
+    // Prevent self-demotion
+    if (user.user_id === currentUser?.id) {
+      toast({
+        title: 'Ação não permitida',
+        description: 'Você não pode alterar sua própria permissão de administrador',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsTogglingAdmin(true);
+
+    if (user.is_admin) {
+      // Remove admin role
+      const { error } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', user.user_id)
+        .eq('role', 'admin');
+
+      if (error) {
+        toast({
+          title: 'Erro',
+          description: 'Não foi possível remover permissão de administrador',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Sucesso',
+          description: `${user.full_name || 'Usuário'} não é mais administrador`,
+        });
+        fetchUsersWithStats();
+      }
+    } else {
+      // Add admin role
+      const { error } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: user.user_id,
+          role: 'admin',
+        });
+
+      if (error) {
+        toast({
+          title: 'Erro',
+          description: 'Não foi possível tornar usuário administrador',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Sucesso',
+          description: `${user.full_name || 'Usuário'} agora é administrador`,
+        });
+        fetchUsersWithStats();
+      }
+    }
+
+    setIsTogglingAdmin(false);
+  };
+
+  const handleSendPasswordReset = async () => {
+    if (!editUser) return;
+
+    setIsSendingReset(true);
+
+    const { data, error } = await supabase.functions.invoke('admin-user-actions', {
+      body: {
+        action: 'send_password_reset',
+        user_id: editUser.user_id,
+        data: { redirectTo: `${window.location.origin}/reset-password` },
+      },
+    });
+
+    if (error || data?.error) {
+      toast({
+        title: 'Erro',
+        description: data?.error || 'Não foi possível enviar email de redefinição',
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Email enviado!',
+        description: 'O usuário receberá um link para redefinir a senha',
+      });
+    }
+
+    setIsSendingReset(false);
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteConfirmUser) return;
+
+    // Prevent self-deletion
+    if (deleteConfirmUser.user_id === currentUser?.id) {
+      toast({
+        title: 'Ação não permitida',
+        description: 'Você não pode excluir sua própria conta',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsDeleting(true);
+
+    const { data, error } = await supabase.functions.invoke('admin-user-actions', {
+      body: {
+        action: 'delete_user',
+        user_id: deleteConfirmUser.user_id,
+      },
+    });
+
+    if (error || data?.error) {
+      toast({
+        title: 'Erro',
+        description: data?.error || 'Não foi possível excluir o usuário',
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Usuário excluído',
+        description: 'O usuário foi removido permanentemente do sistema',
+      });
+      fetchUsersWithStats();
+      setDeleteConfirmUser(null);
+      setEditUser(null);
+    }
+
+    setIsDeleting(false);
   };
 
   const handleViewNetwork = async (user: UserWithStats) => {
@@ -331,6 +516,7 @@ const AdminUsers = () => {
   const activeUsers = users.filter((u) => !u.is_blocked).length;
   const blockedUsers = users.filter((u) => u.is_blocked).length;
   const totalInvested = users.reduce((acc, u) => acc + u.total_invested, 0);
+  const adminCount = users.filter((u) => u.is_admin).length;
 
   if (isLoading || !isAdmin) {
     return (
@@ -341,63 +527,76 @@ const AdminUsers = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0f14] p-6 space-y-6">
+    <div className="min-h-screen bg-[#0a0f14] p-4 md:p-6 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-white">Gestão de Usuários</h1>
+        <h1 className="text-xl md:text-2xl font-bold text-white">Gestão de Usuários</h1>
         <p className="text-gray-500 text-sm">Gerencie usuários, carteiras e redes de indicação</p>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-5">
         {/* Total Users */}
-        <div className="bg-[#111820] rounded-xl p-5 border border-[#1e2a3a]">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-500/10">
-              <Users className="h-6 w-6 text-teal-400" />
+        <div className="bg-[#111820] rounded-xl p-4 md:p-5 border border-[#1e2a3a]">
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-xl bg-teal-500/10">
+              <Users className="h-5 w-5 md:h-6 md:w-6 text-teal-400" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total Usuários</p>
-              <p className="text-2xl font-bold text-white">{users.length}</p>
+              <p className="text-xs md:text-sm text-gray-500">Total</p>
+              <p className="text-xl md:text-2xl font-bold text-white">{users.length}</p>
             </div>
           </div>
         </div>
 
         {/* Active Users */}
-        <div className="bg-[#111820] rounded-xl p-5 border border-[#1e2a3a]">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-500/10">
-              <UserCheck className="h-6 w-6 text-green-400" />
+        <div className="bg-[#111820] rounded-xl p-4 md:p-5 border border-[#1e2a3a]">
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-xl bg-green-500/10">
+              <UserCheck className="h-5 w-5 md:h-6 md:w-6 text-green-400" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Ativos</p>
-              <p className="text-2xl font-bold text-white">{activeUsers}</p>
+              <p className="text-xs md:text-sm text-gray-500">Ativos</p>
+              <p className="text-xl md:text-2xl font-bold text-white">{activeUsers}</p>
             </div>
           </div>
         </div>
 
         {/* Blocked Users */}
-        <div className="bg-[#111820] rounded-xl p-5 border border-[#1e2a3a]">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-500/10">
-              <UserX className="h-6 w-6 text-red-400" />
+        <div className="bg-[#111820] rounded-xl p-4 md:p-5 border border-[#1e2a3a]">
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-xl bg-red-500/10">
+              <UserX className="h-5 w-5 md:h-6 md:w-6 text-red-400" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Bloqueados</p>
-              <p className="text-2xl font-bold text-white">{blockedUsers}</p>
+              <p className="text-xs md:text-sm text-gray-500">Bloqueados</p>
+              <p className="text-xl md:text-2xl font-bold text-white">{blockedUsers}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Admins */}
+        <div className="bg-[#111820] rounded-xl p-4 md:p-5 border border-[#1e2a3a]">
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-xl bg-purple-500/10">
+              <Shield className="h-5 w-5 md:h-6 md:w-6 text-purple-400" />
+            </div>
+            <div>
+              <p className="text-xs md:text-sm text-gray-500">Admins</p>
+              <p className="text-xl md:text-2xl font-bold text-white">{adminCount}</p>
             </div>
           </div>
         </div>
 
         {/* Total Invested */}
-        <div className="bg-[#111820] rounded-xl p-5 border border-[#1e2a3a]">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10">
-              <DollarSign className="h-6 w-6 text-amber-400" />
+        <div className="bg-[#111820] rounded-xl p-4 md:p-5 border border-[#1e2a3a] col-span-2 lg:col-span-1">
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-xl bg-amber-500/10">
+              <DollarSign className="h-5 w-5 md:h-6 md:w-6 text-amber-400" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total Investido</p>
-              <p className="text-2xl font-bold text-white">{formatCurrency(totalInvested)}</p>
+              <p className="text-xs md:text-sm text-gray-500">Total Investido</p>
+              <p className="text-lg md:text-2xl font-bold text-white">{formatCurrency(totalInvested)}</p>
             </div>
           </div>
         </div>
@@ -406,9 +605,9 @@ const AdminUsers = () => {
       {/* Users Table */}
       <div className="bg-[#111820] rounded-xl border border-[#1e2a3a] overflow-hidden">
         {/* Table Header */}
-        <div className="flex items-center justify-between p-4 border-b border-[#1e2a3a]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border-b border-[#1e2a3a]">
           <h2 className="text-lg font-semibold text-white">Lista de Usuários</h2>
-          <div className="relative w-72">
+          <div className="relative w-full sm:w-72">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
             <Input
               placeholder="Buscar por nome ou email..."
@@ -436,11 +635,11 @@ const AdminUsers = () => {
                 <tr className="border-b border-[#1e2a3a]">
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usuário</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nível</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Nível</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Carteira</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Investido</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rede</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ganhos</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Investido</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Rede</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">Ganhos</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
                 </tr>
               </thead>
@@ -471,19 +670,27 @@ const AdminUsers = () => {
 
                     {/* Status */}
                     <td className="px-4 py-4">
-                      {user.is_blocked ? (
-                        <Badge className="bg-red-500/20 text-red-400 border-0 hover:bg-red-500/30">
-                          Bloqueado
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-green-500/20 text-green-400 border-0 hover:bg-green-500/30">
-                          Ativo
-                        </Badge>
-                      )}
+                      <div className="flex flex-col gap-1">
+                        {user.is_admin && (
+                          <Badge className="bg-purple-500/20 text-purple-400 border-0 w-fit">
+                            <Shield className="h-3 w-3 mr-1" />
+                            Admin
+                          </Badge>
+                        )}
+                        {user.is_blocked ? (
+                          <Badge className="bg-red-500/20 text-red-400 border-0 hover:bg-red-500/30">
+                            Bloqueado
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-green-500/20 text-green-400 border-0 hover:bg-green-500/30">
+                            Ativo
+                          </Badge>
+                        )}
+                      </div>
                     </td>
 
                     {/* Level */}
-                    <td className="px-4 py-4">
+                    <td className="px-4 py-4 hidden md:table-cell">
                       {getLevelBadge(user.level)}
                     </td>
 
@@ -493,7 +700,7 @@ const AdminUsers = () => {
                         <Wallet className="h-4 w-4 text-cyan-400" />
                         <div>
                           <p className="text-cyan-400 font-medium">{formatCurrency(user.balance)}</p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-gray-500 hidden sm:block">
                             Bloqueado: {formatCurrency(user.total_invested)}
                           </p>
                         </div>
@@ -501,12 +708,12 @@ const AdminUsers = () => {
                     </td>
 
                     {/* Invested */}
-                    <td className="px-4 py-4">
+                    <td className="px-4 py-4 hidden lg:table-cell">
                       <p className="text-white font-medium">{formatCurrency(user.total_invested)}</p>
                     </td>
 
                     {/* Network */}
-                    <td className="px-4 py-4">
+                    <td className="px-4 py-4 hidden lg:table-cell">
                       <div className="flex items-center gap-2">
                         <UsersRound className="h-4 w-4 text-purple-400" />
                         <span className="text-white">{user.network_count}</span>
@@ -514,7 +721,7 @@ const AdminUsers = () => {
                     </td>
 
                     {/* Earnings */}
-                    <td className="px-4 py-4">
+                    <td className="px-4 py-4 hidden xl:table-cell">
                       <div className="flex items-center gap-2">
                         <TrendingUp className="h-4 w-4 text-green-400" />
                         <span className="text-green-400 font-medium">{formatCurrency(user.total_earnings)}</span>
@@ -538,8 +745,27 @@ const AdminUsers = () => {
                           className="w-48 bg-[#111820] border-[#1e2a3a] text-white"
                         >
                           <DropdownMenuItem
+                            onClick={() => openEditDialog(user)}
+                            className="cursor-pointer text-gray-300 focus:text-white focus:bg-[#1e2a3a]"
+                          >
+                            <Edit className="mr-2 h-4 w-4" />
+                            Editar Usuário
+                          </DropdownMenuItem>
+                          
+                          <DropdownMenuItem
+                            onClick={() => handleToggleAdmin(user)}
+                            disabled={isTogglingAdmin || user.user_id === currentUser?.id}
+                            className="cursor-pointer text-purple-400 focus:text-purple-400 focus:bg-[#1e2a3a]"
+                          >
+                            <Shield className="mr-2 h-4 w-4" />
+                            {user.is_admin ? 'Remover Admin' : 'Tornar Admin'}
+                          </DropdownMenuItem>
+                          
+                          <DropdownMenuSeparator className="bg-[#1e2a3a]" />
+                          
+                          <DropdownMenuItem
                             onClick={() => toggleUserBlock(user)}
-                            className={`cursor-pointer ${user.is_blocked ? 'text-green-400 focus:text-green-400' : 'text-red-400 focus:text-red-400'} focus:bg-[#1e2a3a]`}
+                            className={`cursor-pointer ${user.is_blocked ? 'text-green-400 focus:text-green-400' : 'text-orange-400 focus:text-orange-400'} focus:bg-[#1e2a3a]`}
                           >
                             {user.is_blocked ? (
                               <>
@@ -553,22 +779,26 @@ const AdminUsers = () => {
                               </>
                             )}
                           </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => {
-                              setEditBalanceUser(user);
-                              setNewBalance(user.balance.toString());
-                            }}
-                            className="cursor-pointer text-gray-300 focus:text-white focus:bg-[#1e2a3a]"
-                          >
-                            <Wallet className="mr-2 h-4 w-4" />
-                            Editar Saldo
-                          </DropdownMenuItem>
+                          
                           <DropdownMenuItem 
                             onClick={() => handleViewNetwork(user)}
                             className="cursor-pointer text-gray-300 focus:text-white focus:bg-[#1e2a3a]"
                           >
                             <UsersRound className="mr-2 h-4 w-4" />
                             Ver Rede
+                          </DropdownMenuItem>
+                          
+                          <DropdownMenuSeparator className="bg-[#1e2a3a]" />
+                          
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setDeleteConfirmUser(user);
+                            }}
+                            disabled={user.user_id === currentUser?.id}
+                            className="cursor-pointer text-red-400 focus:text-red-400 focus:bg-[#1e2a3a]"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Excluir Usuário
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -581,62 +811,280 @@ const AdminUsers = () => {
         )}
       </div>
 
-      {/* Dialog: Editar Saldo */}
-      <Dialog open={!!editBalanceUser} onOpenChange={() => { setEditBalanceUser(null); setNewBalance(''); }}>
-        <DialogContent className="bg-[#111820] border-[#1e2a3a]">
+      {/* Dialog: Editar Usuário */}
+      <Dialog open={!!editUser} onOpenChange={() => setEditUser(null)}>
+        <DialogContent className="bg-[#111820] border-[#1e2a3a] max-w-[95vw] md:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-white">Editar Saldo</DialogTitle>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Edit className="h-5 w-5 text-teal-400" />
+              Editar Usuário
+            </DialogTitle>
             <DialogDescription className="text-gray-400">
-              Altere o saldo do usuário {editBalanceUser?.full_name || 'Sem nome'}
+              Altere os dados do usuário {editUser?.full_name || 'Sem nome'}
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4 py-4">
-            <div className="flex items-center gap-3 p-3 bg-[#0a0f14] rounded-lg">
-              <div className={`h-10 w-10 rounded-full bg-gradient-to-br ${getAvatarGradient(editBalanceUser?.full_name)} flex items-center justify-center`}>
-                <span className="text-white text-sm font-semibold">
-                  {getInitials(editBalanceUser?.full_name)}
-                </span>
-              </div>
-              <div>
-                <p className="text-white font-medium">{editBalanceUser?.full_name || 'Sem nome'}</p>
-                <p className="text-sm text-gray-500">Saldo atual: {formatCurrency(editBalanceUser?.balance || 0)}</p>
-              </div>
-            </div>
+          <Tabs defaultValue="dados" className="w-full">
+            <TabsList className="w-full bg-[#0a0f14] border border-[#1e2a3a]">
+              <TabsTrigger value="dados" className="flex-1 data-[state=active]:bg-[#1e2a3a]">Dados</TabsTrigger>
+              <TabsTrigger value="permissoes" className="flex-1 data-[state=active]:bg-[#1e2a3a]">Permissões</TabsTrigger>
+              <TabsTrigger value="acoes" className="flex-1 data-[state=active]:bg-[#1e2a3a]">Ações</TabsTrigger>
+            </TabsList>
             
-            <div className="space-y-2">
-              <Label className="text-gray-300">Novo saldo</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">R$</span>
-                <Input
-                  type="text"
-                  placeholder="0,00"
-                  value={newBalance}
-                  onChange={(e) => setNewBalance(e.target.value)}
-                  className="pl-10 bg-[#0a0f14] border-[#1e2a3a] text-white"
-                />
+            {/* Aba Dados */}
+            <TabsContent value="dados" className="space-y-4 mt-4">
+              <div className="flex items-center gap-3 p-3 bg-[#0a0f14] rounded-lg">
+                <div className={`h-10 w-10 rounded-full bg-gradient-to-br ${getAvatarGradient(editUser?.full_name)} flex items-center justify-center`}>
+                  <span className="text-white text-sm font-semibold">
+                    {getInitials(editUser?.full_name)}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-white font-medium">{editUser?.full_name || 'Sem nome'}</p>
+                  <p className="text-sm text-gray-500">{editUser?.email || 'Email não disponível'}</p>
+                </div>
               </div>
-            </div>
+              
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-gray-300">Nome completo</Label>
+                  <Input
+                    type="text"
+                    placeholder="Nome do usuário"
+                    value={editData.full_name}
+                    onChange={(e) => setEditData({ ...editData, full_name: e.target.value })}
+                    className="bg-[#0a0f14] border-[#1e2a3a] text-white"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-gray-300">Telefone</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+                    <Input
+                      type="text"
+                      placeholder="(00) 00000-0000"
+                      value={editData.phone}
+                      onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
+                      className="pl-10 bg-[#0a0f14] border-[#1e2a3a] text-white"
+                    />
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-gray-300">Saldo da carteira</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">R$</span>
+                    <Input
+                      type="text"
+                      placeholder="0,00"
+                      value={editData.balance}
+                      onChange={(e) => setEditData({ ...editData, balance: e.target.value })}
+                      className="pl-10 bg-[#0a0f14] border-[#1e2a3a] text-white"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <DialogFooter className="pt-4">
+                <Button variant="outline" onClick={() => setEditUser(null)} className="border-[#1e2a3a] text-gray-300 hover:bg-[#1e2a3a] hover:text-white">
+                  Cancelar
+                </Button>
+                <button
+                  onClick={handleUpdateUser}
+                  disabled={isUpdating}
+                  className="h-10 px-4 rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium disabled:opacity-50"
+                >
+                  {isUpdating ? 'Salvando...' : 'Salvar Alterações'}
+                </button>
+              </DialogFooter>
+            </TabsContent>
+            
+            {/* Aba Permissões */}
+            <TabsContent value="permissoes" className="space-y-4 mt-4">
+              <div className="p-4 bg-[#0a0f14] rounded-lg border border-[#1e2a3a]">
+                <h4 className="text-white font-medium mb-3">Nível de Acesso</h4>
+                
+                <div className="space-y-3">
+                  <label className="flex items-center gap-3 p-3 rounded-lg border border-[#1e2a3a] cursor-pointer hover:bg-[#1e2a3a]/50 transition-colors">
+                    <input
+                      type="radio"
+                      name="role"
+                      checked={!editUser?.is_admin}
+                      onChange={() => {
+                        if (editUser?.is_admin) {
+                          handleToggleAdmin(editUser);
+                        }
+                      }}
+                      disabled={editUser?.user_id === currentUser?.id}
+                      className="w-4 h-4 text-teal-500"
+                    />
+                    <div className="flex-1">
+                      <p className="text-white font-medium">Usuário comum</p>
+                      <p className="text-sm text-gray-500">Acesso básico ao sistema</p>
+                    </div>
+                  </label>
+                  
+                  <label className="flex items-center gap-3 p-3 rounded-lg border border-purple-500/30 cursor-pointer hover:bg-purple-500/10 transition-colors">
+                    <input
+                      type="radio"
+                      name="role"
+                      checked={editUser?.is_admin}
+                      onChange={() => {
+                        if (!editUser?.is_admin && editUser) {
+                          handleToggleAdmin(editUser);
+                        }
+                      }}
+                      disabled={editUser?.user_id === currentUser?.id}
+                      className="w-4 h-4 text-purple-500"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-white font-medium">Administrador</p>
+                        <Shield className="h-4 w-4 text-purple-400" />
+                      </div>
+                      <p className="text-sm text-gray-500">Acesso total ao sistema</p>
+                    </div>
+                  </label>
+                </div>
+                
+                {editUser?.user_id === currentUser?.id && (
+                  <div className="mt-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                    <p className="text-sm text-amber-400">
+                      Você não pode alterar sua própria permissão de administrador
+                    </p>
+                  </div>
+                )}
+              </div>
+              
+              <div className="p-4 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+                <p className="text-sm text-purple-300">
+                  <strong>Atenção:</strong> Administradores têm acesso total ao sistema, incluindo gestão de usuários, transações e configurações.
+                </p>
+              </div>
+            </TabsContent>
+            
+            {/* Aba Ações */}
+            <TabsContent value="acoes" className="space-y-4 mt-4">
+              {/* Status da Conta */}
+              <div className="p-4 bg-[#0a0f14] rounded-lg border border-[#1e2a3a]">
+                <h4 className="text-white font-medium mb-3">Status da Conta</h4>
+                <button
+                  onClick={() => editUser && toggleUserBlock(editUser)}
+                  className={`w-full flex items-center justify-center gap-2 h-10 rounded-lg font-medium transition-colors ${
+                    editUser?.is_blocked
+                      ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+                      : 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30'
+                  }`}
+                >
+                  {editUser?.is_blocked ? (
+                    <>
+                      <CheckCircle className="h-4 w-4" />
+                      Desbloquear Usuário
+                    </>
+                  ) : (
+                    <>
+                      <Ban className="h-4 w-4" />
+                      Bloquear Usuário
+                    </>
+                  )}
+                </button>
+                <p className="text-xs text-gray-500 mt-2">
+                  {editUser?.is_blocked
+                    ? 'Este usuário está bloqueado e não pode acessar o sistema'
+                    : 'Bloquear impede o usuário de acessar o sistema temporariamente'}
+                </p>
+              </div>
+              
+              {/* Segurança */}
+              <div className="p-4 bg-[#0a0f14] rounded-lg border border-[#1e2a3a]">
+                <h4 className="text-white font-medium mb-3">Segurança</h4>
+                <button
+                  onClick={handleSendPasswordReset}
+                  disabled={isSendingReset}
+                  className="w-full flex items-center justify-center gap-2 h-10 rounded-lg bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 font-medium transition-colors disabled:opacity-50"
+                >
+                  <KeyRound className="h-4 w-4" />
+                  {isSendingReset ? 'Enviando...' : 'Enviar Email de Redefinição de Senha'}
+                </button>
+                <p className="text-xs text-gray-500 mt-2">
+                  O usuário receberá um email com link para criar uma nova senha
+                </p>
+              </div>
+              
+              {/* Zona de Perigo */}
+              <div className="p-4 bg-red-500/10 rounded-lg border border-red-500/30">
+                <h4 className="text-red-400 font-medium mb-3 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  Zona de Perigo
+                </h4>
+                <button
+                  onClick={() => editUser && setDeleteConfirmUser(editUser)}
+                  disabled={editUser?.user_id === currentUser?.id}
+                  className="w-full flex items-center justify-center gap-2 h-10 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 font-medium transition-colors disabled:opacity-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Excluir Usuário Permanentemente
+                </button>
+                <p className="text-xs text-red-400/70 mt-2">
+                  Esta ação não pode ser desfeita. Todos os dados serão excluídos.
+                </p>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: Confirmar Exclusão */}
+      <Dialog open={!!deleteConfirmUser} onOpenChange={() => setDeleteConfirmUser(null)}>
+        <DialogContent className="bg-[#111820] border-red-500/30 max-w-[95vw] md:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-red-400 flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              Excluir Usuário
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Tem certeza que deseja excluir permanentemente o usuário{' '}
+              <strong className="text-white">{deleteConfirmUser?.full_name || 'Sem nome'}</strong>?
+              Esta ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 my-4">
+            <p className="text-sm text-red-400 font-medium">
+              Todos os dados serão excluídos:
+            </p>
+            <ul className="text-sm text-gray-400 list-disc ml-4 mt-2 space-y-1">
+              <li>Perfil e informações pessoais</li>
+              <li>Investimentos ativos</li>
+              <li>Histórico de transações</li>
+              <li>Rede de indicações</li>
+            </ul>
           </div>
           
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditBalanceUser(null)} className="border-[#1e2a3a] text-gray-300 hover:bg-[#1e2a3a] hover:text-white">
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setDeleteConfirmUser(null)}
+              className="border-[#1e2a3a] text-gray-300 hover:bg-[#1e2a3a] hover:text-white"
+            >
               Cancelar
             </Button>
-            <button
-              onClick={handleEditBalance}
-              disabled={isUpdatingBalance || !newBalance}
-              className="h-10 px-4 rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium disabled:opacity-50"
+            <Button 
+              variant="destructive"
+              onClick={handleDeleteUser}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
             >
-              {isUpdatingBalance ? 'Salvando...' : 'Salvar'}
-            </button>
+              {isDeleting ? 'Excluindo...' : 'Excluir Permanentemente'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Dialog: Ver Rede */}
       <Dialog open={!!viewNetworkUser} onOpenChange={() => { setViewNetworkUser(null); setNetworkData([]); setNetworkStats(null); }}>
-        <DialogContent className="bg-[#111820] border-[#1e2a3a] max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="bg-[#111820] border-[#1e2a3a] max-w-[95vw] md:max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2">
               <UsersRound className="h-5 w-5 text-purple-400" />
