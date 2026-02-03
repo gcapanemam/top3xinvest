@@ -21,7 +21,8 @@ interface Robot {
   id: string;
   name: string;
   description: string | null;
-  profit_percentage: number;
+  profit_percentage_min: number;
+  profit_percentage_max: number;
   profit_period_days: number;
   lock_period_days: number;
   min_investment: number;
@@ -65,7 +66,7 @@ const Robots = () => {
       .from('robots')
       .select('*, cryptocurrency:cryptocurrencies(symbol, name)')
       .eq('is_active', true)
-      .order('profit_percentage', { ascending: false });
+      .order('profit_percentage_max', { ascending: false });
 
     if (data) {
       setRobots(data as Robot[]);
@@ -288,7 +289,7 @@ const Robots = () => {
                   <div>
                     <p className="text-sm text-white/80">Rentabilidade</p>
                     <p className="text-xl font-bold text-white">
-                      {robot.profit_percentage}% <span className="text-sm font-normal">/ {robot.profit_period_days} dias</span>
+                      {robot.profit_percentage_min} - {robot.profit_percentage_max}% <span className="text-sm font-normal">/ {robot.profit_period_days} dias</span>
                     </p>
                   </div>
                   <Sparkles className="ml-auto h-5 w-5 text-white/60 animate-pulse" />
@@ -352,7 +353,7 @@ const Robots = () => {
               <div className="bg-[#0a0f14] p-3 rounded-lg">
                 <p className="text-xs text-gray-500">Rentabilidade</p>
                 <p className="text-lg font-bold text-green-400">
-                  {selectedRobot?.profit_percentage}% / {selectedRobot?.profit_period_days} dias
+                  {selectedRobot?.profit_percentage_min} - {selectedRobot?.profit_percentage_max}% / {selectedRobot?.profit_period_days} dias
                 </p>
               </div>
               <div className="bg-[#0a0f14] p-3 rounded-lg">

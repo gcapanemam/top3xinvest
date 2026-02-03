@@ -14,7 +14,8 @@ interface Investment {
   created_at: string;
   robot: {
     name: string;
-    profit_percentage: number;
+    profit_percentage_min: number;
+    profit_percentage_max: number;
     profit_period_days: number;
   } | null;
 }
@@ -33,7 +34,7 @@ const Investments = () => {
   const fetchInvestments = async () => {
     const { data, error } = await supabase
       .from('investments')
-      .select('*, robot:robots(name, profit_percentage, profit_period_days)')
+      .select('*, robot:robots(name, profit_percentage_min, profit_percentage_max, profit_period_days)')
       .eq('user_id', user!.id)
       .order('created_at', { ascending: false });
 
@@ -160,7 +161,7 @@ const Investments = () => {
                         {getStatusBadge(investment.status, investment.lock_until)}
                       </div>
                       <p className="text-sm text-gray-400">
-                        {investment.robot?.profit_percentage}% /{' '}
+                        {investment.robot?.profit_percentage_min} - {investment.robot?.profit_percentage_max}% /{' '}
                         {investment.robot?.profit_period_days} dias
                       </p>
                     </div>
