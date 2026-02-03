@@ -195,6 +195,30 @@ export type Database = {
           },
         ]
       }
+      mlm_settings: {
+        Row: {
+          commission_percentage: number
+          id: string
+          level: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          commission_percentage?: number
+          id?: string
+          level: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          commission_percentage?: number
+          id?: string
+          level?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string

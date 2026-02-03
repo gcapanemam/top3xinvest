@@ -8,6 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
+import { useToast } from '@/hooks/use-toast';
+import { createAuditLog } from '@/lib/auditLog';
 import {
   Users,
   UserPlus,
@@ -20,6 +25,7 @@ import {
   TrendingUp,
   Crown,
   Star,
+  Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -54,12 +60,18 @@ interface UserProfile {
   balance: number;
 }
 
-const LEVEL_CONFIG = [
-  { level: 1, percentage: 100, color: 'amber', bgColor: 'bg-amber-500/20', textColor: 'text-amber-400', borderColor: 'border-amber-500/30' },
-  { level: 2, percentage: 50, color: 'green', bgColor: 'bg-green-500/20', textColor: 'text-green-400', borderColor: 'border-green-500/30' },
-  { level: 3, percentage: 25, color: 'cyan', bgColor: 'bg-cyan-500/20', textColor: 'text-cyan-400', borderColor: 'border-cyan-500/30' },
-  { level: 4, percentage: 10, color: 'purple', bgColor: 'bg-purple-500/20', textColor: 'text-purple-400', borderColor: 'border-purple-500/30' },
-];
+interface CommissionSetting {
+  id: string;
+  level: number;
+  commission_percentage: number;
+}
+
+const LEVEL_COLORS = {
+  1: { color: 'amber', bgColor: 'bg-amber-500/20', textColor: 'text-amber-400', borderColor: 'border-amber-500/30' },
+  2: { color: 'green', bgColor: 'bg-green-500/20', textColor: 'text-green-400', borderColor: 'border-green-500/30' },
+  3: { color: 'cyan', bgColor: 'bg-cyan-500/20', textColor: 'text-cyan-400', borderColor: 'border-cyan-500/30' },
+  4: { color: 'purple', bgColor: 'bg-purple-500/20', textColor: 'text-purple-400', borderColor: 'border-purple-500/30' },
+};
 
 const getLevelBadge = (volume: number) => {
   if (volume >= 100000) return { name: 'Estrela 5', icon: Crown, color: 'text-amber-400' };
@@ -109,9 +121,38 @@ const formatCurrency = (value: number) => {
 };
 
 const AdminMLM = () => {
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [openLevels, setOpenLevels] = useState<number[]>([1]);
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+  const [commissionSettings, setCommissionSettings] = useState<CommissionSetting[]>([]);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+
+  // Fetch MLM settings
+  const { data: mlmSettings = [], refetch: refetchSettings } = useQuery({
+    queryKey: ['mlm-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('mlm_settings')
+        .select('*')
+        .order('level');
+      
+      if (error) throw error;
+      return data as CommissionSetting[];
+    },
+  });
+
+  // Get dynamic level config based on settings
+  const getLevelConfig = () => {
+    return [1, 2, 3, 4].map((level) => {
+      const setting = mlmSettings.find((s) => s.level === level);
+      const percentage = setting?.commission_percentage ?? [100, 50, 25, 10][level - 1];
+      return { level, percentage, ...LEVEL_COLORS[level as 1 | 2 | 3 | 4] };
+    });
+  };
+
+  const LEVEL_CONFIG = getLevelConfig();
 
   // Fetch all users for search
   const { data: users = [], isLoading: loadingUsers } = useQuery({
@@ -200,12 +241,63 @@ const AdminMLM = () => {
 
   const calculateEstimatedCommission = () => {
     if (!networkStats) return 0;
+    const l1 = LEVEL_CONFIG.find(c => c.level === 1)?.percentage ?? 100;
+    const l2 = LEVEL_CONFIG.find(c => c.level === 2)?.percentage ?? 50;
+    const l3 = LEVEL_CONFIG.find(c => c.level === 3)?.percentage ?? 25;
+    const l4 = LEVEL_CONFIG.find(c => c.level === 4)?.percentage ?? 10;
     return (
-      networkStats.level_1_volume * 0.01 + // 100% de 1% = 1%
-      networkStats.level_2_volume * 0.005 + // 50% de 1% = 0.5%
-      networkStats.level_3_volume * 0.0025 + // 25% de 1% = 0.25%
-      networkStats.level_4_volume * 0.001 // 10% de 1% = 0.1%
+      networkStats.level_1_volume * (l1 / 10000) +
+      networkStats.level_2_volume * (l2 / 10000) +
+      networkStats.level_3_volume * (l3 / 10000) +
+      networkStats.level_4_volume * (l4 / 10000)
     );
+  };
+
+  const handleSaveSettings = async () => {
+    setIsSavingSettings(true);
+    
+    try {
+      for (const setting of commissionSettings) {
+        const { error } = await supabase
+          .from('mlm_settings')
+          .update({ 
+            commission_percentage: setting.commission_percentage,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('level', setting.level);
+        
+        if (error) throw error;
+      }
+      
+      await createAuditLog({
+        action: 'mlm_settings_updated',
+        entityType: 'mlm_settings',
+        details: {
+          levels: commissionSettings.map(s => ({
+            level: s.level,
+            percentage: s.commission_percentage,
+          })),
+        },
+      });
+      
+      toast({ title: 'Configurações salvas com sucesso!' });
+      refetchSettings();
+      setShowSettingsDialog(false);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Erro desconhecido';
+      toast({
+        title: 'Erro ao salvar',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
+  const openSettingsDialog = () => {
+    setCommissionSettings([...mlmSettings]);
+    setShowSettingsDialog(true);
   };
 
   const userBadge = selectedUser
@@ -221,6 +313,16 @@ const AdminMLM = () => {
             <Network className="h-5 w-5 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-white">Rede MLM</h1>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={openSettingsDialog}
+            className="ml-auto border-[#1e2a3a] text-gray-400 hover:text-white hover:border-teal-500/50"
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Configurar Comissões
+          </Button>
         </div>
         <p className="text-gray-400">
           Gerencie a rede de indicações e visualize a estrutura multinível
@@ -553,6 +655,68 @@ const AdminMLM = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Settings Dialog */}
+      <Dialog open={showSettingsDialog} onOpenChange={setShowSettingsDialog}>
+        <DialogContent className="bg-[#111820] border-[#1e2a3a] text-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5 text-teal-400" />
+              Configurar Comissões MLM
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Defina os percentuais de comissão para cada nível da rede
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            {commissionSettings.map((setting, index) => (
+              <div key={setting.level} className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-white">
+                    Nível {setting.level}
+                    {setting.level === 1 && (
+                      <span className="text-gray-400 text-xs ml-2">(Indicação Direta)</span>
+                    )}
+                  </Label>
+                  <span className="text-teal-400 font-bold text-lg">
+                    {setting.commission_percentage}%
+                  </span>
+                </div>
+                <Slider
+                  value={[setting.commission_percentage]}
+                  onValueChange={(value) => {
+                    const updated = [...commissionSettings];
+                    updated[index] = { ...setting, commission_percentage: value[0] };
+                    setCommissionSettings(updated);
+                  }}
+                  max={100}
+                  min={0}
+                  step={5}
+                  className="w-full"
+                />
+              </div>
+            ))}
+          </div>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowSettingsDialog(false)}
+              className="border-[#1e2a3a] text-gray-400 hover:text-white"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleSaveSettings}
+              disabled={isSavingSettings}
+              className="bg-gradient-to-r from-teal-500 to-cyan-500 text-white"
+            >
+              {isSavingSettings ? 'Salvando...' : 'Salvar Alterações'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
