@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 
-export type EntityType = 'user' | 'deposit' | 'withdrawal' | 'robot' | 'cryptocurrency' | 'notification';
+export type EntityType = 'user' | 'deposit' | 'withdrawal' | 'robot' | 'cryptocurrency' | 'notification' | 'mlm_settings';
 
 export type ActionType = 
   // User actions
@@ -25,7 +25,9 @@ export type ActionType =
   // Crypto actions
   | 'crypto_price_updated'
   // Notification actions
-  | 'notification_sent';
+  | 'notification_sent'
+  // MLM settings actions
+  | 'mlm_settings_updated';
 
 export interface AuditLogParams {
   action: ActionType;
@@ -81,6 +83,7 @@ export const getActionDisplayName = (action: ActionType): string => {
     robot_profit_credited: 'Lucro creditado',
     crypto_price_updated: 'Cotação atualizada',
     notification_sent: 'Notificação enviada',
+    mlm_settings_updated: 'Comissões MLM atualizadas',
   };
   return actionNames[action] || action;
 };
@@ -94,6 +97,7 @@ export const getEntityTypeDisplayName = (entityType: EntityType): string => {
     robot: 'Robô',
     cryptocurrency: 'Criptomoeda',
     notification: 'Notificação',
+    mlm_settings: 'Configurações MLM',
   };
   return entityNames[entityType] || entityType;
 };
