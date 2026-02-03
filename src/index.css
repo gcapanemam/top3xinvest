@@ -168,8 +168,23 @@ All colors MUST be HSL.
     .animate-scale-in,
     .animate-glow-pulse,
     .animate-shimmer,
-    .animate-float {
+    .animate-float,
+    .floating-card {
       animation: none !important;
     }
   }
+}
+
+/* Floating cards animation for landing page */
+@keyframes float-vertical {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.floating-card {
+  animation: float-vertical 3s ease-in-out infinite;
 }
