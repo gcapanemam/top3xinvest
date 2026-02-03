@@ -59,6 +59,17 @@ Deno.serve(async (req) => {
     const { action, user_id, data } = await req.json();
     console.log('Admin action:', action, 'for user:', user_id);
 
+    // Helper function to create audit log
+    const createAuditLog = async (logAction: string, entityType: string, entityId: string, details: Record<string, unknown>) => {
+      await supabaseAdmin.from('admin_audit_logs').insert({
+        admin_id: requestingUser.id,
+        action: logAction,
+        entity_type: entityType,
+        entity_id: entityId,
+        details: details,
+      });
+    };
+
     switch (action) {
       case 'send_password_reset': {
         // Get user email from auth.users using admin client
@@ -86,6 +97,12 @@ Deno.serve(async (req) => {
           );
         }
 
+        // Create audit log
+        await createAuditLog('user_password_reset_sent', 'user', user_id, {
+          user_email: userData.user.email,
+          action_via: 'edge_function',
+        });
+
         return new Response(
           JSON.stringify({ success: true, message: 'Email de redefinição enviado com sucesso' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -101,6 +118,10 @@ Deno.serve(async (req) => {
           );
         }
 
+        // Get user email before deletion for logging
+        const { data: userData } = await supabaseAdmin.auth.admin.getUserById(user_id);
+        const userEmail = userData?.user?.email || 'unknown';
+
         // Delete user from auth.users (cascade will handle related tables)
         const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user_id);
 
@@ -111,6 +132,12 @@ Deno.serve(async (req) => {
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
+
+        // Create audit log
+        await createAuditLog('user_deleted', 'user', user_id, {
+          user_email: userEmail,
+          action_via: 'edge_function',
+        });
 
         return new Response(
           JSON.stringify({ success: true, message: 'Usuário excluído com sucesso' }),

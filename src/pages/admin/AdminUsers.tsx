@@ -44,6 +44,7 @@ import {
   Phone,
   KeyRound
 } from 'lucide-react';
+import { createAuditLog } from '@/lib/auditLog';
 
 interface UserWithStats {
   id: string;
@@ -221,6 +222,18 @@ const AdminUsers = () => {
         variant: 'destructive',
       });
     } else {
+      // Create audit log
+      await createAuditLog({
+        action: user.is_blocked ? 'user_unblocked' : 'user_blocked',
+        entityType: 'user',
+        entityId: user.user_id,
+        details: {
+          user_name: user.full_name,
+          previous_status: user.is_blocked ? 'blocked' : 'active',
+          new_status: user.is_blocked ? 'active' : 'blocked',
+        },
+      });
+
       toast({
         title: 'Sucesso',
         description: user.is_blocked ? 'Usuário desbloqueado!' : 'Usuário bloqueado!',
@@ -279,6 +292,21 @@ const AdminUsers = () => {
         variant: 'destructive',
       });
     } else {
+      // Create audit log
+      await createAuditLog({
+        action: 'user_edited',
+        entityType: 'user',
+        entityId: editUser.user_id,
+        details: {
+          user_name: editData.full_name,
+          changes: {
+            full_name: { from: editUser.full_name, to: editData.full_name },
+            phone: { from: editUser.phone, to: editData.phone },
+            balance: { from: editUser.balance, to: balanceValue },
+          },
+        },
+      });
+
       toast({
         title: 'Sucesso!',
         description: 'Dados do usuário atualizados com sucesso',
@@ -318,6 +346,16 @@ const AdminUsers = () => {
           variant: 'destructive',
         });
       } else {
+        // Create audit log
+        await createAuditLog({
+          action: 'user_admin_revoked',
+          entityType: 'user',
+          entityId: user.user_id,
+          details: {
+            user_name: user.full_name,
+          },
+        });
+
         toast({
           title: 'Sucesso',
           description: `${user.full_name || 'Usuário'} não é mais administrador`,
@@ -340,6 +378,16 @@ const AdminUsers = () => {
           variant: 'destructive',
         });
       } else {
+        // Create audit log
+        await createAuditLog({
+          action: 'user_admin_granted',
+          entityType: 'user',
+          entityId: user.user_id,
+          details: {
+            user_name: user.full_name,
+          },
+        });
+
         toast({
           title: 'Sucesso',
           description: `${user.full_name || 'Usuário'} agora é administrador`,

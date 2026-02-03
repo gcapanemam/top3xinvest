@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Send, Users } from 'lucide-react';
+import { createAuditLog } from '@/lib/auditLog';
 
 interface UserProfile {
   user_id: string;
@@ -96,6 +97,17 @@ const AdminNotifications = () => {
           variant: 'destructive',
         });
       } else {
+        // Create audit log
+        await createAuditLog({
+          action: 'notification_sent',
+          entityType: 'notification',
+          details: {
+            title: formData.title,
+            type: formData.type,
+            is_global: true,
+          },
+        });
+
         toast({
           title: 'Sucesso',
           description: 'Notificação global enviada para todos os usuários!',
@@ -118,6 +130,18 @@ const AdminNotifications = () => {
           variant: 'destructive',
         });
       } else {
+        // Create audit log
+        await createAuditLog({
+          action: 'notification_sent',
+          entityType: 'notification',
+          details: {
+            title: formData.title,
+            type: formData.type,
+            is_global: false,
+            target_user_id: formData.userId,
+          },
+        });
+
         toast({
           title: 'Sucesso',
           description: 'Notificação enviada!',

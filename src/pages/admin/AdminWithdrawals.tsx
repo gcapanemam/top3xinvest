@@ -16,6 +16,7 @@ import {
 import { ArrowUpCircle, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { createAuditLog } from '@/lib/auditLog';
 
 interface Withdrawal {
   id: string;
@@ -132,6 +133,19 @@ const AdminWithdrawals = () => {
         ? `Seu saque de R$ ${selectedWithdrawal.amount.toFixed(2)} foi aprovado e será enviado para o PIX informado.`
         : `Seu saque de R$ ${selectedWithdrawal.amount.toFixed(2)} foi recusado. ${adminNotes || ''}`,
       type: approve ? 'info' : 'alert',
+    });
+
+    // Create audit log
+    await createAuditLog({
+      action: approve ? 'withdrawal_approved' : 'withdrawal_rejected',
+      entityType: 'withdrawal',
+      entityId: selectedWithdrawal.id,
+      details: {
+        user_id: selectedWithdrawal.user_id,
+        amount: selectedWithdrawal.amount,
+        pix_key: selectedWithdrawal.pix_key,
+        admin_notes: adminNotes || null,
+      },
     });
 
     toast({

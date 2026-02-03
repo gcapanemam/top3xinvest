@@ -27,6 +27,7 @@ import AdminWithdrawals from "./pages/admin/AdminWithdrawals";
 import AdminPrices from "./pages/admin/AdminPrices";
 import AdminNotifications from "./pages/admin/AdminNotifications";
 import AdminMLM from "./pages/admin/AdminMLM";
+import AdminAuditLogs from "./pages/admin/AdminAuditLogs";
 
 const queryClient = new QueryClient();
 
@@ -63,6 +64,7 @@ const App = () => (
               <Route path="/admin/withdrawals" element={<AdminWithdrawals />} />
               <Route path="/admin/prices" element={<AdminPrices />} />
               <Route path="/admin/notifications" element={<AdminNotifications />} />
+              <Route path="/admin/logs" element={<AdminAuditLogs />} />
             </Route>
 
             {/* 404 */}

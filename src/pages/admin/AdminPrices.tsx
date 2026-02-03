@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { TrendingUp, TrendingDown, Save } from 'lucide-react';
+import { createAuditLog } from '@/lib/auditLog';
 
 interface Cryptocurrency {
   id: string;
@@ -93,6 +94,20 @@ const AdminPrices = () => {
         await supabase.from('crypto_price_history').insert({
           cryptocurrency_id: crypto.id,
           price: newPrice,
+        });
+
+        // Create audit log
+        await createAuditLog({
+          action: 'crypto_price_updated',
+          entityType: 'cryptocurrency',
+          entityId: crypto.id,
+          details: {
+            symbol: crypto.symbol,
+            previous_price: crypto.current_price,
+            new_price: newPrice,
+            previous_change: crypto.price_change_24h,
+            new_change: newChange,
+          },
         });
       }
     }
