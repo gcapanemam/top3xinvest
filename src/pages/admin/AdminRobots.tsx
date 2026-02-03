@@ -37,10 +37,13 @@ import {
   CheckCircle, 
   Users,
   Loader2,
-  X
+  X,
+  Sparkles,
+  RefreshCw
 } from 'lucide-react';
 import { createAuditLog } from '@/lib/auditLog';
-import { format } from 'date-fns';
+import { format, subDays } from 'date-fns';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ptBR } from 'date-fns/locale';
 
 interface Robot {
@@ -90,6 +93,15 @@ interface OperationData {
   closed_at: string | null;
 }
 
+interface GeneratedOperation {
+  id: number;
+  cryptocurrency_symbol: string;
+  operation_type: 'buy' | 'sell';
+  profit_percentage: number;
+  entry_price: number;
+  exit_price: number;
+}
+
 const CRYPTO_PAIRS = [
   'BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'SOL/USDT', 'XRP/USDT',
   'ADA/USDT', 'DOGE/USDT', 'DOT/USDT', 'MATIC/USDT', 'LINK/USDT'
@@ -130,6 +142,22 @@ const AdminRobots = () => {
     operation_date: format(new Date(), 'yyyy-MM-dd'),
   });
   const [isAddingOperation, setIsAddingOperation] = useState(false);
+
+  // Auto-generate state
+  const [showAutoGenerate, setShowAutoGenerate] = useState(false);
+  const [autoGenConfig, setAutoGenConfig] = useState({
+    operationCount: 5,
+    minProfit: 0.1,
+    maxProfit: 0.5,
+    allowNegative: false,
+    negativeChance: 10,
+    selectedPairs: ['BNB/USDT', 'ETH/USDT', 'BTC/USDT'],
+    operationDate: format(subDays(new Date(), 1), 'yyyy-MM-dd'),
+  });
+  const [generatedOperations, setGeneratedOperations] = useState<GeneratedOperation[]>([]);
+  const [selectedOperations, setSelectedOperations] = useState<Set<number>>(new Set());
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isAddingBulk, setIsAddingBulk] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -379,6 +407,126 @@ const AdminRobots = () => {
         variant: 'destructive',
       });
     }
+  };
+
+  // Generate random operations
+  const generateOperations = () => {
+    setIsGenerating(true);
+    
+    const operations: GeneratedOperation[] = [];
+    
+    for (let i = 0; i < autoGenConfig.operationCount; i++) {
+      const pair = autoGenConfig.selectedPairs[
+        Math.floor(Math.random() * autoGenConfig.selectedPairs.length)
+      ];
+      
+      const isNegative = autoGenConfig.allowNegative && 
+        Math.random() * 100 < autoGenConfig.negativeChance;
+      
+      let profit = autoGenConfig.minProfit + 
+        Math.random() * (autoGenConfig.maxProfit - autoGenConfig.minProfit);
+      
+      if (isNegative) {
+        profit = -profit * 0.5;
+      }
+      
+      const type: 'buy' | 'sell' = Math.random() > 0.5 ? 'buy' : 'sell';
+      const entryPrice = 100 + Math.random() * 900;
+      const exitPrice = entryPrice * (1 + profit / 100);
+      
+      operations.push({
+        id: i,
+        cryptocurrency_symbol: pair,
+        operation_type: type,
+        profit_percentage: parseFloat(profit.toFixed(2)),
+        entry_price: parseFloat(entryPrice.toFixed(2)),
+        exit_price: parseFloat(exitPrice.toFixed(2)),
+      });
+    }
+    
+    setGeneratedOperations(operations);
+    setSelectedOperations(new Set(
+      operations
+        .filter(op => op.profit_percentage >= 0)
+        .map(op => op.id)
+    ));
+    
+    setIsGenerating(false);
+  };
+
+  // Toggle operation selection
+  const toggleOperationSelection = (id: number) => {
+    setSelectedOperations(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  // Add selected operations in bulk
+  const handleAddSelectedOperations = async () => {
+    if (!selectedRobotForStats || selectedOperations.size === 0) return;
+    
+    setIsAddingBulk(true);
+    
+    try {
+      const operationsToAdd = generatedOperations
+        .filter(op => selectedOperations.has(op.id));
+      
+      const insertData = operationsToAdd.map(op => ({
+        robot_id: selectedRobotForStats.id,
+        cryptocurrency_symbol: op.cryptocurrency_symbol,
+        operation_type: op.operation_type,
+        entry_price: op.entry_price,
+        exit_price: op.exit_price,
+        profit_percentage: op.profit_percentage,
+        status: 'closed',
+        created_at: new Date(autoGenConfig.operationDate).toISOString(),
+        closed_at: new Date(autoGenConfig.operationDate).toISOString(),
+      }));
+      
+      const { error } = await supabase
+        .from('robot_operations')
+        .insert(insertData);
+      
+      if (error) throw error;
+      
+      toast({
+        title: 'Operações adicionadas!',
+        description: `${insertData.length} operação(ões) inserida(s) com sucesso`,
+      });
+      
+      // Reload operations
+      const { data: operations } = await supabase
+        .from('robot_operations')
+        .select('*')
+        .eq('robot_id', selectedRobotForStats.id)
+        .order('created_at', { ascending: false });
+      
+      setRobotOperations((operations as OperationData[]) || []);
+      setShowAutoGenerate(false);
+      setGeneratedOperations([]);
+      setStatsTab('operations');
+    } catch (error: any) {
+      toast({
+        title: 'Erro',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsAddingBulk(false);
+    }
+  };
+
+  // Calculate selected operations total profit
+  const getSelectedTotalProfit = () => {
+    return generatedOperations
+      .filter(op => selectedOperations.has(op.id))
+      .reduce((sum, op) => sum + op.profit_percentage, 0);
   };
 
   // Group operations by date
@@ -1134,8 +1282,234 @@ const AdminRobots = () => {
                           Adicionar Operação
                         </button>
                       </div>
+
+                      {/* Separador */}
+                      <div className="relative my-6">
+                        <div className="absolute inset-0 flex items-center">
+                          <div className="w-full border-t border-[#1e2a3a]"></div>
+                        </div>
+                        <div className="relative flex justify-center">
+                          <span className="bg-[#0a0f14] px-4 text-sm text-gray-500">
+                            ou
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Botão Gerar Automaticamente */}
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowAutoGenerate(true)}
+                        className="w-full border-dashed border-[#1e2a3a] text-gray-400 hover:border-cyan-500/50 hover:text-cyan-400"
+                      >
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Gerar Operações Automaticamente
+                      </Button>
                     </div>
                   </div>
+
+                  {/* Modal de Geração Automática */}
+                  {showAutoGenerate && (
+                    <div className="mt-4 rounded-lg bg-[#0a0f14] border border-cyan-500/30 p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="font-medium text-white flex items-center gap-2">
+                          <Sparkles className="h-4 w-4 text-cyan-400" />
+                          Gerar Operações Automáticas
+                        </h4>
+                        <button
+                          onClick={() => {
+                            setShowAutoGenerate(false);
+                            setGeneratedOperations([]);
+                          }}
+                          className="text-gray-400 hover:text-white"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      <div className="space-y-4">
+                        {/* Configurações */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-gray-300">Quantidade</Label>
+                            <Input
+                              type="number"
+                              min="1"
+                              max="20"
+                              value={autoGenConfig.operationCount}
+                              onChange={(e) => setAutoGenConfig({ ...autoGenConfig, operationCount: parseInt(e.target.value) || 5 })}
+                              className="bg-[#111820] border-[#1e2a3a] text-white"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-gray-300">Data das Operações</Label>
+                            <Input
+                              type="date"
+                              value={autoGenConfig.operationDate}
+                              onChange={(e) => setAutoGenConfig({ ...autoGenConfig, operationDate: e.target.value })}
+                              className="bg-[#111820] border-[#1e2a3a] text-white"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-gray-300">Lucro Min (%)</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0.01"
+                              value={autoGenConfig.minProfit}
+                              onChange={(e) => setAutoGenConfig({ ...autoGenConfig, minProfit: parseFloat(e.target.value) || 0.1 })}
+                              className="bg-[#111820] border-[#1e2a3a] text-white"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-gray-300">Lucro Max (%)</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0.01"
+                              value={autoGenConfig.maxProfit}
+                              onChange={(e) => setAutoGenConfig({ ...autoGenConfig, maxProfit: parseFloat(e.target.value) || 0.5 })}
+                              className="bg-[#111820] border-[#1e2a3a] text-white"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Opção de operações negativas */}
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="allowNegative"
+                              checked={autoGenConfig.allowNegative}
+                              onCheckedChange={(checked) => setAutoGenConfig({ ...autoGenConfig, allowNegative: !!checked })}
+                            />
+                            <Label htmlFor="allowNegative" className="text-gray-300 cursor-pointer">
+                              Permitir operações negativas
+                            </Label>
+                          </div>
+                          {autoGenConfig.allowNegative && (
+                            <div className="flex items-center gap-2">
+                              <Label className="text-gray-400 text-sm">Chance:</Label>
+                              <Input
+                                type="number"
+                                min="1"
+                                max="50"
+                                value={autoGenConfig.negativeChance}
+                                onChange={(e) => setAutoGenConfig({ ...autoGenConfig, negativeChance: parseInt(e.target.value) || 10 })}
+                                className="bg-[#111820] border-[#1e2a3a] text-white w-20"
+                              />
+                              <span className="text-gray-400 text-sm">%</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Seleção de pares */}
+                        <div className="space-y-2">
+                          <Label className="text-gray-300">Pares a Incluir</Label>
+                          <div className="flex flex-wrap gap-2">
+                            {CRYPTO_PAIRS.slice(0, 6).map((pair) => (
+                              <button
+                                key={pair}
+                                onClick={() => {
+                                  const isSelected = autoGenConfig.selectedPairs.includes(pair);
+                                  setAutoGenConfig({
+                                    ...autoGenConfig,
+                                    selectedPairs: isSelected
+                                      ? autoGenConfig.selectedPairs.filter(p => p !== pair)
+                                      : [...autoGenConfig.selectedPairs, pair],
+                                  });
+                                }}
+                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                                  autoGenConfig.selectedPairs.includes(pair)
+                                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50'
+                                    : 'bg-[#1e2a3a] text-gray-400 border border-transparent hover:text-white'
+                                }`}
+                              >
+                                {pair}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Botão Gerar */}
+                        <Button
+                          onClick={generateOperations}
+                          disabled={isGenerating || autoGenConfig.selectedPairs.length === 0}
+                          className="w-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/50 hover:bg-cyan-500/30"
+                        >
+                          {isGenerating ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          ) : (
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                          )}
+                          Gerar Sugestões
+                        </Button>
+
+                        {/* Operações Geradas */}
+                        {generatedOperations.length > 0 && (
+                          <div className="space-y-3 pt-4 border-t border-[#1e2a3a]">
+                            <Label className="text-gray-300">Operações Geradas (selecione as desejadas)</Label>
+                            <div className="space-y-2 max-h-60 overflow-y-auto">
+                              {generatedOperations.map((op) => (
+                                <div
+                                  key={op.id}
+                                  onClick={() => toggleOperationSelection(op.id)}
+                                  className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all ${
+                                    selectedOperations.has(op.id)
+                                      ? 'bg-cyan-500/10 border border-cyan-500/50'
+                                      : 'bg-[#111820] border border-[#1e2a3a] hover:border-gray-600'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <Checkbox
+                                      checked={selectedOperations.has(op.id)}
+                                      onCheckedChange={() => toggleOperationSelection(op.id)}
+                                    />
+                                    <span className="text-white font-medium">{op.cryptocurrency_symbol}</span>
+                                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                                      op.operation_type === 'buy'
+                                        ? 'bg-green-500/20 text-green-400'
+                                        : 'bg-red-500/20 text-red-400'
+                                    }`}>
+                                      {op.operation_type.toUpperCase()}
+                                    </span>
+                                  </div>
+                                  <span className={`font-bold ${
+                                    op.profit_percentage >= 0 ? 'text-green-400' : 'text-red-400'
+                                  }`}>
+                                    {op.profit_percentage >= 0 ? '+' : ''}{op.profit_percentage.toFixed(2)}%
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Resumo e Ação */}
+                            <div className="flex items-center justify-between pt-3 border-t border-[#1e2a3a]">
+                              <div className="text-sm text-gray-400">
+                                Total selecionado:{' '}
+                                <span className={`font-bold ${getSelectedTotalProfit() >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                  {getSelectedTotalProfit() >= 0 ? '+' : ''}{getSelectedTotalProfit().toFixed(2)}%
+                                </span>
+                              </div>
+                              <Button
+                                onClick={handleAddSelectedOperations}
+                                disabled={isAddingBulk || selectedOperations.size === 0}
+                                className="bg-gradient-to-r from-teal-500 to-cyan-500 text-white"
+                              >
+                                {isAddingBulk ? (
+                                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                ) : (
+                                  <Plus className="h-4 w-4 mr-2" />
+                                )}
+                                Adicionar {selectedOperations.size} Operação(ões)
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </TabsContent>
               </Tabs>
             </>
