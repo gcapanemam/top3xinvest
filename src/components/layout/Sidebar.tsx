@@ -48,6 +48,7 @@ const adminNavItems: NavItem[] = [
   { label: 'Usuários', href: '/admin/users', icon: Users, adminOnly: true },
   { label: 'Rede MLM', href: '/admin/mlm', icon: Users, adminOnly: true },
   { label: 'Depósitos', href: '/admin/deposits', icon: ArrowDownCircle, adminOnly: true },
+  { label: 'Carteiras Cripto', href: '/admin/wallets', icon: Wallet, adminOnly: true },
   { label: 'Saques', href: '/admin/withdrawals', icon: ArrowUpCircle, adminOnly: true },
   { label: 'Cotações', href: '/admin/prices', icon: Coins, adminOnly: true },
   { label: 'Notificações', href: '/admin/notifications', icon: Bell, adminOnly: true },

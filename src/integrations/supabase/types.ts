@@ -112,44 +112,102 @@ export type Database = {
         }
         Relationships: []
       }
+      deposit_wallets: {
+        Row: {
+          created_at: string
+          cryptocurrency_id: string
+          id: string
+          is_active: boolean
+          network_name: string
+          updated_at: string
+          wallet_address: string
+        }
+        Insert: {
+          created_at?: string
+          cryptocurrency_id: string
+          id?: string
+          is_active?: boolean
+          network_name: string
+          updated_at?: string
+          wallet_address: string
+        }
+        Update: {
+          created_at?: string
+          cryptocurrency_id?: string
+          id?: string
+          is_active?: boolean
+          network_name?: string
+          updated_at?: string
+          wallet_address?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deposit_wallets_cryptocurrency_id_fkey"
+            columns: ["cryptocurrency_id"]
+            isOneToOne: false
+            referencedRelation: "cryptocurrencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deposits: {
         Row: {
           admin_notes: string | null
           amount: number
           created_at: string
+          cryptocurrency_id: string | null
           id: string
+          network_name: string | null
+          payment_method: string | null
           payment_proof_url: string | null
           processed_at: string | null
           processed_by: string | null
           status: Database["public"]["Enums"]["transaction_status"]
           updated_at: string
           user_id: string
+          wallet_address: string | null
         }
         Insert: {
           admin_notes?: string | null
           amount: number
           created_at?: string
+          cryptocurrency_id?: string | null
           id?: string
+          network_name?: string | null
+          payment_method?: string | null
           payment_proof_url?: string | null
           processed_at?: string | null
           processed_by?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
           updated_at?: string
           user_id: string
+          wallet_address?: string | null
         }
         Update: {
           admin_notes?: string | null
           amount?: number
           created_at?: string
+          cryptocurrency_id?: string | null
           id?: string
+          network_name?: string | null
+          payment_method?: string | null
           payment_proof_url?: string | null
           processed_at?: string | null
           processed_by?: string | null
           status?: Database["public"]["Enums"]["transaction_status"]
           updated_at?: string
           user_id?: string
+          wallet_address?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "deposits_cryptocurrency_id_fkey"
+            columns: ["cryptocurrency_id"]
+            isOneToOne: false
+            referencedRelation: "cryptocurrencies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       investments: {
         Row: {
