@@ -1,474 +1,402 @@
 
-# Plano: Sistema de Logs de Auditoria para Administradores
+# Plano: Gestao Avancada de Robos com Estatisticas de Trading
 
 ## Visao Geral
 
-Implementar um sistema completo de auditoria que registra todas as acoes realizadas por administradores, incluindo quem executou, o que foi feito, quando e detalhes adicionais. Isso garante transparencia, rastreabilidade e seguranca no sistema.
+Implementar uma interface completa de gerenciamento de robos para o painel administrativo, incluindo:
 
-## Acoes Administrativas a Serem Registradas
-
-### Por Pagina/Funcionalidade
-
-| Pagina | Acoes |
-|--------|-------|
-| AdminUsers | Editar usuario, Bloquear/Desbloquear, Tornar admin, Remover admin, Enviar reset senha, Excluir usuario |
-| AdminDeposits | Aprovar deposito, Rejeitar deposito |
-| AdminWithdrawals | Aprovar saque, Rejeitar saque |
-| AdminRobots | Criar robo, Editar robo, Excluir robo, Creditar lucro |
-| AdminPrices | Atualizar cotacao de criptomoeda |
-| AdminNotifications | Enviar notificacao (individual ou global) |
+1. **Visualizar investidores**: Ver quem investiu em cada robo com detalhes
+2. **Registrar rentabilidade diaria**: Adicionar operacoes de trading dia a dia
+3. **Mostrar ativos negociados**: Exibir quais criptomoedas foram operadas e os ganhos de cada operacao (como na imagem de referencia)
 
 ---
 
 ## Secao Tecnica
 
-### 1. Nova Tabela: admin_audit_logs
+### Estrutura de Dados
 
-Criar tabela para armazenar todos os logs de auditoria:
-
-```sql
-CREATE TABLE public.admin_audit_logs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  admin_id UUID NOT NULL,
-  action TEXT NOT NULL,
-  entity_type TEXT NOT NULL,
-  entity_id UUID,
-  details JSONB,
-  ip_address TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
-);
-
--- Indices para buscas rapidas
-CREATE INDEX idx_audit_logs_admin_id ON admin_audit_logs(admin_id);
-CREATE INDEX idx_audit_logs_action ON admin_audit_logs(action);
-CREATE INDEX idx_audit_logs_entity_type ON admin_audit_logs(entity_type);
-CREATE INDEX idx_audit_logs_created_at ON admin_audit_logs(created_at DESC);
-
--- RLS: Apenas admins podem ver logs
-ALTER TABLE admin_audit_logs ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Admins can view audit logs"
-ON admin_audit_logs FOR SELECT
-USING (is_admin());
-
-CREATE POLICY "Admins can insert audit logs"
-ON admin_audit_logs FOR INSERT
-WITH CHECK (is_admin());
-```
-
-### Estrutura dos Campos
+A tabela `robot_operations` ja existe com a estrutura adequada:
 
 | Campo | Tipo | Descricao |
 |-------|------|-----------|
 | id | UUID | Identificador unico |
-| admin_id | UUID | ID do admin que executou a acao |
-| action | TEXT | Tipo da acao (ex: user_blocked, deposit_approved) |
-| entity_type | TEXT | Tipo da entidade (user, deposit, withdrawal, robot, etc) |
-| entity_id | UUID | ID da entidade afetada |
-| details | JSONB | Detalhes adicionais (valores antes/depois, notas, etc) |
-| ip_address | TEXT | IP do admin (opcional) |
-| created_at | TIMESTAMP | Data/hora da acao |
+| robot_id | UUID | ID do robo |
+| cryptocurrency_symbol | TEXT | Par negociado (ex: BNB/USDT) |
+| operation_type | TEXT | "buy" ou "sell" |
+| entry_price | NUMERIC | Preco de entrada |
+| exit_price | NUMERIC | Preco de saida |
+| profit_percentage | NUMERIC | Percentual de lucro |
+| status | TEXT | "open" ou "closed" |
+| created_at | TIMESTAMP | Data/hora da operacao |
+| closed_at | TIMESTAMP | Data/hora de fechamento |
+
+### Arquivos a Modificar
+
+| Arquivo | Alteracoes |
+|---------|-----------|
+| src/pages/admin/AdminRobots.tsx | Adicionar dialog de estatisticas com abas |
 
 ---
 
-### 2. Funcao Utilitaria para Criar Logs
+### 1. Novo Dialog de Estatisticas do Robo
 
-Criar hook ou funcao reutilizavel no frontend:
-
-```typescript
-// src/lib/auditLog.ts
-import { supabase } from '@/integrations/supabase/client';
-
-type EntityType = 'user' | 'deposit' | 'withdrawal' | 'robot' | 'cryptocurrency' | 'notification';
-
-type ActionType = 
-  // User actions
-  | 'user_edited'
-  | 'user_blocked'
-  | 'user_unblocked'
-  | 'user_admin_granted'
-  | 'user_admin_revoked'
-  | 'user_password_reset_sent'
-  | 'user_deleted'
-  // Deposit actions
-  | 'deposit_approved'
-  | 'deposit_rejected'
-  // Withdrawal actions
-  | 'withdrawal_approved'
-  | 'withdrawal_rejected'
-  // Robot actions
-  | 'robot_created'
-  | 'robot_edited'
-  | 'robot_deleted'
-  | 'robot_profit_credited'
-  // Crypto actions
-  | 'crypto_price_updated'
-  // Notification actions
-  | 'notification_sent';
-
-interface AuditLogParams {
-  action: ActionType;
-  entityType: EntityType;
-  entityId?: string;
-  details?: Record<string, any>;
-}
-
-export const createAuditLog = async (params: AuditLogParams) => {
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (!user) return;
-
-  await supabase.from('admin_audit_logs').insert({
-    admin_id: user.id,
-    action: params.action,
-    entity_type: params.entityType,
-    entity_id: params.entityId || null,
-    details: params.details || null,
-  });
-};
-```
-
----
-
-### 3. Integracao nas Paginas Admin
-
-**AdminUsers.tsx - Exemplo de integracao:**
-
-```typescript
-// Ao bloquear usuario
-const toggleUserBlock = async (user: UserWithStats) => {
-  const { error } = await supabase
-    .from('profiles')
-    .update({ is_blocked: !user.is_blocked })
-    .eq('id', user.id);
-
-  if (!error) {
-    // Registrar log
-    await createAuditLog({
-      action: user.is_blocked ? 'user_unblocked' : 'user_blocked',
-      entityType: 'user',
-      entityId: user.user_id,
-      details: {
-        user_name: user.full_name,
-        previous_status: user.is_blocked ? 'blocked' : 'active',
-        new_status: user.is_blocked ? 'active' : 'blocked',
-      },
-    });
-  }
-};
-
-// Ao editar usuario
-const handleUpdateUser = async () => {
-  // ... atualizacao
-  
-  await createAuditLog({
-    action: 'user_edited',
-    entityType: 'user',
-    entityId: editUser.user_id,
-    details: {
-      user_name: editUser.full_name,
-      changes: {
-        full_name: { from: editUser.full_name, to: editData.full_name },
-        phone: { from: editUser.phone, to: editData.phone },
-        balance: { from: editUser.balance, to: parseFloat(editData.balance) },
-      },
-    },
-  });
-};
-```
-
-**AdminDeposits.tsx:**
-
-```typescript
-const processDeposit = async (approve: boolean) => {
-  // ... processamento
-
-  await createAuditLog({
-    action: approve ? 'deposit_approved' : 'deposit_rejected',
-    entityType: 'deposit',
-    entityId: selectedDeposit.id,
-    details: {
-      user_id: selectedDeposit.user_id,
-      amount: selectedDeposit.amount,
-      admin_notes: adminNotes || null,
-    },
-  });
-};
-```
-
-**AdminWithdrawals.tsx:**
-
-```typescript
-const processWithdrawal = async (approve: boolean) => {
-  // ... processamento
-
-  await createAuditLog({
-    action: approve ? 'withdrawal_approved' : 'withdrawal_rejected',
-    entityType: 'withdrawal',
-    entityId: selectedWithdrawal.id,
-    details: {
-      user_id: selectedWithdrawal.user_id,
-      amount: selectedWithdrawal.amount,
-      pix_key: selectedWithdrawal.pix_key,
-      admin_notes: adminNotes || null,
-    },
-  });
-};
-```
-
-**AdminRobots.tsx:**
-
-```typescript
-const handleSubmit = async () => {
-  // ... criar/editar robo
-
-  await createAuditLog({
-    action: editingRobot ? 'robot_edited' : 'robot_created',
-    entityType: 'robot',
-    entityId: editingRobot?.id,
-    details: {
-      robot_name: formData.name,
-      profit_percentage: formData.profit_percentage,
-      is_active: formData.is_active,
-    },
-  });
-};
-
-const handleCreditProfit = async () => {
-  // ... creditar lucro
-
-  await createAuditLog({
-    action: 'robot_profit_credited',
-    entityType: 'robot',
-    entityId: selectedRobotForCredit.id,
-    details: {
-      robot_name: selectedRobotForCredit.name,
-      percentage: parseFloat(creditPercentage),
-      affected_investments: processedCount,
-      estimated_value: estimatedProfit,
-    },
-  });
-};
-```
-
-**AdminPrices.tsx:**
-
-```typescript
-const saveAllPrices = async () => {
-  // Para cada crypto alterada
-  for (const crypto of cryptos) {
-    if (priceChanged) {
-      await createAuditLog({
-        action: 'crypto_price_updated',
-        entityType: 'cryptocurrency',
-        entityId: crypto.id,
-        details: {
-          symbol: crypto.symbol,
-          previous_price: crypto.current_price,
-          new_price: newPrice,
-          previous_change: crypto.price_change_24h,
-          new_change: newChange,
-        },
-      });
-    }
-  }
-};
-```
-
-**AdminNotifications.tsx:**
-
-```typescript
-const handleSubmit = async () => {
-  // ... enviar notificacao
-
-  await createAuditLog({
-    action: 'notification_sent',
-    entityType: 'notification',
-    details: {
-      title: formData.title,
-      type: formData.type,
-      is_global: formData.isGlobal,
-      target_user_id: formData.isGlobal ? null : formData.userId,
-    },
-  });
-};
-```
-
----
-
-### 4. Nova Pagina: AdminAuditLogs.tsx
-
-Criar pagina para visualizar os logs:
+Adicionar um botao para abrir as estatisticas de cada robo:
 
 ```text
-+------------------------------------------+
-| Logs de Auditoria                        |
-+------------------------------------------+
-| [Buscar...]  [Filtro: Todas]  [Data: Hoje]|
-+------------------------------------------+
-| Acao          | Admin    | Quando  | Det. |
-+------------------------------------------+
-| Deposito      | João     | 14:32   | [>]  |
-| aprovado      | Admin    | hoje    |      |
-+------------------------------------------+
-| Usuario       | Maria    | 12:15   | [>]  |
-| bloqueado     | Admin    | hoje    |      |
-+------------------------------------------+
-| Robo          | João     | 10:00   | [>]  |
-| criado        | Admin    | ontem   |      |
-+------------------------------------------+
-```
-
-**Funcionalidades da pagina:**
-- Lista paginada de logs (mais recentes primeiro)
-- Filtro por tipo de acao (usuarios, depositos, saques, robos, etc)
-- Filtro por admin especifico
-- Filtro por data (hoje, 7 dias, 30 dias, periodo customizado)
-- Busca por texto nos detalhes
-- Expansao para ver detalhes completos de cada log
-- Exportar para CSV
-
----
-
-### 5. Integracao no Menu Admin
-
-Adicionar link no Sidebar para a nova pagina:
-
-```typescript
-// No Sidebar.tsx, adicionar item no menu admin
-{
-  icon: ClipboardList,
-  label: 'Logs de Auditoria',
-  href: '/admin/logs',
-}
++------------------------------------------------+
+| ESTATISTICAS DE TRADING                        |
+| Bot BTC Agressivo                     [X]      |
+| #ABC123   [ATIVO]                              |
++------------------------------------------------+
+| DIAS: 5     TRADES: 12     PROFIT: 4.08%       |
+| [calendario] [check]       [grafico]           |
++------------------------------------------------+
+|                                                |
+| [Investidores] [Operacoes] [Nova Operacao]     |
+|                                                |
++------------------------------------------------+
+| ABA INVESTIDORES:                              |
+| +--------------------------------------------+ |
+| | Usuario    | Valor     | Data    | Status | |
+| | Maria S.   | R$ 500    | 02/02   | Ativo  | |
+| | Joao P.    | R$ 1000   | 01/02   | Ativo  | |
+| +--------------------------------------------+ |
+|                                                |
+| ABA OPERACOES:                                 |
+| 02/02/2026 | 0.82%                             |
+| +------------+ +------------+ +------------+   |
+| | BNB/USDT   | | BNB/USDT   | | BNB/USDT   |   |
+| | +0.16%     | | +0.34%     | | +0.32%     |   |
+| | [SELL]     | | [BUY]      | | [BUY]      |   |
+| | Detalhes   | | Detalhes   | | Detalhes   |   |
+| +------------+ +------------+ +------------+   |
+|                                                |
+| 31/01/2026 | 0.68%                             |
+| +------------+ +------------+                  |
+| | BNB/USDT   | | BNB/USDT   |                  |
+| | +0.26%     | | +0.42%     |                  |
+| | [SELL]     | | [BUY]      |                  |
+| | Detalhes   | | Detalhes   |                  |
+| +------------+ +------------+                  |
++------------------------------------------------+
 ```
 
 ---
 
-### 6. Edge Function: Registrar Logs de Acoes Privilegiadas
+### 2. Aba de Nova Operacao
 
-Atualizar `admin-user-actions` para registrar logs diretamente:
+Formulario para admin inserir operacoes manualmente:
+
+```text
++------------------------------------------------+
+| NOVA OPERACAO                                  |
++------------------------------------------------+
+| Par: [BNB/USDT v]                              |
+| Tipo: (x) Buy  ( ) Sell                        |
+| Preco Entrada: [___________]                   |
+| Preco Saida: [___________]                     |
+| % Lucro: [___________] (calculado auto)        |
+| Data: [02/02/2026]                             |
++------------------------------------------------+
+| [Cancelar]              [Adicionar Operacao]   |
++------------------------------------------------+
+```
+
+---
+
+### 3. Alteracoes no AdminRobots.tsx
+
+**Novos estados:**
 
 ```typescript
-// Apos cada acao bem-sucedida
-await supabaseAdmin.from('admin_audit_logs').insert({
-  admin_id: requestingUser.id,
-  action: 'user_deleted', // ou 'user_password_reset_sent'
-  entity_type: 'user',
-  entity_id: user_id,
-  details: {
-    user_email: userData.user.email,
-    action_via: 'edge_function',
-  },
+// Dialog de estatisticas
+const [statsDialogOpen, setStatsDialogOpen] = useState(false);
+const [selectedRobotForStats, setSelectedRobotForStats] = useState<Robot | null>(null);
+const [statsTab, setStatsTab] = useState<'investors' | 'operations' | 'new'>('operations');
+
+// Dados carregados
+const [robotInvestors, setRobotInvestors] = useState<InvestorData[]>([]);
+const [robotOperations, setRobotOperations] = useState<OperationData[]>([]);
+const [isLoadingStats, setIsLoadingStats] = useState(false);
+
+// Formulario nova operacao
+const [newOperation, setNewOperation] = useState({
+  cryptocurrency_symbol: 'BNB/USDT',
+  operation_type: 'buy',
+  entry_price: '',
+  exit_price: '',
+  profit_percentage: '',
 });
 ```
 
----
+**Novas interfaces:**
 
-### Arquivos a Criar/Modificar
+```typescript
+interface InvestorData {
+  id: string;
+  user_id: string;
+  amount: number;
+  profit_accumulated: number;
+  status: string;
+  created_at: string;
+  profile: {
+    full_name: string | null;
+  } | null;
+}
 
-| Arquivo | Acao |
-|---------|------|
-| Migracao SQL | Criar tabela admin_audit_logs |
-| src/lib/auditLog.ts | Criar funcao utilitaria |
-| src/pages/admin/AdminAuditLogs.tsx | Nova pagina de logs |
-| src/pages/admin/AdminUsers.tsx | Integrar logs |
-| src/pages/admin/AdminDeposits.tsx | Integrar logs |
-| src/pages/admin/AdminWithdrawals.tsx | Integrar logs |
-| src/pages/admin/AdminRobots.tsx | Integrar logs |
-| src/pages/admin/AdminPrices.tsx | Integrar logs |
-| src/pages/admin/AdminNotifications.tsx | Integrar logs |
-| supabase/functions/admin-user-actions/index.ts | Integrar logs |
-| src/components/layout/Sidebar.tsx | Adicionar link menu |
-| src/App.tsx | Adicionar rota |
+interface OperationData {
+  id: string;
+  cryptocurrency_symbol: string;
+  operation_type: string;
+  entry_price: number;
+  exit_price: number | null;
+  profit_percentage: number | null;
+  status: string;
+  created_at: string;
+  closed_at: string | null;
+}
+```
 
----
+**Novas funcoes:**
 
-### Tipos de Acoes (action)
+```typescript
+// Abrir dialog de stats
+const openStatsDialog = async (robot: Robot) => {
+  setSelectedRobotForStats(robot);
+  setStatsDialogOpen(true);
+  setIsLoadingStats(true);
+  
+  // Buscar investidores
+  const { data: investors } = await supabase
+    .from('investments')
+    .select('*, profile:profiles(full_name)')
+    .eq('robot_id', robot.id)
+    .order('created_at', { ascending: false });
+  
+  // Buscar operacoes
+  const { data: operations } = await supabase
+    .from('robot_operations')
+    .select('*')
+    .eq('robot_id', robot.id)
+    .order('created_at', { ascending: false });
+  
+  setRobotInvestors(investors || []);
+  setRobotOperations(operations || []);
+  setIsLoadingStats(false);
+};
 
-| Codigo | Descricao PT-BR |
-|--------|-----------------|
-| user_edited | Usuario editado |
-| user_blocked | Usuario bloqueado |
-| user_unblocked | Usuario desbloqueado |
-| user_admin_granted | Admin concedido |
-| user_admin_revoked | Admin removido |
-| user_password_reset_sent | Reset de senha enviado |
-| user_deleted | Usuario excluido |
-| deposit_approved | Deposito aprovado |
-| deposit_rejected | Deposito rejeitado |
-| withdrawal_approved | Saque aprovado |
-| withdrawal_rejected | Saque rejeitado |
-| robot_created | Robo criado |
-| robot_edited | Robo editado |
-| robot_deleted | Robo excluido |
-| robot_profit_credited | Lucro creditado |
-| crypto_price_updated | Cotacao atualizada |
-| notification_sent | Notificacao enviada |
+// Adicionar nova operacao
+const handleAddOperation = async () => {
+  if (!selectedRobotForStats) return;
+  
+  const { error } = await supabase
+    .from('robot_operations')
+    .insert({
+      robot_id: selectedRobotForStats.id,
+      cryptocurrency_symbol: newOperation.cryptocurrency_symbol,
+      operation_type: newOperation.operation_type,
+      entry_price: parseFloat(newOperation.entry_price),
+      exit_price: parseFloat(newOperation.exit_price),
+      profit_percentage: parseFloat(newOperation.profit_percentage),
+      status: 'closed',
+      closed_at: new Date().toISOString(),
+    });
+  
+  if (!error) {
+    toast({ title: 'Operacao adicionada!' });
+    // Recarregar operacoes
+    openStatsDialog(selectedRobotForStats);
+    setStatsTab('operations');
+    setNewOperation({ ... });
+  }
+};
 
----
-
-### Interface Visual da Pagina de Logs
-
-```text
-+--------------------------------------------------+
-| [ClipboardList] Logs de Auditoria                |
-| Historico de todas as acoes administrativas      |
-+--------------------------------------------------+
-| Filtros:                                         |
-| [Todas as acoes v] [Todos admins v] [Ultimos 7d v]|
-| [Buscar por detalhes...]                         |
-+--------------------------------------------------+
-| +----------------------------------------------+ |
-| | 14:32 - Hoje                                 | |
-| | [CheckCircle] Deposito Aprovado              | |
-| | Por: Joao Admin                              | |
-| | Usuario: Maria Silva - R$ 500,00             | |
-| | [Expandir detalhes]                          | |
-| +----------------------------------------------+ |
-| | 12:15 - Hoje                                 | |
-| | [Ban] Usuario Bloqueado                      | |
-| | Por: Maria Admin                             | |
-| | Usuario: Carlos Teste                        | |
-| | [Expandir detalhes]                          | |
-| +----------------------------------------------+ |
-| | 10:00 - Ontem                                | |
-| | [Bot] Robo Criado                            | |
-| | Por: Joao Admin                              | |
-| | Nome: Bot BTC Agressivo                      | |
-| | [Expandir detalhes]                          | |
-| +----------------------------------------------+ |
-+--------------------------------------------------+
-| [< Anterior]  Pagina 1 de 10  [Proximo >]        |
-+--------------------------------------------------+
+// Agrupar operacoes por data
+const groupOperationsByDate = (operations: OperationData[]) => {
+  return operations.reduce((groups, op) => {
+    const date = format(new Date(op.created_at), 'dd/MM/yyyy');
+    if (!groups[date]) {
+      groups[date] = { operations: [], totalProfit: 0 };
+    }
+    groups[date].operations.push(op);
+    groups[date].totalProfit += op.profit_percentage || 0;
+    return groups;
+  }, {} as Record<string, { operations: OperationData[]; totalProfit: number }>);
+};
 ```
 
 ---
 
-### Exemplo de Log Expandido
+### 4. Novo Botao na Lista de Robos
 
-```text
-+----------------------------------------------+
-| Deposito Aprovado                             |
-| 14:32:45 - 02/02/2026                        |
-+----------------------------------------------+
-| Administrador: Joao Admin                     |
-| ID: 123e4567-e89b-12d3-a456-426614174000     |
-+----------------------------------------------+
-| Detalhes:                                     |
-| - ID do Deposito: abc123...                  |
-| - Usuario: Maria Silva                        |
-| - Valor: R$ 500,00                           |
-| - Observacoes: Comprovante verificado        |
-+----------------------------------------------+
+Adicionar botao de estatisticas ao lado dos botoes existentes:
+
+```typescript
+<button 
+  className="p-2 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 transition-all"
+  onClick={() => openStatsDialog(robot)}
+  title="Ver Estatísticas"
+>
+  <BarChart3 className="h-4 w-4" />
+</button>
 ```
 
 ---
 
-### Consideracoes de Seguranca
+### 5. Componentes Visuais do Dialog
 
-1. **RLS**: Apenas admins podem ler/inserir logs
-2. **Imutabilidade**: Logs nao podem ser editados ou excluidos
-3. **Auditoria da Edge Function**: Acoes privilegiadas tambem sao registradas
-4. **Detalhes Sensiveis**: Nao armazenar senhas ou dados sensiveis nos logs
-5. **Retencao**: Considerar politica de retencao (ex: manter por 1 ano)
+**Cards de Estatisticas (topo):**
+
+```typescript
+<div className="grid grid-cols-3 gap-4 mb-6">
+  <div className="bg-white rounded-xl p-4 text-center">
+    <div className="flex items-center justify-between">
+      <span className="text-gray-600 font-medium">DAYS:</span>
+      <Calendar className="h-5 w-5 text-green-500" />
+    </div>
+    <p className="text-2xl font-bold text-gray-800">{totalDays}</p>
+  </div>
+  <div className="bg-white rounded-xl p-4 text-center">
+    <div className="flex items-center justify-between">
+      <span className="text-gray-600 font-medium">TRADES:</span>
+      <CheckCircle className="h-5 w-5 text-green-500" />
+    </div>
+    <p className="text-2xl font-bold text-gray-800">{totalTrades}</p>
+  </div>
+  <div className="bg-white rounded-xl p-4 text-center">
+    <div className="flex items-center justify-between">
+      <span className="text-gray-600 font-medium">PROFIT:</span>
+      <TrendingUp className="h-5 w-5 text-green-500" />
+    </div>
+    <p className="text-2xl font-bold text-green-500">{totalProfit}%</p>
+  </div>
+</div>
+```
+
+**Cards de Operacao (estilo da imagem):**
+
+```typescript
+<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+  {dayOperations.map((op) => (
+    <div 
+      key={op.id}
+      className="relative rounded-xl overflow-hidden"
+      style={{
+        background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 50%, #15803d 100%)'
+      }}
+    >
+      {/* Tag do par */}
+      <div className="absolute top-2 left-2 px-2 py-0.5 bg-green-600 rounded text-xs text-white font-medium">
+        {op.cryptocurrency_symbol}
+      </div>
+      
+      {/* Percentual */}
+      <div className="pt-8 pb-4 px-4 text-center">
+        <p className="text-2xl font-bold text-white">
+          +{op.profit_percentage?.toFixed(2)}%
+        </p>
+        
+        {/* Tipo: BUY/SELL */}
+        <span className={`inline-block mt-2 px-4 py-1 rounded-full text-sm font-bold ${
+          op.operation_type === 'buy' 
+            ? 'bg-black text-white' 
+            : 'bg-black text-white'
+        }`}>
+          {op.operation_type.toUpperCase()}
+        </span>
+        
+        {/* Link detalhes */}
+        <button className="block w-full mt-2 text-white/80 text-sm underline">
+          DETAILS
+        </button>
+      </div>
+    </div>
+  ))}
+</div>
+```
+
+---
+
+### 6. Aba de Investidores
+
+Lista de todos que investiram neste robo:
+
+```typescript
+<div className="space-y-3">
+  {robotInvestors.length === 0 ? (
+    <p className="text-center text-gray-400 py-8">
+      Nenhum investidor neste robo
+    </p>
+  ) : (
+    robotInvestors.map((investor) => (
+      <div key={investor.id} className="flex items-center justify-between p-4 rounded-lg bg-[#0a0f14] border border-[#1e2a3a]">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-full bg-gradient-to-r from-teal-500 to-cyan-500 flex items-center justify-center">
+            <span className="text-white font-bold">
+              {investor.profile?.full_name?.charAt(0) || '?'}
+            </span>
+          </div>
+          <div>
+            <p className="font-medium text-white">
+              {investor.profile?.full_name || 'Usuario'}
+            </p>
+            <p className="text-xs text-gray-400">
+              {format(new Date(investor.created_at), 'dd/MM/yyyy')}
+            </p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="font-bold text-white">
+            {formatCurrency(investor.amount)}
+          </p>
+          <p className="text-xs text-green-400">
+            +{formatCurrency(investor.profit_accumulated)}
+          </p>
+        </div>
+      </div>
+    ))
+  )}
+</div>
+```
+
+---
+
+### Resumo das Funcionalidades
+
+| Funcionalidade | Descricao |
+|----------------|-----------|
+| Ver Investidores | Lista quem investiu no robo, valores e lucros |
+| Historico de Operacoes | Operacoes agrupadas por data com cards visuais |
+| Nova Operacao | Formulario para registrar trades manuais |
+| Estatisticas | Dias ativos, total de trades, lucro acumulado |
+| Cards de Trade | Visual identico a imagem com gradiente verde, BUY/SELL |
+
+### Fluxo do Admin
+
+```text
+Pagina Admin Robos
+       |
+       v
+Clica em [Estatisticas] de um robo
+       |
+       v
++----------------------------------+
+| Dialog com 3 abas:               |
+| - Operacoes (historico visual)   |
+| - Investidores (lista completa)  |
+| - Nova Operacao (formulario)     |
++----------------------------------+
+       |
+       v
+Admin pode:
+- Ver quem investiu e quanto
+- Ver todas as operacoes do dia
+- Adicionar novas operacoes de trading
+```
+
+### Observacoes
+
+1. As operacoes serao exibidas para os usuarios na pagina deles tambem, mostrando transparencia nas negociacoes do robo
+2. O admin pode inserir operacoes passadas para simular historico
+3. Os dados sao automaticamente agrupados por data para facil visualizacao
+4. O visual dos cards de operacao segue exatamente o padrao da imagem de referencia
