@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -24,8 +25,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Bot, Edit, Trash2, DollarSign, TrendingUp } from 'lucide-react';
+import { 
+  Plus, 
+  Bot, 
+  Edit, 
+  Trash2, 
+  DollarSign, 
+  TrendingUp, 
+  BarChart3, 
+  Calendar, 
+  CheckCircle, 
+  Users,
+  Loader2,
+  X
+} from 'lucide-react';
 import { createAuditLog } from '@/lib/auditLog';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 interface Robot {
   id: string;
@@ -52,6 +68,33 @@ interface RobotStats {
   totalVolume: number;
 }
 
+interface InvestorData {
+  id: string;
+  user_id: string;
+  amount: number;
+  profit_accumulated: number;
+  status: string;
+  created_at: string;
+  full_name?: string | null;
+}
+
+interface OperationData {
+  id: string;
+  cryptocurrency_symbol: string;
+  operation_type: string;
+  entry_price: number;
+  exit_price: number | null;
+  profit_percentage: number | null;
+  status: string;
+  created_at: string;
+  closed_at: string | null;
+}
+
+const CRYPTO_PAIRS = [
+  'BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'SOL/USDT', 'XRP/USDT',
+  'ADA/USDT', 'DOGE/USDT', 'DOT/USDT', 'MATIC/USDT', 'LINK/USDT'
+];
+
 const AdminRobots = () => {
   const { isAdmin, isLoading } = useAuth();
   const navigate = useNavigate();
@@ -68,6 +111,25 @@ const AdminRobots = () => {
   const [selectedRobotForCredit, setSelectedRobotForCredit] = useState<Robot | null>(null);
   const [creditPercentage, setCreditPercentage] = useState('');
   const [isCreditingProfit, setIsCreditingProfit] = useState(false);
+
+  // Stats Dialog State
+  const [statsDialogOpen, setStatsDialogOpen] = useState(false);
+  const [selectedRobotForStats, setSelectedRobotForStats] = useState<Robot | null>(null);
+  const [statsTab, setStatsTab] = useState<string>('operations');
+  const [robotInvestors, setRobotInvestors] = useState<InvestorData[]>([]);
+  const [robotOperations, setRobotOperations] = useState<OperationData[]>([]);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
+
+  // New Operation Form
+  const [newOperation, setNewOperation] = useState({
+    cryptocurrency_symbol: 'BNB/USDT',
+    operation_type: 'buy',
+    entry_price: '',
+    exit_price: '',
+    profit_percentage: '',
+    operation_date: format(new Date(), 'yyyy-MM-dd'),
+  });
+  const [isAddingOperation, setIsAddingOperation] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -93,6 +155,20 @@ const AdminRobots = () => {
       fetchData();
     }
   }, [isAdmin]);
+
+  // Auto-calculate profit percentage
+  useEffect(() => {
+    const entryPrice = parseFloat(newOperation.entry_price);
+    const exitPrice = parseFloat(newOperation.exit_price);
+    
+    if (!isNaN(entryPrice) && !isNaN(exitPrice) && entryPrice > 0) {
+      const profit = ((exitPrice - entryPrice) / entryPrice) * 100;
+      setNewOperation(prev => ({
+        ...prev,
+        profit_percentage: profit.toFixed(2)
+      }));
+    }
+  }, [newOperation.entry_price, newOperation.exit_price]);
 
   const fetchData = async () => {
     const { data: robotsData } = await supabase
@@ -165,6 +241,169 @@ const AdminRobots = () => {
     setSelectedRobotForCredit(robot);
     setCreditPercentage('');
     setCreditDialogOpen(true);
+  };
+
+  const openStatsDialog = async (robot: Robot) => {
+    setSelectedRobotForStats(robot);
+    setStatsDialogOpen(true);
+    setStatsTab('operations');
+    setIsLoadingStats(true);
+
+    try {
+      // Fetch investors
+      const { data: investments } = await supabase
+        .from('investments')
+        .select('*')
+        .eq('robot_id', robot.id)
+        .order('created_at', { ascending: false });
+
+      // Fetch profile names for investors
+      const investorsWithNames: InvestorData[] = [];
+      if (investments && investments.length > 0) {
+        const userIds = [...new Set(investments.map(inv => inv.user_id))];
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, full_name')
+          .in('user_id', userIds);
+
+        const profileMap = new Map(profiles?.map(p => [p.user_id, p.full_name]) || []);
+        
+        for (const inv of investments) {
+          investorsWithNames.push({
+            ...inv,
+            full_name: profileMap.get(inv.user_id) || null,
+          });
+        }
+      }
+
+      // Fetch operations
+      const { data: operations } = await supabase
+        .from('robot_operations')
+        .select('*')
+        .eq('robot_id', robot.id)
+        .order('created_at', { ascending: false });
+
+      setRobotInvestors(investorsWithNames);
+      setRobotOperations((operations as OperationData[]) || []);
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    } finally {
+      setIsLoadingStats(false);
+    }
+  };
+
+  const handleAddOperation = async () => {
+    if (!selectedRobotForStats) return;
+
+    if (!newOperation.profit_percentage) {
+      toast({
+        title: 'Erro',
+        description: 'Informe o percentual de lucro',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsAddingOperation(true);
+
+    try {
+      const operationDate = new Date(newOperation.operation_date);
+      
+      const { error } = await supabase.from('robot_operations').insert({
+        robot_id: selectedRobotForStats.id,
+        cryptocurrency_symbol: newOperation.cryptocurrency_symbol,
+        operation_type: newOperation.operation_type,
+        entry_price: parseFloat(newOperation.entry_price) || 0,
+        exit_price: parseFloat(newOperation.exit_price) || null,
+        profit_percentage: parseFloat(newOperation.profit_percentage),
+        status: 'closed',
+        created_at: operationDate.toISOString(),
+        closed_at: operationDate.toISOString(),
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Operação adicionada!',
+        description: `${newOperation.cryptocurrency_symbol} +${newOperation.profit_percentage}%`,
+      });
+
+      // Reload operations
+      const { data: operations } = await supabase
+        .from('robot_operations')
+        .select('*')
+        .eq('robot_id', selectedRobotForStats.id)
+        .order('created_at', { ascending: false });
+
+      setRobotOperations((operations as OperationData[]) || []);
+      setStatsTab('operations');
+
+      // Reset form
+      setNewOperation({
+        cryptocurrency_symbol: 'BNB/USDT',
+        operation_type: 'buy',
+        entry_price: '',
+        exit_price: '',
+        profit_percentage: '',
+        operation_date: format(new Date(), 'yyyy-MM-dd'),
+      });
+    } catch (error: any) {
+      console.error('Error adding operation:', error);
+      toast({
+        title: 'Erro ao adicionar operação',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsAddingOperation(false);
+    }
+  };
+
+  const deleteOperation = async (operationId: string) => {
+    if (!confirm('Deseja excluir esta operação?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('robot_operations')
+        .delete()
+        .eq('id', operationId);
+
+      if (error) throw error;
+
+      setRobotOperations(prev => prev.filter(op => op.id !== operationId));
+      toast({ title: 'Operação excluída' });
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao excluir',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Group operations by date
+  const groupOperationsByDate = (operations: OperationData[]) => {
+    return operations.reduce((groups, op) => {
+      const date = format(new Date(op.created_at), 'dd/MM/yyyy');
+      if (!groups[date]) {
+        groups[date] = { operations: [], totalProfit: 0 };
+      }
+      groups[date].operations.push(op);
+      groups[date].totalProfit += op.profit_percentage || 0;
+      return groups;
+    }, {} as Record<string, { operations: OperationData[]; totalProfit: number }>);
+  };
+
+  // Calculate stats
+  const getStatsMetrics = () => {
+    const uniqueDates = new Set(robotOperations.map(op => 
+      format(new Date(op.created_at), 'yyyy-MM-dd')
+    ));
+    const totalDays = uniqueDates.size;
+    const totalTrades = robotOperations.length;
+    const totalProfit = robotOperations.reduce((sum, op) => sum + (op.profit_percentage || 0), 0);
+
+    return { totalDays, totalTrades, totalProfit };
   };
 
   const handleCreditProfit = async () => {
@@ -336,6 +575,9 @@ const AdminRobots = () => {
   const estimatedProfit = selectedRobotForCredit && creditPercentage
     ? (robotStats[selectedRobotForCredit.id]?.totalVolume || 0) * (parseFloat(creditPercentage) / 100)
     : 0;
+
+  const { totalDays, totalTrades, totalProfit } = getStatsMetrics();
+  const groupedOperations = groupOperationsByDate(robotOperations);
 
   if (isLoading || !isAdmin) {
     return (
@@ -579,6 +821,328 @@ const AdminRobots = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Stats Dialog */}
+      <Dialog open={statsDialogOpen} onOpenChange={setStatsDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-[#111820] border-[#1e2a3a] text-white">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-blue-400" />
+              Estatísticas de Trading
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              <div className="flex items-center gap-2">
+                <span>{selectedRobotForStats?.name}</span>
+                {selectedRobotForStats?.is_active ? (
+                  <span className="px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-xs font-medium">
+                    Ativo
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full bg-gray-500/20 text-gray-400 text-xs font-medium">
+                    Inativo
+                  </span>
+                )}
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+
+          {isLoadingStats ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-teal-500" />
+            </div>
+          ) : (
+            <>
+              {/* Stats Cards */}
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="rounded-xl bg-white/5 border border-[#1e2a3a] p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-gray-400 text-sm font-medium">DIAS:</span>
+                    <Calendar className="h-5 w-5 text-green-500" />
+                  </div>
+                  <p className="text-2xl font-bold text-white">{totalDays}</p>
+                </div>
+                <div className="rounded-xl bg-white/5 border border-[#1e2a3a] p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-gray-400 text-sm font-medium">TRADES:</span>
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                  </div>
+                  <p className="text-2xl font-bold text-white">{totalTrades}</p>
+                </div>
+                <div className="rounded-xl bg-white/5 border border-[#1e2a3a] p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-gray-400 text-sm font-medium">PROFIT:</span>
+                    <TrendingUp className="h-5 w-5 text-green-500" />
+                  </div>
+                  <p className="text-2xl font-bold text-green-500">+{totalProfit.toFixed(2)}%</p>
+                </div>
+              </div>
+
+              {/* Tabs */}
+              <Tabs value={statsTab} onValueChange={setStatsTab}>
+                <TabsList className="grid w-full grid-cols-3 bg-[#0a0f14]">
+                  <TabsTrigger value="operations" className="data-[state=active]:bg-teal-500/20 data-[state=active]:text-teal-400">
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    Operações
+                  </TabsTrigger>
+                  <TabsTrigger value="investors" className="data-[state=active]:bg-teal-500/20 data-[state=active]:text-teal-400">
+                    <Users className="h-4 w-4 mr-2" />
+                    Investidores ({robotInvestors.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="new" className="data-[state=active]:bg-teal-500/20 data-[state=active]:text-teal-400">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nova Operação
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* Operations Tab */}
+                <TabsContent value="operations" className="mt-4">
+                  {Object.keys(groupedOperations).length === 0 ? (
+                    <div className="text-center py-8 text-gray-400">
+                      <BarChart3 className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p>Nenhuma operação registrada</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {Object.entries(groupedOperations).map(([date, data]) => (
+                        <div key={date}>
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-medium text-white">{date}</h4>
+                            <span className="text-green-400 font-bold">
+                              +{data.totalProfit.toFixed(2)}%
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                            {data.operations.map((op) => (
+                              <div 
+                                key={op.id}
+                                className="relative rounded-xl overflow-hidden group"
+                                style={{
+                                  background: (op.profit_percentage || 0) >= 0
+                                    ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 50%, #15803d 100%)'
+                                    : 'linear-gradient(135deg, #ef4444 0%, #dc2626 50%, #b91c1c 100%)'
+                                }}
+                              >
+                                {/* Delete button */}
+                                <button
+                                  onClick={() => deleteOperation(op.id)}
+                                  className="absolute top-2 right-2 p-1 rounded bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/50"
+                                >
+                                  <X className="h-3 w-3 text-white" />
+                                </button>
+
+                                {/* Tag do par */}
+                                <div className="absolute top-2 left-2 px-2 py-0.5 bg-black/30 rounded text-xs text-white font-medium">
+                                  {op.cryptocurrency_symbol}
+                                </div>
+
+                                {/* Percentual */}
+                                <div className="pt-8 pb-4 px-4 text-center">
+                                  <p className="text-2xl font-bold text-white">
+                                    {(op.profit_percentage || 0) >= 0 ? '+' : ''}{op.profit_percentage?.toFixed(2)}%
+                                  </p>
+
+                                  {/* Tipo: BUY/SELL */}
+                                  <span className="inline-block mt-2 px-4 py-1 rounded-full text-sm font-bold bg-black/30 text-white">
+                                    {op.operation_type.toUpperCase()}
+                                  </span>
+
+                                  {/* Hora */}
+                                  <p className="mt-2 text-white/60 text-xs">
+                                    {format(new Date(op.created_at), 'HH:mm')}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+
+                {/* Investors Tab */}
+                <TabsContent value="investors" className="mt-4">
+                  {robotInvestors.length === 0 ? (
+                    <div className="text-center py-8 text-gray-400">
+                      <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p>Nenhum investidor neste robô</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {robotInvestors.map((investor) => (
+                        <div 
+                          key={investor.id} 
+                          className="flex items-center justify-between p-4 rounded-lg bg-[#0a0f14] border border-[#1e2a3a]"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-full bg-gradient-to-r from-teal-500 to-cyan-500 flex items-center justify-center">
+                              <span className="text-white font-bold">
+                                {investor.full_name?.charAt(0) || '?'}
+                              </span>
+                            </div>
+                            <div>
+                              <p className="font-medium text-white">
+                                {investor.full_name || 'Usuário'}
+                              </p>
+                              <p className="text-xs text-gray-400">
+                                {format(new Date(investor.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-white">
+                              {formatCurrency(investor.amount)}
+                            </p>
+                            <p className="text-xs text-green-400">
+                              +{formatCurrency(investor.profit_accumulated)}
+                            </p>
+                          </div>
+                          <div>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              investor.status === 'active' 
+                                ? 'bg-green-500/20 text-green-400'
+                                : 'bg-gray-500/20 text-gray-400'
+                            }`}>
+                              {investor.status === 'active' ? 'Ativo' : investor.status}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+
+                {/* New Operation Tab */}
+                <TabsContent value="new" className="mt-4">
+                  <div className="rounded-lg bg-[#0a0f14] border border-[#1e2a3a] p-6">
+                    <h4 className="font-medium text-white mb-4">Nova Operação</h4>
+                    
+                    <div className="grid gap-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-gray-300">Par</Label>
+                          <Select
+                            value={newOperation.cryptocurrency_symbol}
+                            onValueChange={(v) => setNewOperation({ ...newOperation, cryptocurrency_symbol: v })}
+                          >
+                            <SelectTrigger className="bg-[#111820] border-[#1e2a3a] text-white">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-[#111820] border-[#1e2a3a]">
+                              {CRYPTO_PAIRS.map((pair) => (
+                                <SelectItem key={pair} value={pair} className="text-white hover:bg-[#1e2a3a]">
+                                  {pair}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-gray-300">Tipo</Label>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setNewOperation({ ...newOperation, operation_type: 'buy' })}
+                              className={`flex-1 py-2 rounded-lg font-medium transition-all ${
+                                newOperation.operation_type === 'buy'
+                                  ? 'bg-green-500 text-white'
+                                  : 'bg-[#1e2a3a] text-gray-400 hover:text-white'
+                              }`}
+                            >
+                              BUY
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setNewOperation({ ...newOperation, operation_type: 'sell' })}
+                              className={`flex-1 py-2 rounded-lg font-medium transition-all ${
+                                newOperation.operation_type === 'sell'
+                                  ? 'bg-red-500 text-white'
+                                  : 'bg-[#1e2a3a] text-gray-400 hover:text-white'
+                              }`}
+                            >
+                              SELL
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-gray-300">Preço Entrada</Label>
+                          <Input
+                            type="number"
+                            step="0.00000001"
+                            value={newOperation.entry_price}
+                            onChange={(e) => setNewOperation({ ...newOperation, entry_price: e.target.value })}
+                            placeholder="0.00"
+                            className="bg-[#111820] border-[#1e2a3a] text-white"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-gray-300">Preço Saída</Label>
+                          <Input
+                            type="number"
+                            step="0.00000001"
+                            value={newOperation.exit_price}
+                            onChange={(e) => setNewOperation({ ...newOperation, exit_price: e.target.value })}
+                            placeholder="0.00"
+                            className="bg-[#111820] border-[#1e2a3a] text-white"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-gray-300">% Lucro</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={newOperation.profit_percentage}
+                            onChange={(e) => setNewOperation({ ...newOperation, profit_percentage: e.target.value })}
+                            placeholder="0.00"
+                            className="bg-[#111820] border-[#1e2a3a] text-white"
+                          />
+                          <p className="text-xs text-gray-500">Auto-calculado ou edite</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-gray-300">Data da Operação</Label>
+                        <Input
+                          type="date"
+                          value={newOperation.operation_date}
+                          onChange={(e) => setNewOperation({ ...newOperation, operation_date: e.target.value })}
+                          className="bg-[#111820] border-[#1e2a3a] text-white"
+                        />
+                      </div>
+
+                      <div className="flex gap-3 pt-4">
+                        <Button 
+                          variant="outline" 
+                          onClick={() => setStatsTab('operations')} 
+                          className="border-[#1e2a3a] text-gray-300 hover:bg-[#1e2a3a] hover:text-white"
+                        >
+                          Cancelar
+                        </Button>
+                        <button 
+                          onClick={handleAddOperation} 
+                          disabled={isAddingOperation || !newOperation.profit_percentage}
+                          className="flex-1 px-4 py-2 rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium transition-all hover:shadow-lg hover:shadow-teal-500/25 disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                          {isAddingOperation ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Plus className="h-4 w-4" />
+                          )}
+                          Adicionar Operação
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {robots.length === 0 ? (
         <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-12 text-center">
           <Bot className="h-12 w-12 text-gray-400 mx-auto" />
@@ -642,6 +1206,13 @@ const AdminRobots = () => {
                     <p className="font-medium text-white">{robot.lock_period_days} dias</p>
                   </div>
                   <div className="flex items-center gap-2">
+                    <button 
+                      className="p-2 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 transition-all"
+                      onClick={() => openStatsDialog(robot)}
+                      title="Ver Estatísticas"
+                    >
+                      <BarChart3 className="h-4 w-4" />
+                    </button>
                     <button 
                       className="p-2 rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-400 transition-all"
                       onClick={() => openCreditDialog(robot)}
