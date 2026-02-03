@@ -60,6 +60,10 @@ interface Robot {
   max_investment: number | null;
   is_active: boolean;
   cryptocurrency?: { symbol: string; name: string } | null;
+  robot_cryptocurrencies?: Array<{
+    cryptocurrency_id: string;
+    cryptocurrency: { symbol: string; name: string };
+  }>;
 }
 
 interface Cryptocurrency {
@@ -169,7 +173,7 @@ const AdminRobots = () => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    cryptocurrency_id: '',
+    selected_cryptocurrencies: [] as string[],
     profit_percentage_min: '',
     profit_percentage_max: '',
     profit_period_days: '30',
@@ -208,7 +212,14 @@ const AdminRobots = () => {
   const fetchData = async () => {
     const { data: robotsData } = await supabase
       .from('robots')
-      .select('*, cryptocurrency:cryptocurrencies(symbol, name)')
+      .select(`
+        *,
+        cryptocurrency:cryptocurrencies(symbol, name),
+        robot_cryptocurrencies(
+          cryptocurrency_id,
+          cryptocurrency:cryptocurrencies(symbol, name)
+        )
+      `)
       .order('created_at', { ascending: false });
 
     if (robotsData) {
@@ -245,7 +256,7 @@ const AdminRobots = () => {
     setFormData({
       name: '',
       description: '',
-      cryptocurrency_id: '',
+      selected_cryptocurrencies: [],
       profit_percentage_min: '',
       profit_percentage_max: '',
       profit_period_days: '30',
@@ -257,12 +268,26 @@ const AdminRobots = () => {
     setEditingRobot(null);
   };
 
-  const openEditDialog = (robot: Robot) => {
+  const openEditDialog = async (robot: Robot) => {
     setEditingRobot(robot);
+    
+    // Buscar criptomoedas do robô
+    const { data: robotCryptos } = await supabase
+      .from('robot_cryptocurrencies')
+      .select('cryptocurrency_id')
+      .eq('robot_id', robot.id);
+    
+    let selectedIds = robotCryptos?.map(rc => rc.cryptocurrency_id) || [];
+    
+    // Fallback para campo antigo se não tiver na nova tabela
+    if (selectedIds.length === 0 && robot.cryptocurrency_id) {
+      selectedIds = [robot.cryptocurrency_id];
+    }
+    
     setFormData({
       name: robot.name,
       description: robot.description || '',
-      cryptocurrency_id: robot.cryptocurrency_id || '',
+      selected_cryptocurrencies: selectedIds,
       profit_percentage_min: robot.profit_percentage_min.toString(),
       profit_percentage_max: robot.profit_percentage_max.toString(),
       profit_period_days: robot.profit_period_days.toString(),
@@ -644,7 +669,7 @@ const AdminRobots = () => {
     const robotData = {
       name: formData.name,
       description: formData.description || null,
-      cryptocurrency_id: formData.cryptocurrency_id || null,
+      cryptocurrency_id: formData.selected_cryptocurrencies[0] || null, // Mantém compatibilidade
       profit_percentage_min: parseFloat(formData.profit_percentage_min),
       profit_percentage_max: parseFloat(formData.profit_percentage_max),
       profit_period_days: parseInt(formData.profit_period_days),
@@ -654,36 +679,58 @@ const AdminRobots = () => {
       is_active: formData.is_active,
     };
 
-    let error;
+    try {
+      let robotId: string;
+      
+      if (editingRobot) {
+        // Update existing robot
+        const { error } = await supabase
+          .from('robots')
+          .update(robotData)
+          .eq('id', editingRobot.id);
+        if (error) throw error;
+        robotId = editingRobot.id;
+        
+        // Remove criptomoedas antigas
+        await supabase
+          .from('robot_cryptocurrencies')
+          .delete()
+          .eq('robot_id', robotId);
+      } else {
+        // Create new robot
+        const { data, error } = await supabase
+          .from('robots')
+          .insert(robotData)
+          .select('id')
+          .single();
+        if (error) throw error;
+        robotId = data.id;
+      }
+      
+      // Inserir novas criptomoedas
+      if (formData.selected_cryptocurrencies.length > 0) {
+        const { error: cryptoError } = await supabase
+          .from('robot_cryptocurrencies')
+          .insert(
+            formData.selected_cryptocurrencies.map(cryptoId => ({
+              robot_id: robotId,
+              cryptocurrency_id: cryptoId,
+            }))
+          );
+        if (cryptoError) throw cryptoError;
+      }
 
-    if (editingRobot) {
-      const { error: updateError } = await supabase
-        .from('robots')
-        .update(robotData)
-        .eq('id', editingRobot.id);
-      error = updateError;
-    } else {
-      const { error: insertError } = await supabase.from('robots').insert(robotData);
-      error = insertError;
-    }
-
-    if (error) {
-      toast({
-        title: 'Erro',
-        description: 'Erro ao salvar robô',
-        variant: 'destructive',
-      });
-    } else {
       // Create audit log
       await createAuditLog({
         action: editingRobot ? 'robot_edited' : 'robot_created',
         entityType: 'robot',
-        entityId: editingRobot?.id,
+        entityId: robotId,
         details: {
           robot_name: formData.name,
           profit_percentage_min: parseFloat(formData.profit_percentage_min),
           profit_percentage_max: parseFloat(formData.profit_percentage_max),
           is_active: formData.is_active,
+          cryptocurrencies_count: formData.selected_cryptocurrencies.length,
         },
       });
 
@@ -694,6 +741,13 @@ const AdminRobots = () => {
       setIsDialogOpen(false);
       resetForm();
       fetchData();
+    } catch (error: any) {
+      console.error('Error saving robot:', error);
+      toast({
+        title: 'Erro',
+        description: error.message || 'Erro ao salvar robô',
+        variant: 'destructive',
+      });
     }
 
     setIsSubmitting(false);
@@ -773,35 +827,56 @@ const AdminRobots = () => {
             </DialogHeader>
 
             <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name" className="text-gray-300">Nome do Robô *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Ex: Bot BTC Agressivo"
-                    className="bg-[#0a0f14] border-[#1e2a3a] text-white placeholder:text-gray-500"
-                  />
+              <div className="space-y-2">
+                <Label htmlFor="name" className="text-gray-300">Nome do Robô *</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Ex: Bot BTC Agressivo"
+                  className="bg-[#0a0f14] border-[#1e2a3a] text-white placeholder:text-gray-500"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-gray-300">Criptomoedas</Label>
+                <div className="rounded-lg border border-[#1e2a3a] bg-[#0a0f14] p-3 max-h-48 overflow-y-auto space-y-2">
+                  {cryptos.map((crypto) => (
+                    <div key={crypto.id} className="flex items-center gap-2">
+                      <Checkbox
+                        id={`crypto-${crypto.id}`}
+                        checked={formData.selected_cryptocurrencies.includes(crypto.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setFormData(prev => ({
+                              ...prev,
+                              selected_cryptocurrencies: [...prev.selected_cryptocurrencies, crypto.id]
+                            }));
+                          } else {
+                            setFormData(prev => ({
+                              ...prev,
+                              selected_cryptocurrencies: prev.selected_cryptocurrencies.filter(id => id !== crypto.id)
+                            }));
+                          }
+                        }}
+                        className="border-[#1e2a3a] data-[state=checked]:bg-teal-500"
+                      />
+                      <Label 
+                        htmlFor={`crypto-${crypto.id}`} 
+                        className="text-white cursor-pointer flex items-center gap-2"
+                      >
+                        <span className="text-teal-400 font-mono">{crypto.symbol}</span>
+                        <span className="text-gray-400">-</span>
+                        <span>{crypto.name}</span>
+                      </Label>
+                    </div>
+                  ))}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="crypto" className="text-gray-300">Criptomoeda</Label>
-                  <Select
-                    value={formData.cryptocurrency_id}
-                    onValueChange={(v) => setFormData({ ...formData, cryptocurrency_id: v })}
-                  >
-                    <SelectTrigger className="bg-[#0a0f14] border-[#1e2a3a] text-white">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-[#111820] border-[#1e2a3a]">
-                      {cryptos.map((crypto) => (
-                        <SelectItem key={crypto.id} value={crypto.id} className="text-white hover:bg-[#1e2a3a]">
-                          {crypto.symbol} - {crypto.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {formData.selected_cryptocurrencies.length > 0 && (
+                  <p className="text-xs text-teal-400">
+                    {formData.selected_cryptocurrencies.length} moeda(s) selecionada(s)
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
