@@ -818,15 +818,15 @@ const AdminRobots = () => {
               Novo Robô
             </button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl bg-[#111820] border-[#1e2a3a] text-white">
-            <DialogHeader>
+          <DialogContent className="max-w-2xl max-h-[90vh] bg-[#111820] border-[#1e2a3a] text-white flex flex-col">
+            <DialogHeader className="flex-shrink-0">
               <DialogTitle className="text-white">{editingRobot ? 'Editar Robô' : 'Criar Novo Robô'}</DialogTitle>
               <DialogDescription className="text-gray-400">
                 Configure os parâmetros do robô de investimento
               </DialogDescription>
             </DialogHeader>
 
-            <div className="grid gap-4 py-4">
+            <div className="grid gap-4 py-4 overflow-y-auto flex-1 pr-2">
               <div className="space-y-2">
                 <Label htmlFor="name" className="text-gray-300">Nome do Robô *</Label>
                 <Input
@@ -969,7 +969,7 @@ const AdminRobots = () => {
               </div>
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="flex-shrink-0 pt-4 border-t border-[#1e2a3a]">
               <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="border-[#1e2a3a] text-gray-300 hover:bg-[#1e2a3a] hover:text-white">
                 Cancelar
               </Button>
