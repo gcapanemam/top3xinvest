@@ -175,16 +175,66 @@ All colors MUST be HSL.
   }
 }
 
-/* Floating cards animation for landing page */
-@keyframes float-vertical {
-  0%, 100% {
-    transform: translateY(0);
+/* Floating cards animations for landing page */
+@keyframes float-gentle {
+  0%, 100% { 
+    transform: translateY(0) translateX(0); 
   }
-  50% {
-    transform: translateY(-10px);
+  25% { 
+    transform: translateY(-8px) translateX(3px); 
+  }
+  50% { 
+    transform: translateY(-14px) translateX(-2px); 
+  }
+  75% { 
+    transform: translateY(-6px) translateX(2px); 
   }
 }
 
-.floating-card {
-  animation: float-vertical 3s ease-in-out infinite;
+@keyframes float-medium {
+  0%, 100% { 
+    transform: translateY(0) translateX(0); 
+  }
+  33% { 
+    transform: translateY(-12px) translateX(-3px); 
+  }
+  66% { 
+    transform: translateY(-18px) translateX(2px); 
+  }
+}
+
+@keyframes float-strong {
+  0%, 100% { 
+    transform: translateY(0); 
+  }
+  50% { 
+    transform: translateY(-22px); 
+  }
+}
+
+@keyframes pulse-arrow {
+  0%, 100% { 
+    opacity: 1; 
+    transform: scale(1); 
+  }
+  50% { 
+    opacity: 0.6; 
+    transform: scale(1.15); 
+  }
+}
+
+.animate-float-gentle {
+  animation: float-gentle ease-in-out infinite;
+}
+
+.animate-float-medium {
+  animation: float-medium ease-in-out infinite;
+}
+
+.animate-float-strong {
+  animation: float-strong ease-in-out infinite;
+}
+
+.animate-pulse-arrow {
+  animation: pulse-arrow 2s ease-in-out infinite;
 }
