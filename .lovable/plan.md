@@ -1,249 +1,168 @@
 
-# Plano: Landing Page Inspirada no BWIS
+
+# Plano: Melhorar Animacao dos Floating Cards
 
 ## Visao Geral
 
-Criar uma landing page profissional e moderna inspirada no site bwis.io, adaptada para a identidade visual do Invest Hub. A pagina sera a porta de entrada para visitantes nao autenticados, apresentando os robos de trading, beneficios da plataforma e chamadas para acao.
+Redesenhar completamente a animacao dos cards de operacoes na hero section, inspirando-se no layout do BWIS onde os cards estao espalhados organicamente pela tela com animacoes de flutuacao em diferentes ritmos e direcoes.
 
 ---
 
-## Layout Visual
+## Problemas Atuais
 
-### Header/Navegacao
-```text
-+------------------------------------------------------------------+
-| [Logo] INVEST HUB     HOME | ROBOS | PARCEIROS | FAQ     [ENTRAR]|
-+------------------------------------------------------------------+
-```
-
-### Hero Section
-```text
-+------------------------------------------------------------------+
-|                                                                  |
-|  Smart Crypto-Bots Gerando                  +------------------+ |
-|  Lucros Diarios de 0.3%-3%                  | [Cards flutuantes| |
-|                                             |  com operacoes   | |
-|  Mergulhe no mundo dos investimentos        |  animadas]       | |
-|  com robos automatizados. Simples,          |                  | |
-|  Emocionante e Lucrativo!                   | BTC 0.59% SELL   | |
-|                                             | ETH 0.94% BUY    | |
-|  [COMECE AGORA ->]                          | XRP 1.10% BUY    | |
-|                                             +------------------+ |
-+------------------------------------------------------------------+
-```
-
-### Cards de Navegacao Rapida
-```text
-+------------------------------------------------------------------+
-| +---------------+ +---------------+ +---------------+ +---------+|
-| | VIDEO         | | ROBOS         | | PARCEIROS     | | SOBRE   ||
-| | APRESENTACAO  | | LUCRATIVIDADE | | PROGRAMA      | | NOS     ||
-| |               | | Aumente seu   | | Ganhe com sua | | Conheca ||
-| | Conheca o     | | capital em    | | rede de       | | mais    ||
-| | Invest Hub    | | ate 89%/mes   | | indicados     | | detalhes||
-| +---------------+ +---------------+ +---------------+ +---------+|
-+------------------------------------------------------------------+
-```
-
-### Secao Sobre
-```text
-+------------------------------------------------------------------+
-|                                                                  |
-|  Conheca o Invest Hub                                            |
-|  Seu caminho para investimentos de sucesso em cripto trading     |
-|                                                                  |
-|  [Texto descritivo sobre a plataforma...]                        |
-|                                                                  |
-|  +------------+ +------------+ +------------+                    |
-|  | Altos      | | Pagamentos | | Estrategias|                    |
-|  | Lucros     | | Pontuais   | | Precisas   |                    |
-|  +------------+ +------------+ +------------+                    |
-|                                                                  |
-+------------------------------------------------------------------+
-```
-
-### Secao Lucros
-```text
-+------------------------------------------------------------------+
-|                                                                  |
-|  De 0.3% a 3% de lucro liquido por dia!                          |
-|                                                                  |
-|  Maximize seu potencial de investimento!                         |
-|  Ative seu robo e veja seu portfolio crescer.                    |
-|                                                                  |
-|  +-----------------+  +-----------------+                        |
-|  | Lucro 7 dias    |  | Lucro 30 dias   |                        |
-|  | $ 560.00        |  | $ 2,115.00      |                        |
-|  +-----------------+  +-----------------+                        |
-|                                                                  |
-+------------------------------------------------------------------+
-```
-
-### Secao Seguranca
-```text
-+------------------------------------------------------------------+
-|                                                                  |
-|  Sua seguranca e nossa prioridade                                |
-|                                                                  |
-|  +------------+ +------------+ +------------+ +------------+     |
-|  | Criptografia| | Auditorias | | Controle   | | Protecao   |    |
-|  | de Dados   | | Regulares  | | de Acesso  | | Anti-Phish |    |
-|  +------------+ +------------+ +------------+ +------------+     |
-|                                                                  |
-+------------------------------------------------------------------+
-```
-
-### Secao 3 Passos
-```text
-+------------------------------------------------------------------+
-|                                                                  |
-|  3 Passos Simples para Gerar Lucros                              |
-|                                                                  |
-|  +---------------+  +---------------+  +---------------+         |
-|  |      [1]      |  |      [2]      |  |      [3]      |         |
-|  |               |  |               |  |               |         |
-|  | Cadastre-se   |  | Escolha um    |  | Lucre!        |         |
-|  |               |  | Robo          |  |               |         |
-|  | Crie sua      |  | Explore nossa |  | Aproveite os  |         |
-|  | conta         |  | selecao       |  | ganhos        |         |
-|  +---------------+  +---------------+  +---------------+         |
-|                                                                  |
-+------------------------------------------------------------------+
-```
-
-### Secao Vantagens dos Robos
-```text
-+------------------------------------------------------------------+
-|                                                                  |
-|  Vantagens dos Robos de Trading                                  |
-|  Confiabilidade, Velocidade e Investimentos Sem Erros            |
-|                                                                  |
-|  +-------------------+  +-------------------+                    |
-|  | Trading Automatico|  | Eficiencia        |                    |
-|  | Processos         |  | e Velocidade      |                    |
-|  | totalmente        |  |                   |                    |
-|  | automatizados     |  | Execucao rapida   |                    |
-|  +-------------------+  +-------------------+                    |
-|                                                                  |
-|  +-------------------+  +-------------------+                    |
-|  | Precisao e        |  | Estabilidade      |                    |
-|  | Consistencia      |  | Emocional         |                    |
-|  |                   |  |                   |                    |
-|  | Minimiza riscos   |  | Sem medo ou       |                    |
-|  |                   |  | ganancia          |                    |
-|  +-------------------+  +-------------------+                    |
-|                                                                  |
-+------------------------------------------------------------------+
-```
-
-### Footer
-```text
-+------------------------------------------------------------------+
-|                                                                  |
-|  [Logo] INVEST HUB                                               |
-|                                                                  |
-|  Links Rapidos     Suporte          Redes Sociais                |
-|  - Home            - FAQ            [Twitter] [Telegram]         |
-|  - Robos           - Contato                                     |
-|  - Parceiros                                                     |
-|                                                                  |
-|  (c) 2024 Invest Hub. Todos os direitos reservados.              |
-|                                                                  |
-+------------------------------------------------------------------+
-```
+1. Cards empilhados verticalmente de forma rigida
+2. Animacao simples de flutuacao vertical igual para todos
+3. Cards aparecem/desaparecem abruptamente
+4. Falta de profundidade visual e dispersao organica
+5. Fundo com pouco impacto visual
 
 ---
 
-## Elementos Animados
+## Novo Layout Visual
 
-1. **Cards de operacoes flutuantes**: Cards com BTC, ETH, BNB mostrando percentuais e tipo (BUY/SELL) que animam verticalmente
-2. **Fade-in-up**: Elementos aparecem suavemente de baixo para cima ao carregar
-3. **Hover effects**: Botoes e cards com efeitos de elevacao e brilho
-4. **Gradientes animados**: Fundo com gradientes sutis em movimento
+```text
+                    +------------+
+                    |   XRP      |
+                    |   1.10%    |
+                    |   BUY      |
+    +------------+  +------------+
+    |   BNB      |
+    |   0.43%    |       +------------+
+    |   SELL     |       |   ETH      |
+    +------------+       |   0.94%    |
+                         |   BUY      |
+         +------------+  +------------+
+         |   BTC      |
+         |   0.59%    |
+         |   SELL     |        +------------+
+         +------------+        |   BNB      |
+                               |   1.43%    |
+                               |   SELL     |
+                               +------------+
+```
+
+Cards espalhados em posicoes aleatorias com:
+- Diferentes delays de animacao
+- Diferentes duracao de animacao
+- Flutuacao vertical suave
+- Efeito de entrada com fade-in
+- Rotacao ciclica suave das operacoes
+
+---
+
+## Melhorias Propostas
+
+### 1. Layout Disperso
+- Cards posicionados em coordenadas especificas (nao empilhados)
+- Distribuicao organica pelo espaco disponivel
+- Diferentes tamanhos para criar profundidade
+
+### 2. Animacoes Aprimoradas
+- Flutuacao vertical com diferentes amplitudes (8px a 20px)
+- Duracao variada (3s a 5s) para cada card
+- Delays escalonados para movimento nao sincronizado
+- Transicao suave de opacidade ao trocar operacoes
+
+### 3. Efeitos Visuais
+- Brilho sutil ao redor dos cards (glow effect)
+- Sombras coloridas baseadas no tipo (verde/vermelho)
+- Fundo com gradiente mais pronunciado
+
+### 4. Indicador de Direcao
+- Seta para cima (verde) para BUY
+- Seta para baixo (vermelho) para SELL
+- Animacao de pulse na seta
 
 ---
 
 ## Secao Tecnica
 
-### Estrutura de Arquivos
+### Arquivo: src/components/landing/FloatingCards.tsx
 
-| Arquivo | Descricao |
-|---------|-----------|
-| src/pages/Index.tsx | Landing page principal (reescrever completamente) |
-| src/components/landing/Header.tsx | Cabecalho com navegacao |
-| src/components/landing/HeroSection.tsx | Secao principal com CTA |
-| src/components/landing/FloatingCards.tsx | Cards animados de operacoes |
-| src/components/landing/FeaturesSection.tsx | Secao sobre/caracteristicas |
-| src/components/landing/ProfitSection.tsx | Secao de lucros |
-| src/components/landing/SecuritySection.tsx | Secao de seguranca |
-| src/components/landing/StepsSection.tsx | 3 passos para comecar |
-| src/components/landing/AdvantagesSection.tsx | Vantagens dos robos |
-| src/components/landing/Footer.tsx | Rodape |
+**Alteracoes principais:**
 
-### Alteracao em App.tsx
-
+1. **Novo sistema de posicionamento:**
 ```typescript
-// Mudar a rota "/" para mostrar a landing page
-<Route path="/" element={<Index />} />
-// Remover o redirect para /dashboard
-```
-
-### Componente FloatingCards (animacao estilo BWIS)
-
-```typescript
-const operations = [
-  { symbol: 'BTC', percent: '0.59', type: 'SELL' },
-  { symbol: 'ETH', percent: '0.94', type: 'BUY' },
-  { symbol: 'XRP', percent: '1.10', type: 'BUY' },
-  { symbol: 'BNB', percent: '0.43', type: 'SELL' },
-  { symbol: 'SOL', percent: '1.25', type: 'BUY' },
+const cardPositions = [
+  { x: "5%", y: "10%", scale: 0.9, delay: 0 },
+  { x: "60%", y: "5%", scale: 1, delay: 0.5 },
+  { x: "20%", y: "35%", scale: 0.95, delay: 1 },
+  { x: "70%", y: "40%", scale: 1.05, delay: 1.5 },
+  { x: "10%", y: "65%", scale: 0.85, delay: 2 },
+  { x: "55%", y: "70%", scale: 1, delay: 0.8 },
 ];
-
-// Animacao vertical infinita com CSS
-// Cards posicionados em diferentes alturas/delays
 ```
 
-### Paleta de Cores (mantendo identidade existente)
+2. **Animacao individual por card:**
+- Cada card tera sua propria duracao e amplitude
+- Uso de CSS custom properties para controle dinamico
 
-- Background principal: #0a0f14
-- Cards: #111820 com bordas #1e2a3a
-- Gradiente primario: teal-500 -> cyan-500
-- Texto: white/gray-400
-- Acentos: verde para BUY, vermelho para SELL
+3. **Transicao suave de conteudo:**
+- Fade out/fade in ao trocar a operacao mostrada
+- Efeito de entrada escalonado
 
-### Responsividade
+### Arquivo: src/index.css
 
-- Mobile: Menu hamburger, secoes empilhadas verticalmente
-- Tablet: Grid 2 colunas onde aplicavel
-- Desktop: Layout completo conforme mockup
+**Novas animacoes:**
+
+```css
+@keyframes float-gentle {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  25% { transform: translateY(-8px) translateX(2px); }
+  50% { transform: translateY(-12px) translateX(-2px); }
+  75% { transform: translateY(-6px) translateX(1px); }
+}
+
+@keyframes float-medium {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-15px); }
+}
+
+@keyframes float-strong {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
+}
+
+@keyframes fade-swap {
+  0% { opacity: 1; }
+  45% { opacity: 0; }
+  55% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes pulse-arrow {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.2); }
+}
+```
+
+### Design do Card Aprimorado
+
+| Elemento | Estilo |
+|----------|--------|
+| Container | Glassmorphism com borda sutil |
+| Icone cripto | Circulo colorido com sigla |
+| Percentual | Fonte maior, cor vibrante |
+| Badge BUY/SELL | Fundo semi-transparente |
+| Seta indicadora | Animada com pulse |
+| Sombra | Colorida (verde/vermelho) |
 
 ---
 
-## Fluxo de Usuario
+## Arquivos a Modificar
 
-```text
-Visitante acessa "/"
-        |
-        v
-Ve a landing page com apresentacao
-        |
-        v
-Clica em "COMECE AGORA" ou "ENTRAR"
-        |
-        v
-Redirecionado para /auth
-        |
-        v
-Apos login, vai para /dashboard
-```
+| Arquivo | Tipo de Alteracao |
+|---------|-------------------|
+| src/components/landing/FloatingCards.tsx | Reescrever completamente |
+| src/index.css | Adicionar novas keyframes de animacao |
 
 ---
 
-## Resumo de Alteracoes
+## Resultado Esperado
 
-1. **Reescrever src/pages/Index.tsx** - Landing page completa
-2. **Criar pasta src/components/landing/** - Componentes da landing
-3. **Atualizar src/App.tsx** - Remover redirect, mostrar Index em "/"
-4. **Adicionar animacoes CSS** - Floating cards, fade-in, etc.
+- Cards distribuidos organicamente pelo espaco
+- Animacoes fluidas e nao sincronizadas
+- Visual mais dinamico e profissional
+- Melhor representacao de "operacoes em tempo real"
+- Alinhamento com a estetica do BWIS
 
-A pagina sera totalmente responsiva, mantendo a estetica premium dark do projeto e inspirada nos elementos visuais do BWIS.
