@@ -19,7 +19,7 @@ const Settings = () => {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [referralCode, setReferralCode] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState('');
+  
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -34,26 +34,25 @@ const Settings = () => {
       if (!effectiveUserId) return;
       
       setIsLoadingProfile(true);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('full_name, phone, email, referral_code, avatar_url')
-        .eq('user_id', effectiveUserId)
-        .single();
+       const { data, error } = await supabase
+         .from('profiles')
+         .select('full_name, phone, email, referral_code')
+         .eq('user_id', effectiveUserId)
+         .single();
 
-      if (error) {
-        console.error('Error fetching profile:', error);
-        toast({
-          title: 'Erro',
-          description: 'Não foi possível carregar os dados do perfil.',
-          variant: 'destructive',
-        });
-      } else if (data) {
-        setFullName(data.full_name || '');
-        setPhone(data.phone || '');
-        setEmail(data.email || '');
-        setReferralCode(data.referral_code || '');
-        setAvatarUrl(data.avatar_url || '');
-      }
+       if (error) {
+         console.error('Error fetching profile:', error);
+         toast({
+           title: 'Erro',
+           description: 'Não foi possível carregar os dados do perfil.',
+           variant: 'destructive',
+         });
+       } else if (data) {
+         setFullName(data.full_name || '');
+         setPhone(data.phone || '');
+         setEmail(data.email || '');
+         setReferralCode(data.referral_code || '');
+       }
       setIsLoadingProfile(false);
     };
 
@@ -207,22 +206,6 @@ const Settings = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Avatar */}
-              <div className="flex items-center gap-4">
-                <Avatar className="h-20 w-20 border-2 border-[#1e2a3a]">
-                  <AvatarImage src={avatarUrl} alt={fullName} />
-                  <AvatarFallback className="bg-gradient-to-r from-teal-500 to-cyan-500 text-white text-xl">
-                    {getInitials(fullName || 'U')}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="text-sm text-gray-400">Foto de Perfil</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Em breve você poderá alterar sua foto
-                  </p>
-                </div>
-              </div>
-
               {/* Full Name */}
               <div className="space-y-2">
                 <Label htmlFor="fullName" className="text-gray-300">
