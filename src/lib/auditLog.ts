@@ -10,6 +10,7 @@ export type ActionType =
   | 'user_admin_granted'
   | 'user_admin_revoked'
   | 'user_password_reset_sent'
+  | 'user_email_confirmation_resent'
   | 'user_deleted'
   // Deposit actions
   | 'deposit_approved'
@@ -76,6 +77,7 @@ export const getActionDisplayName = (action: ActionType): string => {
     user_admin_granted: 'Admin concedido',
     user_admin_revoked: 'Admin removido',
     user_password_reset_sent: 'Reset de senha enviado',
+    user_email_confirmation_resent: 'Email de confirmação reenviado',
     user_deleted: 'Usuário excluído',
     deposit_approved: 'Depósito aprovado',
     deposit_rejected: 'Depósito rejeitado',
