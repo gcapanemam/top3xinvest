@@ -28,7 +28,7 @@ interface Deposit {
   payment_method: string | null;
   network_name: string | null;
   cryptocurrency?: { symbol: string; name: string } | null;
-  profile?: { full_name: string | null } | null;
+  profile?: { full_name: string | null; email: string | null } | null;
 }
 
 const AdminDeposits = () => {
@@ -57,7 +57,8 @@ const AdminDeposits = () => {
       .from('deposits')
       .select(`
         *,
-        cryptocurrency:cryptocurrencies(symbol, name)
+        cryptocurrency:cryptocurrencies(symbol, name),
+        profile:profiles!deposits_user_id_fkey(full_name, email)
       `)
       .order('created_at', { ascending: false });
 
@@ -253,6 +254,9 @@ const AdminDeposits = () => {
                   </div>
                   <div>
                     <p className="font-medium text-white">{deposit.profile?.full_name || 'Usuário'}</p>
+                    {deposit.profile?.email && (
+                      <p className="text-sm text-cyan-400">{deposit.profile.email}</p>
+                    )}
                     <p className="text-sm text-gray-400">
                       {format(new Date(deposit.created_at), "dd/MM/yy 'às' HH:mm", {
                         locale: ptBR,
@@ -317,6 +321,9 @@ const AdminDeposits = () => {
                   </div>
                   <div>
                     <p className="font-medium text-white">{deposit.profile?.full_name || 'Usuário'}</p>
+                    {deposit.profile?.email && (
+                      <p className="text-sm text-cyan-400">{deposit.profile.email}</p>
+                    )}
                     <div className="flex items-center gap-2 mt-0.5">
                       <p className="text-sm text-gray-400">
                         {format(new Date(deposit.created_at), "dd/MM/yy 'às' HH:mm", {

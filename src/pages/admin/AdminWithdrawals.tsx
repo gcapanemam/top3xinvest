@@ -26,7 +26,7 @@ interface Withdrawal {
   status: string;
   admin_notes: string | null;
   created_at: string;
-  profile?: { full_name: string | null; balance: number } | null;
+  profile?: { full_name: string | null; email: string | null; balance: number } | null;
 }
 
 const AdminWithdrawals = () => {
@@ -53,7 +53,10 @@ const AdminWithdrawals = () => {
   const fetchWithdrawals = async () => {
     const { data } = await supabase
       .from('withdrawals')
-      .select('*')
+      .select(`
+        *,
+        profile:profiles!withdrawals_user_id_fkey(full_name, email, balance)
+      `)
       .order('created_at', { ascending: false });
 
     if (data) {
@@ -237,6 +240,9 @@ const AdminWithdrawals = () => {
                   </div>
                   <div>
                     <p className="font-medium text-white">{withdrawal.profile?.full_name || 'Usuário'}</p>
+                    {withdrawal.profile?.email && (
+                      <p className="text-sm text-cyan-400">{withdrawal.profile.email}</p>
+                    )}
                     <p className="text-sm text-gray-400">
                       PIX: <span className="text-cyan-400">{withdrawal.pix_key}</span>
                     </p>
@@ -295,6 +301,9 @@ const AdminWithdrawals = () => {
                   </div>
                   <div>
                     <p className="font-medium text-white">{withdrawal.profile?.full_name || 'Usuário'}</p>
+                    {withdrawal.profile?.email && (
+                      <p className="text-sm text-cyan-400">{withdrawal.profile.email}</p>
+                    )}
                     <p className="text-sm text-gray-400">
                       {format(new Date(withdrawal.created_at), "dd/MM/yy 'às' HH:mm", {
                         locale: ptBR,

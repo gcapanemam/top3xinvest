@@ -315,6 +315,7 @@ export type Database = {
           avatar_url: string | null
           balance: number
           created_at: string
+          email: string | null
           full_name: string | null
           id: string
           is_blocked: boolean
@@ -327,6 +328,7 @@ export type Database = {
           avatar_url?: string | null
           balance?: number
           created_at?: string
+          email?: string | null
           full_name?: string | null
           id?: string
           is_blocked?: boolean
@@ -339,6 +341,7 @@ export type Database = {
           avatar_url?: string | null
           balance?: number
           created_at?: string
+          email?: string | null
           full_name?: string | null
           id?: string
           is_blocked?: boolean
