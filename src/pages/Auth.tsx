@@ -176,15 +176,25 @@ const Auth = () => {
       const { error } = await resetPassword(forgotPasswordEmail);
 
       if (error) {
+        console.error('Reset password error:', error);
+        
+        let message = 'Não foi possível enviar o email de recuperação. Tente novamente.';
+        
+        if (error.message.includes('rate limit') || error.message.includes('For security purposes')) {
+          message = 'Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.';
+        } else if (error.message.includes('User not found')) {
+          message = 'Email não encontrado no sistema.';
+        }
+        
         toast({
           title: 'Erro',
-          description: 'Não foi possível enviar o email de recuperação. Tente novamente.',
+          description: message,
           variant: 'destructive',
         });
       } else {
         toast({
           title: 'Email enviado!',
-          description: 'Verifique sua caixa de entrada para redefinir sua senha.',
+          description: 'Verifique sua caixa de entrada (e spam) para redefinir sua senha.',
         });
         setShowForgotPassword(false);
         setForgotPasswordEmail('');
