@@ -19,6 +19,7 @@ import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
 import MLMNetwork from "./pages/MLMNetwork";
 import ResetPassword from "./pages/ResetPassword";
+import Settings from "./pages/Settings";
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -58,6 +59,7 @@ const App = () => (
               <Route path="/deposit/status/:depositId" element={<PaymentStatus />} />
               <Route path="/withdrawals" element={<Withdrawals />} />
               <Route path="/notifications" element={<Notifications />} />
+              <Route path="/settings" element={<Settings />} />
 
               {/* Admin Routes */}
               <Route path="/admin" element={<AdminDashboard />} />

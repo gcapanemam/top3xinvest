@@ -15,6 +15,7 @@ import {
   ChevronRight,
   X,
   ClipboardList,
+  Settings,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
@@ -40,6 +41,7 @@ const userNavItems: NavItem[] = [
   { label: 'Depósitos', href: '/deposits', icon: ArrowDownCircle },
   { label: 'Saques', href: '/withdrawals', icon: ArrowUpCircle },
   { label: 'Notificações', href: '/notifications', icon: Bell },
+  { label: 'Configurações', href: '/settings', icon: Settings },
 ];
 
 const adminNavItems: NavItem[] = [
