@@ -7,10 +7,10 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.oxapay-create-invoice]
-verify_jwt = true
+verify_jwt = false
 
 [functions.oxapay-webhook]
 verify_jwt = false
 
 [functions.oxapay-check-status]
-verify_jwt = true
+verify_jwt = false

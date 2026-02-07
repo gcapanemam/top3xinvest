@@ -1,4 +1,5 @@
 import { corsHeaders } from "../_shared/cors.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
@@ -7,6 +8,36 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Validate authentication manually
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error("Missing Authorization header");
+      return new Response(
+        JSON.stringify({ error: "Não autorizado - faça login novamente" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+    // Create client with user's token for auth validation
+    const supabaseAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+
+    if (authError || !user) {
+      console.error("Auth validation failed:", authError?.message || "No user found");
+      return new Response(
+        JSON.stringify({ error: "Sessão expirada - faça login novamente" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("Authenticated user:", user.id);
+
     const OXAPAY_MERCHANT_KEY = Deno.env.get("OXAPAY_MERCHANT_KEY");
     
     if (!OXAPAY_MERCHANT_KEY) {
@@ -22,7 +53,7 @@ Deno.serve(async (req) => {
 
     const { trackId, depositId } = await req.json();
 
-    console.log("Checking OxaPay status:", { trackId, depositId });
+    console.log("Checking OxaPay status:", { trackId, depositId, userId: user.id });
 
     if (!trackId) {
       return new Response(
