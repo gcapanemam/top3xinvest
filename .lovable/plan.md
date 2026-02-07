@@ -1,75 +1,150 @@
 
-# Plano: Corrigir URL de Redirecionamento do Email de Recuperação de Senha
+# Plano: Adicionar Botão "Acessar Painel do Usuário" para Admin
 
-## Problema Identificado
+## Objetivo
+Permitir que administradores acessem o painel de um usuário específico, visualizando a plataforma exatamente como esse usuário veria. Isso é útil para suporte, debug e verificação de problemas reportados pelos usuários.
 
-O link enviado no email de recuperação de senha está direcionando para uma página inexistente.
+## Abordagem
 
-### Inconsistência Encontrada:
-
-| Local | URL Atual | Status |
-|-------|-----------|--------|
-| Rota no App.tsx | `/auth/reset-password` | ✅ Correto |
-| AuthContext.tsx (esqueci senha do usuário) | `/auth/reset-password` | ✅ Correto |
-| Edge Function (admin envia reset) | `/reset-password` | ❌ **Errado** |
-
-A Edge Function `admin-user-actions` está enviando emails com o link `https://top3xinvest.lovable.app/reset-password`, mas a rota correta é `https://top3xinvest.lovable.app/auth/reset-password`.
+A implementação usará um sistema de **impersonação visual** onde:
+1. O admin continua logado normalmente
+2. A sessão de visualização é armazenada no localStorage
+3. Uma barra fixa no topo indica que está no "modo visualização como usuário"
+4. O admin pode sair desse modo a qualquer momento
 
 ---
 
-## Solução
+## Arquivos a Criar/Modificar
 
-Corrigir a URL na Edge Function `admin-user-actions` para usar o caminho correto `/auth/reset-password`.
-
----
-
-## Arquivo a Modificar
-
-| Arquivo | Alteração |
-|---------|-----------|
-| `supabase/functions/admin-user-actions/index.ts` | Corrigir URL de `/reset-password` para `/auth/reset-password` |
+| Arquivo | Ação | Descrição |
+|---------|------|-----------|
+| `src/contexts/AuthContext.tsx` | Modificar | Adicionar estado e funções para impersonação |
+| `src/pages/admin/AdminUsers.tsx` | Modificar | Adicionar botão "Acessar Painel" no menu de ações |
+| `src/components/layout/ImpersonationBanner.tsx` | Criar | Componente da barra de aviso de impersonação |
+| `src/components/layout/DashboardLayout.tsx` | Modificar | Incluir o banner de impersonação |
+| `src/pages/Dashboard.tsx` | Modificar | Buscar dados do usuário impersonado quando aplicável |
 
 ---
 
-## Alteração Detalhada
+## Detalhes da Implementação
 
-**Linha 89 - Antes:**
+### 1. Atualizar AuthContext
+
+Adicionar ao contexto:
+- `impersonatedUser`: dados do usuário sendo visualizado (id, nome)
+- `impersonateUser(userId, fullName)`: função para iniciar impersonação
+- `stopImpersonation()`: função para parar impersonação
+- `effectiveUserId`: retorna o ID do usuário impersonado (se houver) ou o ID real
+
 ```typescript
-{ redirectTo: data?.redirectTo || 'https://top3xinvest.lovable.app/reset-password' }
+interface ImpersonatedUser {
+  id: string;
+  fullName: string | null;
+}
+
+// No contexto:
+impersonatedUser: ImpersonatedUser | null;
+impersonateUser: (userId: string, fullName: string | null) => void;
+stopImpersonation: () => void;
+effectiveUserId: string | null;
 ```
 
-**Depois:**
+### 2. Modificar AdminUsers.tsx
+
+Adicionar novo item no dropdown de ações de cada usuário:
+- Ícone: `Eye` (olho)
+- Texto: "Acessar Painel"
+- Ação: Chama `impersonateUser()` e redireciona para `/dashboard`
+
 ```typescript
-{ redirectTo: data?.redirectTo || 'https://top3xinvest.lovable.app/auth/reset-password' }
+<DropdownMenuItem
+  onClick={() => {
+    impersonateUser(user.user_id, user.full_name);
+    navigate('/dashboard');
+  }}
+  className="cursor-pointer text-cyan-400 focus:text-cyan-400 focus:bg-[#1e2a3a]"
+>
+  <Eye className="mr-2 h-4 w-4" />
+  Acessar Painel
+</DropdownMenuItem>
 ```
 
----
+### 3. Criar ImpersonationBanner.tsx
 
-## Fluxo Corrigido
+Componente fixo no topo que aparece durante impersonação:
+- Fundo amarelo/âmbar para destaque
+- Mostra nome do usuário sendo visualizado
+- Botão para sair do modo impersonação
 
 ```text
-1. Admin clica "Enviar Email de Redefinição"
-          |
-          v
-2. Edge Function envia email via Supabase Auth
-   com redirectTo = /auth/reset-password
-          |
-          v
-3. Usuário recebe email e clica no link
-          |
-          v
-4. Supabase redireciona para:
-   https://top3xinvest.lovable.app/auth/reset-password#access_token=...
-          |
-          v
-5. Página ResetPassword.tsx carrega ✅
-          |
-          v
-6. Usuário define nova senha
+┌──────────────────────────────────────────────────────────────┐
+│ ⚠️ Visualizando como: João Silva           [Sair do Modo]   │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### 4. Modificar DashboardLayout.tsx
+
+- Importar e renderizar `ImpersonationBanner` quando houver impersonação ativa
+- Banner fica acima do Header
+
+### 5. Modificar Páginas do Dashboard
+
+Nas páginas que buscam dados do usuário (Dashboard, Investments, etc):
+- Usar `effectiveUserId` do contexto ao invés de `user.id`
+- Isso faz com que os dados do usuário impersonado sejam exibidos
+
+---
+
+## Persistência
+
+- A impersonação será armazenada no `sessionStorage` (não localStorage)
+- Isso garante que a impersonação termina quando o navegador é fechado
+- Ao recarregar a página, a impersonação continua ativa
+
+---
+
+## Segurança
+
+- Apenas administradores podem iniciar impersonação (verificação de `isAdmin`)
+- A impersonação é apenas visual/leitura - não permite alterações como se fosse o usuário
+- O admin real continua autenticado, então qualquer ação sensível (como depósitos/saques) ainda seria associada ao admin
+- O banner sempre visível impede confusão sobre qual contexto está sendo visualizado
+
+---
+
+## Fluxo do Usuário
+
+```text
+1. Admin acessa "Gestão de Usuários"
+       |
+       v
+2. Clica em "..." no usuário desejado
+       |
+       v
+3. Clica em "Acessar Painel"
+       |
+       v
+4. É redirecionado para /dashboard
+   com banner amarelo no topo
+       |
+       v
+5. Visualiza dados do usuário
+   (saldo, investimentos, rede, etc)
+       |
+       v
+6. Clica em "Sair do Modo Visualização"
+       |
+       v
+7. Volta a ver seus próprios dados
 ```
 
 ---
 
 ## Resultado Esperado
 
-Após a correção, quando um admin enviar o email de redefinição de senha, o usuário receberá um link que abrirá corretamente a página de redefinição de senha, onde poderá criar uma nova senha.
+Após a implementação:
+1. O dropdown de ações em cada usuário terá a opção "Acessar Painel"
+2. Ao clicar, o admin será levado para o dashboard com os dados daquele usuário
+3. Uma barra amarela no topo indicará claramente o modo de visualização
+4. O admin pode navegar por todas as páginas vendo os dados do usuário
+5. A qualquer momento pode clicar para sair do modo e voltar ao normal
