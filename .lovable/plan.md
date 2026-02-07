@@ -1,126 +1,117 @@
 
 
-# Plano: Integracao OxaPay para Pagamentos Cripto
+# Plano: Pagina de Acompanhamento de Status OxaPay em Tempo Real
 
 ## Visao Geral
 
-Integrar o gateway de pagamento OxaPay para automatizar depositos via criptomoedas. O sistema criara invoices automaticamente e processara pagamentos via webhook, eliminando a necessidade de verificacao manual do administrador.
+Criar uma pagina dedicada que mostra o status do pagamento OxaPay em tempo real. O usuario sera redirecionado para esta pagina apos criar um deposito, podendo acompanhar cada etapa do pagamento sem precisar sair da plataforma.
 
 ---
 
-## Fluxo de Pagamento
+## Fluxo do Usuario
 
 ```text
-+------------------+     +-----------------+     +------------------+
-|     Usuario      |     |   Edge Function |     |     OxaPay       |
-+------------------+     +-----------------+     +------------------+
-        |                        |                       |
-        | 1. Novo Deposito       |                       |
-        |----------------------->|                       |
-        |                        | 2. Criar Invoice      |
-        |                        |---------------------->|
-        |                        |                       |
-        |                        | 3. payLink + trackId  |
-        |                        |<----------------------|
-        |                        |                       |
-        | 4. Redireciona         |                       |
-        |<-----------------------|                       |
-        |                        |                       |
-        | 5. Paga na pagina OxaPay                       |
-        |----------------------------------------------->|
-        |                        |                       |
-        |                        | 6. Webhook (Paid)     |
-        |                        |<----------------------|
-        |                        |                       |
-        |                        | 7. Atualiza deposito  |
-        |                        |    + credita saldo    |
-        |                        |                       |
-+------------------+     +-----------------+     +------------------+
+Usuario cria deposito
+        |
+        v
+Redireciona para /deposit/status/:depositId
+        |
+        v
+Pagina mostra:
+  - Timer de expiracao (60 minutos)
+  - Status atual (New > Waiting > Confirming > Paid)
+  - Botao para ir para OxaPay pagar
+  - Link para copiar
+        |
+        v
+Pagina consulta status a cada 10 segundos
+        |
+        v
+Quando status = Paid:
+  - Mostra animacao de sucesso
+  - Redireciona para /deposits apos 3 segundos
 ```
 
 ---
 
-## O que sera criado
+## O Que Sera Criado
 
-### 1. Secret: OXAPAY_MERCHANT_KEY
+### 1. Nova Pagina: PaymentStatus
 
-Chave de API do comerciante OxaPay (necessaria para criar invoices)
+Arquivo: `src/pages/PaymentStatus.tsx`
 
-### 2. Edge Function: oxapay-create-invoice
+Pagina com:
+- Parametro de rota `:depositId`
+- Consulta deposito no banco de dados
+- Exibe informacoes do pagamento (valor, data, link)
+- Timer de contagem regressiva (60 minutos)
+- Barra de progresso visual com status
+- Polling automatico a cada 10 segundos
+- Estados visuais para cada status (New, Waiting, Confirming, Paid, Expired)
 
-Cria uma invoice no OxaPay e retorna o link de pagamento
+### 2. Nova Edge Function: oxapay-check-status
 
-### 3. Edge Function: oxapay-webhook
+Arquivo: `supabase/functions/oxapay-check-status/index.ts`
 
-Recebe notificacoes de pagamento do OxaPay e atualiza o status do deposito
+- Recebe `trackId` como parametro
+- Consulta API OxaPay (`POST https://api.oxapay.com/merchants/inquiry`)
+- Atualiza status do deposito no banco
+- Retorna status atualizado para o frontend
 
-### 4. Alteracoes no Banco de Dados
+### 3. Atualizar Rota no App.tsx
 
-Adicionar campos na tabela `deposits`:
-- `oxapay_track_id` - ID do pagamento no OxaPay
-- `oxapay_pay_link` - Link de pagamento gerado
+Adicionar rota `/deposit/status/:depositId`
 
-### 5. Alteracoes na Pagina de Depositos
+### 4. Atualizar Deposits.tsx
 
-- Ao confirmar deposito, chama a Edge Function para criar invoice
-- Redireciona usuario para pagina de pagamento do OxaPay
-- Status atualizado automaticamente via webhook
+Redirecionar para a pagina de status ao inves de diretamente para OxaPay
 
 ---
 
-## API OxaPay Utilizada
+## Detalhes da Interface
 
-**Criar Invoice:**
-```
-POST https://api.oxapay.com/merchants/request
-Body: {
-  merchant: "OXAPAY_MERCHANT_KEY",
-  amount: 100,
-  currency: "USD",
-  callbackUrl: "https://.../functions/v1/oxapay-webhook",
-  returnUrl: "https://app.../deposits",
-  orderId: "deposit_id",
-  description: "Deposito #deposit_id"
-}
-```
+### Estados de Status
 
-**Resposta:**
-```json
-{
-  "result": 100,
-  "trackId": "12345",
-  "payLink": "https://oxapay.com/pay/...",
-  "expiredAt": "2026-02-07T..."
-}
-```
+| Status OxaPay | Icone | Cor | Mensagem |
+|---------------|-------|-----|----------|
+| New | Clock | Amarelo | Aguardando pagamento |
+| Waiting | Loader | Azul | Pagamento detectado |
+| Confirming | RefreshCw | Ciano | Confirmando transacao |
+| Paid | CheckCircle | Verde | Pagamento confirmado! |
+| Expired | XCircle | Vermelho | Pagamento expirado |
+| Failed | AlertTriangle | Vermelho | Falha no pagamento |
 
-**Webhook (callback):**
-```json
-{
-  "trackId": "12345",
-  "status": "Paid",
-  "amount": "100",
-  "payCurrency": "USDT",
-  "network": "TRC20",
-  "txID": "abc123..."
-}
+### Layout da Pagina
+
+```text
++--------------------------------------------------+
+|                                                  |
+|    [Logo/Header - Acompanhe seu Pagamento]       |
+|                                                  |
+|    +------------------------------------------+  |
+|    |                                          |  |
+|    |   Deposito de $100.00                    |  |
+|    |                                          |  |
+|    |   [====Barra de Progresso Visual====]    |  |
+|    |                                          |  |
+|    |   Status: Aguardando pagamento           |  |
+|    |                                          |  |
+|    |   Tempo restante: 58:42                  |  |
+|    |                                          |  |
+|    |   [ Ir para Pagamento (OxaPay) ]         |  |
+|    |                                          |  |
+|    +------------------------------------------+  |
+|                                                  |
+|    Voltar para Depositos                         |
+|                                                  |
++--------------------------------------------------+
 ```
 
 ---
 
 ## Secao Tecnica
 
-### Migracao SQL
-
-```sql
-ALTER TABLE deposits 
-ADD COLUMN oxapay_track_id TEXT,
-ADD COLUMN oxapay_pay_link TEXT;
-```
-
-### Edge Function: oxapay-create-invoice
-
-Arquivo: `supabase/functions/oxapay-create-invoice/index.ts`
+### Edge Function: oxapay-check-status
 
 ```typescript
 import { corsHeaders } from "../_shared/cors.ts";
@@ -131,192 +122,119 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const OXAPAY_MERCHANT_KEY = Deno.env.get("OXAPAY_MERCHANT_KEY");
-  if (!OXAPAY_MERCHANT_KEY) {
+  try {
+    const OXAPAY_MERCHANT_KEY = Deno.env.get("OXAPAY_MERCHANT_KEY");
+    const { trackId, depositId } = await req.json();
+
+    console.log("Checking OxaPay status:", { trackId, depositId });
+
+    // Call OxaPay inquiry API
+    const response = await fetch("https://api.oxapay.com/merchants/inquiry", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        merchant: OXAPAY_MERCHANT_KEY,
+        trackId: trackId,
+      }),
+    });
+
+    const data = await response.json();
+    console.log("OxaPay inquiry response:", data);
+
+    if (data.result !== 100) {
+      return new Response(
+        JSON.stringify({ error: data.message || "Error checking status" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Return status info to frontend
     return new Response(
-      JSON.stringify({ error: "OXAPAY_MERCHANT_KEY not configured" }),
+      JSON.stringify({
+        status: data.status,
+        amount: data.amount,
+        payAmount: data.payAmount,
+        payCurrency: data.payCurrency,
+        network: data.network,
+        address: data.address,
+        txID: data.txID,
+        expiredAt: data.expiredAt,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (error) {
+    console.error("Error in oxapay-check-status:", error);
+    return new Response(
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
-
-  const { amount, depositId, returnUrl } = await req.json();
-  
-  const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-  const callbackUrl = `${SUPABASE_URL}/functions/v1/oxapay-webhook`;
-
-  const response = await fetch("https://api.oxapay.com/merchants/request", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      merchant: OXAPAY_MERCHANT_KEY,
-      amount: amount,
-      currency: "USD",
-      callbackUrl: callbackUrl,
-      returnUrl: returnUrl,
-      orderId: depositId,
-      description: `Deposito #${depositId}`,
-      lifeTime: 60,
-      feePaidByPayer: 1,
-    }),
-  });
-
-  const data = await response.json();
-
-  if (data.result !== 100) {
-    return new Response(
-      JSON.stringify({ error: data.message || "Erro ao criar invoice" }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
-  // Atualizar deposito com trackId e payLink
-  const supabase = createClient(
-    SUPABASE_URL,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
-
-  await supabase
-    .from("deposits")
-    .update({
-      oxapay_track_id: data.trackId,
-      oxapay_pay_link: data.payLink,
-    })
-    .eq("id", depositId);
-
-  return new Response(
-    JSON.stringify({
-      trackId: data.trackId,
-      payLink: data.payLink,
-      expiredAt: data.expiredAt,
-    }),
-    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
 });
 ```
 
-### Edge Function: oxapay-webhook
-
-Arquivo: `supabase/functions/oxapay-webhook/index.ts`
+### Pagina PaymentStatus.tsx (Resumo)
 
 ```typescript
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+const PaymentStatus = () => {
+  const { depositId } = useParams();
+  const [deposit, setDeposit] = useState(null);
+  const [status, setStatus] = useState("New");
+  const [timeLeft, setTimeLeft] = useState(3600); // 60 min
 
-Deno.serve(async (req) => {
-  const body = await req.json();
-  
-  console.log("OxaPay Webhook received:", body);
+  // Buscar deposito do banco
+  useEffect(() => {
+    fetchDeposit();
+  }, [depositId]);
 
-  const { trackId, status, orderId, amount, payCurrency, network, txID } = body;
+  // Polling de status a cada 10 segundos
+  useEffect(() => {
+    const interval = setInterval(checkStatus, 10000);
+    return () => clearInterval(interval);
+  }, [deposit?.oxapay_track_id]);
 
-  // Apenas processar quando o pagamento for confirmado
-  if (status !== "Paid") {
-    console.log(`Payment status: ${status}, skipping`);
-    return new Response("OK", { status: 200 });
-  }
+  // Countdown timer
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft(prev => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
-
-  // Buscar deposito pelo orderId (que e o deposit.id)
-  const { data: deposit, error: fetchError } = await supabase
-    .from("deposits")
-    .select("*, user_id")
-    .eq("id", orderId)
-    .single();
-
-  if (fetchError || !deposit) {
-    console.error("Deposit not found:", orderId);
-    return new Response("Deposit not found", { status: 404 });
-  }
-
-  // Verificar se ja foi processado
-  if (deposit.status === "approved") {
-    console.log("Deposit already processed");
-    return new Response("Already processed", { status: 200 });
-  }
-
-  // Atualizar deposito para aprovado
-  const { error: updateError } = await supabase
-    .from("deposits")
-    .update({
-      status: "approved",
-      processed_at: new Date().toISOString(),
-      admin_notes: `Pago via OxaPay - ${payCurrency} (${network}) - TxID: ${txID}`,
-    })
-    .eq("id", orderId);
-
-  if (updateError) {
-    console.error("Error updating deposit:", updateError);
-    return new Response("Error updating deposit", { status: 500 });
-  }
-
-  // Creditar saldo do usuario
-  const { error: balanceError } = await supabase.rpc("increment_balance", {
-    p_user_id: deposit.user_id,
-    p_amount: parseFloat(amount),
-  });
-
-  // OU atualizar diretamente:
-  await supabase
-    .from("profiles")
-    .update({ balance: supabase.sql`balance + ${parseFloat(amount)}` })
-    .eq("user_id", deposit.user_id);
-
-  console.log(`Deposit ${orderId} approved, balance credited`);
-
-  return new Response("OK", { status: 200 });
-});
-```
-
-### Alteracoes em Deposits.tsx
-
-```typescript
-const handleDeposit = async () => {
-  // ... validacoes existentes ...
-
-  setIsSubmitting(true);
-
-  // 1. Criar registro de deposito
-  const { data: depositData, error } = await supabase
-    .from("deposits")
-    .insert({
-      user_id: user!.id,
-      amount: numAmount,
-      status: "pending",
-      payment_method: "oxapay",
-    })
-    .select()
-    .single();
-
-  if (error || !depositData) {
-    toast({ title: "Erro", description: "Erro ao criar deposito", variant: "destructive" });
-    setIsSubmitting(false);
-    return;
-  }
-
-  // 2. Criar invoice no OxaPay
-  const { data: invoiceData, error: invoiceError } = await supabase.functions.invoke(
-    "oxapay-create-invoice",
-    {
-      body: {
-        amount: numAmount,
-        depositId: depositData.id,
-        returnUrl: window.location.origin + "/deposits",
-      },
+  const checkStatus = async () => {
+    if (!deposit?.oxapay_track_id) return;
+    
+    const { data } = await supabase.functions.invoke("oxapay-check-status", {
+      body: { trackId: deposit.oxapay_track_id, depositId }
+    });
+    
+    if (data?.status) {
+      setStatus(data.status);
+      
+      // Se pago, redirecionar
+      if (data.status === "Paid") {
+        setTimeout(() => navigate("/deposits"), 3000);
+      }
     }
-  );
+  };
 
-  if (invoiceError || !invoiceData?.payLink) {
-    toast({ title: "Erro", description: "Erro ao gerar link de pagamento", variant: "destructive" });
-    setIsSubmitting(false);
-    return;
-  }
-
-  // 3. Redirecionar para pagina de pagamento
-  window.location.href = invoiceData.payLink;
+  // Render visual progress bar and status info...
 };
+```
+
+### Rota no App.tsx
+
+```typescript
+<Route path="/deposit/status/:depositId" element={<PaymentStatus />} />
+```
+
+### Alteracao em Deposits.tsx
+
+```typescript
+// Ao inves de redirecionar direto para OxaPay:
+// window.location.href = invoiceData.payLink;
+
+// Redirecionar para pagina de status:
+navigate(`/deposit/status/${depositData.id}`);
 ```
 
 ---
@@ -325,29 +243,32 @@ const handleDeposit = async () => {
 
 | Arquivo | Tipo | Descricao |
 |---------|------|-----------|
-| supabase/functions/oxapay-create-invoice/index.ts | Criar | Cria invoice no OxaPay |
-| supabase/functions/oxapay-webhook/index.ts | Criar | Recebe callbacks de pagamento |
-| src/pages/Deposits.tsx | Modificar | Integrar com OxaPay |
-| Migracao SQL | Executar | Adicionar colunas oxapay_* |
+| src/pages/PaymentStatus.tsx | Criar | Pagina de acompanhamento de status |
+| supabase/functions/oxapay-check-status/index.ts | Criar | Edge Function para consultar status |
+| supabase/config.toml | Modificar | Adicionar config da nova funcao |
+| src/App.tsx | Modificar | Adicionar nova rota |
+| src/pages/Deposits.tsx | Modificar | Redirecionar para pagina de status |
+
+---
+
+## Recursos Visuais
+
+- Barra de progresso animada com 4 etapas
+- Icones animados (spin para Confirming)
+- Cores de status (amarelo > azul > ciano > verde)
+- Timer com contagem regressiva
+- Animacao de confete quando status = Paid
+- Skeleton loading enquanto carrega dados
 
 ---
 
 ## Resultado Esperado
 
-1. Usuario solicita deposito informando apenas o valor em USD
-2. Sistema cria invoice automatica no OxaPay
-3. Usuario e redirecionado para pagina de pagamento OxaPay
-4. Usuario escolhe criptomoeda e paga
-5. OxaPay envia webhook quando pagamento confirmado
-6. Sistema aprova deposito automaticamente e credita saldo
-7. Processo 100% automatizado, sem intervencao manual
-
----
-
-## Proximos Passos Apos Aprovacao
-
-1. Voce precisara fornecer sua chave de API do OxaPay (Merchant API Key)
-2. Criar as Edge Functions
-3. Executar migracao no banco de dados
-4. Atualizar a pagina de depositos
+1. Usuario clica em "Novo Deposito" e informa valor
+2. Sistema cria deposito e invoice no OxaPay
+3. Usuario e redirecionado para `/deposit/status/:id`
+4. Pagina mostra status em tempo real com polling
+5. Usuario clica "Ir para Pagamento" para abrir OxaPay
+6. Apos pagar, status atualiza automaticamente
+7. Quando Paid, mostra sucesso e redireciona para `/deposits`
 
