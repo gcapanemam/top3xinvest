@@ -75,10 +75,10 @@ const Deposits = () => {
       return;
     }
 
-    if (numAmount < 50) {
+    if (numAmount < 1) {
       toast({
         title: 'Erro',
-        description: 'Valor mínimo para depósito é $50.00',
+        description: 'Valor mínimo para depósito é $1.00',
         variant: 'destructive',
       });
       return;
@@ -265,11 +265,11 @@ const Deposits = () => {
                   placeholder="$ 0.00"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  min={50}
+                  min={1}
                   step={0.01}
                   className="bg-background border-border text-foreground placeholder:text-muted-foreground"
                 />
-                <p className="text-xs text-muted-foreground">Mínimo: $50.00</p>
+                <p className="text-xs text-muted-foreground">Mínimo: $1.00</p>
               </div>
             </div>
 
@@ -279,7 +279,7 @@ const Deposits = () => {
               </Button>
               <button
                 onClick={handleDeposit}
-                disabled={isSubmitting || !amount || parseFloat(amount) < 50}
+                disabled={isSubmitting || !amount || parseFloat(amount) < 1}
                 className="px-4 py-2 rounded-lg bg-gradient-to-r from-primary to-cyan-500 text-primary-foreground font-medium transition-all hover:shadow-lg hover:shadow-primary/25 disabled:opacity-50"
               >
                 {isSubmitting ? 'Processando...' : 'Continuar para Pagamento'}
