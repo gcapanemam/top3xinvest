@@ -283,8 +283,49 @@ const Dashboard = () => {
           Bem-vindo ao seu painel de investimentos
         </p>
       </div>
+      {/* Referral Link Card */}
+      <div className="rounded-xl bg-gradient-to-r from-teal-500/10 to-cyan-500/10 border border-teal-500/20 p-4 md:p-6 transition-all hover:border-teal-500/50 hover:scale-[1.01]">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex items-center gap-4 flex-1">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 shrink-0">
+              <Users className="h-6 w-6 text-white" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-white font-semibold text-sm md:text-base">Seu Link de Indicação</h3>
+              <p className="text-xs text-gray-400 truncate">
+                {referralLink || 'Carregando...'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 sm:shrink-0">
+            <button
+              onClick={copyToClipboard}
+              className="flex items-center justify-center gap-2 h-10 px-4 rounded-lg border border-teal-500/30 text-teal-400 text-sm font-medium transition-all hover:bg-teal-500/20"
+            >
+              {copied ? (
+                <>
+                  <Check className="h-4 w-4" />
+                  <span className="hidden sm:inline">Copiado!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="h-4 w-4" />
+                  <span className="hidden sm:inline">Copiar</span>
+                </>
+              )}
+            </button>
+            <button
+              onClick={shareLink}
+              className="flex items-center justify-center gap-2 h-10 px-4 rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 text-white text-sm font-medium transition-all hover:shadow-lg hover:shadow-teal-500/25"
+            >
+              <Share2 className="h-4 w-4" />
+              <span className="hidden sm:inline">Compartilhar</span>
+            </button>
+          </div>
+        </div>
+      </div>
 
-      {/* Stats Cards */}
+
       <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-4 md:p-6 transition-all hover:border-teal-500/50 hover:scale-[1.02] animate-fade-in-up">
           <div className="flex items-center justify-between mb-3 md:mb-4">
@@ -501,50 +542,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Referral Link Card */}
-      <div className="rounded-xl bg-gradient-to-r from-teal-500/10 to-cyan-500/10 border border-teal-500/20 p-4 md:p-6 transition-all hover:border-teal-500/50 hover:scale-[1.01]">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          <div className="flex items-center gap-4 flex-1">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 shrink-0">
-              <Users className="h-6 w-6 text-white" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="text-white font-semibold text-sm md:text-base">Seu Link de Indicação</h3>
-              <p className="text-xs text-gray-400 truncate">
-                {referralLink || 'Carregando...'}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 sm:shrink-0">
-            <button
-              onClick={copyToClipboard}
-              className="flex items-center justify-center gap-2 h-10 px-4 rounded-lg border border-teal-500/30 text-teal-400 text-sm font-medium transition-all hover:bg-teal-500/20"
-            >
-              {copied ? (
-                <>
-                  <Check className="h-4 w-4" />
-                  <span className="hidden sm:inline">Copiado!</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="h-4 w-4" />
-                  <span className="hidden sm:inline">Copiar</span>
-                </>
-              )}
-            </button>
-            <button
-              onClick={shareLink}
-              className="flex items-center justify-center gap-2 h-10 px-4 rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 text-white text-sm font-medium transition-all hover:shadow-lg hover:shadow-teal-500/25"
-            >
-              <Share2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Compartilhar</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
       <div className="grid gap-4 md:gap-6 grid-cols-1 lg:grid-cols-2">
-        {/* Quick Actions */}
         <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-4 md:p-6 transition-all hover:border-teal-500/50 hover:scale-[1.02]">
           <h2 className="text-base md:text-lg font-semibold text-white mb-2">Ações Rápidas</h2>
           <p className="text-xs md:text-sm text-gray-400 mb-3 md:mb-4">O que você deseja fazer hoje?</p>
