@@ -43,7 +43,8 @@ import {
   Mail,
   Phone,
   KeyRound,
-  Eye
+  Eye,
+  Clock
 } from 'lucide-react';
 import { createAuditLog } from '@/lib/auditLog';
 
@@ -54,6 +55,7 @@ interface UserWithStats {
   phone: string | null;
   balance: number;
   is_blocked: boolean;
+  is_active: boolean;
   created_at: string;
   total_invested: number;
   total_earnings: number;
@@ -94,6 +96,7 @@ const AdminUsers = () => {
   const { toast } = useToast();
   const [users, setUsers] = useState<UserWithStats[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'blocked'>('all');
   const [isLoadingData, setIsLoadingData] = useState(true);
 
   // Estados para dialog de editar usuário
@@ -195,6 +198,7 @@ const AdminUsers = () => {
           phone: profile.phone,
           balance: profile.balance,
           is_blocked: profile.is_blocked,
+          is_active: profile.is_active,
           created_at: profile.created_at,
           total_invested: totalInvested,
           total_earnings: totalEarnings,
@@ -556,13 +560,22 @@ const AdminUsers = () => {
     );
   };
 
-  const filteredUsers = users.filter(
-    (user) =>
+  const filteredUsers = users.filter((user) => {
+    const matchesSearch =
       user.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.user_id.includes(searchQuery)
-  );
+      user.user_id.includes(searchQuery);
+    
+    const matchesStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'active' && user.is_active && !user.is_blocked) ||
+      (statusFilter === 'inactive' && !user.is_active) ||
+      (statusFilter === 'blocked' && user.is_blocked);
+    
+    return matchesSearch && matchesStatus;
+  });
 
-  const activeUsers = users.filter((u) => !u.is_blocked).length;
+  const activeUsers = users.filter((u) => u.is_active && !u.is_blocked).length;
+  const inactiveUsers = users.filter((u) => !u.is_active).length;
   const blockedUsers = users.filter((u) => u.is_blocked).length;
   const totalInvested = users.reduce((acc, u) => acc + u.total_invested, 0);
   const adminCount = users.filter((u) => u.is_admin).length;
@@ -584,7 +597,7 @@ const AdminUsers = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-6">
         {/* Total Users */}
         <div className="bg-[#111820] rounded-xl p-4 md:p-5 border border-[#1e2a3a]">
           <div className="flex items-center gap-3 md:gap-4">
@@ -607,6 +620,19 @@ const AdminUsers = () => {
             <div>
               <p className="text-xs md:text-sm text-gray-500">Ativos</p>
               <p className="text-xl md:text-2xl font-bold text-white">{activeUsers}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Inactive Users */}
+        <div className="bg-[#111820] rounded-xl p-4 md:p-5 border border-[#1e2a3a]">
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-xl bg-amber-500/10">
+              <Clock className="h-5 w-5 md:h-6 md:w-6 text-amber-400" />
+            </div>
+            <div>
+              <p className="text-xs md:text-sm text-gray-500">Inativos</p>
+              <p className="text-xl md:text-2xl font-bold text-white">{inactiveUsers}</p>
             </div>
           </div>
         </div>
@@ -638,14 +664,14 @@ const AdminUsers = () => {
         </div>
 
         {/* Total Invested */}
-        <div className="bg-[#111820] rounded-xl p-4 md:p-5 border border-[#1e2a3a] col-span-2 lg:col-span-1">
+        <div className="bg-[#111820] rounded-xl p-4 md:p-5 border border-[#1e2a3a]">
           <div className="flex items-center gap-3 md:gap-4">
-            <div className="flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-xl bg-amber-500/10">
-              <DollarSign className="h-5 w-5 md:h-6 md:w-6 text-amber-400" />
+            <div className="flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-xl bg-cyan-500/10">
+              <DollarSign className="h-5 w-5 md:h-6 md:w-6 text-cyan-400" />
             </div>
             <div>
-              <p className="text-xs md:text-sm text-gray-500">Total Investido</p>
-              <p className="text-lg md:text-2xl font-bold text-white">{formatCurrency(totalInvested)}</p>
+              <p className="text-xs md:text-sm text-gray-500">Investido</p>
+              <p className="text-lg md:text-xl font-bold text-white">{formatCurrency(totalInvested)}</p>
             </div>
           </div>
         </div>
@@ -654,16 +680,54 @@ const AdminUsers = () => {
       {/* Users Table */}
       <div className="bg-[#111820] rounded-xl border border-[#1e2a3a] overflow-hidden">
         {/* Table Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border-b border-[#1e2a3a]">
-          <h2 className="text-lg font-semibold text-white">Lista de Usuários</h2>
-          <div className="relative w-full sm:w-72">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-            <Input
-              placeholder="Buscar por nome ou email..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-[#0a0f14] border-[#1e2a3a] text-white placeholder:text-gray-500 focus:border-teal-500/50 focus:ring-teal-500/20"
-            />
+        <div className="flex flex-col gap-4 p-4 border-b border-[#1e2a3a]">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <h2 className="text-lg font-semibold text-white">Lista de Usuários</h2>
+            <div className="relative w-full sm:w-72">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+              <Input
+                placeholder="Buscar por nome ou email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-[#0a0f14] border-[#1e2a3a] text-white placeholder:text-gray-500 focus:border-teal-500/50 focus:ring-teal-500/20"
+              />
+            </div>
+          </div>
+          
+          {/* Status Filter Buttons */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant={statusFilter === 'all' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setStatusFilter('all')}
+              className={statusFilter === 'all' ? '' : 'border-[#1e2a3a] text-gray-400 hover:text-white hover:bg-[#1e2a3a]'}
+            >
+              Todos ({users.length})
+            </Button>
+            <Button
+              variant={statusFilter === 'active' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setStatusFilter('active')}
+              className={statusFilter === 'active' ? 'bg-green-600 hover:bg-green-700' : 'border-[#1e2a3a] text-green-400 hover:text-green-300 hover:bg-green-500/10'}
+            >
+              Ativos ({activeUsers})
+            </Button>
+            <Button
+              variant={statusFilter === 'inactive' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setStatusFilter('inactive')}
+              className={statusFilter === 'inactive' ? 'bg-amber-600 hover:bg-amber-700' : 'border-[#1e2a3a] text-amber-400 hover:text-amber-300 hover:bg-amber-500/10'}
+            >
+              Inativos ({inactiveUsers})
+            </Button>
+            <Button
+              variant={statusFilter === 'blocked' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setStatusFilter('blocked')}
+              className={statusFilter === 'blocked' ? 'bg-red-600 hover:bg-red-700' : 'border-[#1e2a3a] text-red-400 hover:text-red-300 hover:bg-red-500/10'}
+            >
+              Bloqueados ({blockedUsers})
+            </Button>
           </div>
         </div>
 
@@ -730,9 +794,13 @@ const AdminUsers = () => {
                           <Badge className="bg-red-500/20 text-red-400 border-0 hover:bg-red-500/30">
                             Bloqueado
                           </Badge>
-                        ) : (
+                        ) : user.is_active ? (
                           <Badge className="bg-green-500/20 text-green-400 border-0 hover:bg-green-500/30">
                             Ativo
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-amber-500/20 text-amber-400 border-0 hover:bg-amber-500/30">
+                            Inativo
                           </Badge>
                         )}
                       </div>
