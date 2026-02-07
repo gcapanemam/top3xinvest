@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { TradingSimulation } from '@/components/investments/TradingSimulation';
 
 interface Investment {
   id: string;
@@ -280,18 +281,23 @@ const Investments = () => {
                   </div>
                 </div>
 
-                {/* Botão de Histórico de Trades para investimentos ativos */}
+                {/* Botão de Histórico de Trades e Animação de Trading para investimentos ativos */}
                 {isActive && investment.robot_id && (
-                  <div className="mt-4 pt-4 border-t border-[#1e2a3a]">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openOperationsDialog(investment)}
-                      className="border-green-500/50 text-green-400 hover:bg-green-500/10 hover:text-green-300"
-                    >
-                      <History className="h-4 w-4 mr-2" />
-                      Histórico de Trades
-                    </Button>
+                  <div className="mt-4 pt-4 border-t border-[#1e2a3a] space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openOperationsDialog(investment)}
+                        className="border-green-500/50 text-green-400 hover:bg-green-500/10 hover:text-green-300"
+                      >
+                        <History className="h-4 w-4 mr-2" />
+                        Histórico de Trades
+                      </Button>
+                    </div>
+                    
+                    {/* Animação de simulação de trading */}
+                    <TradingSimulation isActive={isActive} />
                   </div>
                 )}
               </div>
