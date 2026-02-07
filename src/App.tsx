@@ -13,6 +13,7 @@ import Dashboard from "./pages/Dashboard";
 import Robots from "./pages/Robots";
 import Investments from "./pages/Investments";
 import Deposits from "./pages/Deposits";
+import PaymentStatus from "./pages/PaymentStatus";
 import Withdrawals from "./pages/Withdrawals";
 import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
@@ -54,6 +55,7 @@ const App = () => (
               <Route path="/investments" element={<Investments />} />
               <Route path="/mlm" element={<MLMNetwork />} />
               <Route path="/deposits" element={<Deposits />} />
+              <Route path="/deposit/status/:depositId" element={<PaymentStatus />} />
               <Route path="/withdrawals" element={<Withdrawals />} />
               <Route path="/notifications" element={<Notifications />} />
 

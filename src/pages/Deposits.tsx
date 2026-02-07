@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -14,7 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Plus, ArrowDownCircle, Clock, CheckCircle, XCircle, Bitcoin, Wallet } from 'lucide-react';
+import { Plus, ArrowDownCircle, Clock, CheckCircle, XCircle, Bitcoin, Wallet, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -33,6 +34,7 @@ interface Deposit {
 const Deposits = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -131,13 +133,15 @@ const Deposits = () => {
         return;
       }
 
-      // 3. Redirect to OxaPay payment page
+      // 3. Redirect to payment status page
       toast({
-        title: 'Redirecionando...',
-        description: 'Você será redirecionado para a página de pagamento',
+        title: 'Depósito criado!',
+        description: 'Acompanhe o status do seu pagamento',
       });
 
-      window.location.href = invoiceData.payLink;
+      setIsDialogOpen(false);
+      setAmount('');
+      navigate(`/deposit/status/${depositData.id}`);
     } catch (error) {
       console.error('Error in handleDeposit:', error);
       toast({
@@ -322,13 +326,26 @@ const Deposits = () => {
                     </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  {getStatusBadge(deposit.status)}
-                  {deposit.admin_notes && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {deposit.admin_notes}
-                    </p>
+                <div className="flex items-center gap-3">
+                  {deposit.status === 'pending' && deposit.payment_method === 'oxapay' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate(`/deposit/status/${deposit.id}`)}
+                      className="gap-1"
+                    >
+                      <Eye className="h-3 w-3" />
+                      Ver Status
+                    </Button>
                   )}
+                  <div className="text-right">
+                    {getStatusBadge(deposit.status)}
+                    {deposit.admin_notes && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {deposit.admin_notes}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
