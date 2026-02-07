@@ -20,6 +20,7 @@ Deno.serve(async (req) => {
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     // Create client with user's token for auth validation
     const supabaseAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -66,6 +67,53 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Create service role client to validate deposit ownership
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // SECURITY: Validate deposit exists and belongs to the authenticated user
+    const { data: deposit, error: depositError } = await supabase
+      .from("deposits")
+      .select("id, user_id, amount, status")
+      .eq("id", depositId)
+      .single();
+
+    if (depositError || !deposit) {
+      console.error("Deposit not found:", depositId, depositError);
+      return new Response(
+        JSON.stringify({ error: "Depósito não encontrado" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // SECURITY: Check ownership (IDOR protection)
+    if (deposit.user_id !== user.id) {
+      console.error("IDOR attempt: User", user.id, "tried to access deposit", depositId, "owned by", deposit.user_id);
+      return new Response(
+        JSON.stringify({ error: "Acesso não autorizado a este depósito" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Check deposit status - only generate invoice for pending deposits
+    if (deposit.status !== "pending") {
+      console.error("Deposit not pending:", deposit.status);
+      return new Response(
+        JSON.stringify({ error: "Este depósito já foi processado" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate amount matches (with tolerance for floating point)
+    const requestAmount = parseFloat(String(amount));
+    const depositAmount = parseFloat(String(deposit.amount));
+    if (Math.abs(requestAmount - depositAmount) > 0.01) {
+      console.error("Amount mismatch:", requestAmount, "vs", depositAmount);
+      return new Response(
+        JSON.stringify({ error: "Valor do depósito não confere" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const callbackUrl = `${SUPABASE_URL}/functions/v1/oxapay-webhook`;
 
     console.log("OxaPay callbackUrl:", callbackUrl);
@@ -76,7 +124,7 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         merchant: OXAPAY_MERCHANT_KEY,
-        amount: amount,
+        amount: depositAmount,
         currency: "USD",
         callbackUrl: callbackUrl,
         returnUrl: returnUrl,
@@ -100,12 +148,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Update deposit with trackId and payLink using service role key
-    const supabase = createClient(
-      SUPABASE_URL,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
+    // Update deposit with trackId and payLink
     const { error: updateError } = await supabase
       .from("deposits")
       .update({
