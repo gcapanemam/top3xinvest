@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { 
   Wallet, 
   TrendingUp, 
@@ -9,7 +10,11 @@ import {
   ArrowDownRight,
   Plus,
   ArrowRight,
-  Sparkles
+  Sparkles,
+  Copy,
+  Check,
+  Share2,
+  Users
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
@@ -29,6 +34,7 @@ import {
 interface Profile {
   balance: number;
   full_name: string | null;
+  referral_code: string | null;
 }
 
 interface Cryptocurrency {
@@ -65,6 +71,7 @@ interface RobotInvestment {
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [cryptos, setCryptos] = useState<Cryptocurrency[]>([]);
   const [investments, setInvestments] = useState<Investment[]>([]);
@@ -72,7 +79,7 @@ const Dashboard = () => {
   const [totalProfit, setTotalProfit] = useState(0);
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
   const [robotDistribution, setRobotDistribution] = useState<RobotInvestment[]>([]);
-
+  const [copied, setCopied] = useState(false);
   useEffect(() => {
     if (user) {
       fetchData();
@@ -84,7 +91,7 @@ const Dashboard = () => {
     // Fetch profile
     const { data: profileData } = await supabase
       .from('profiles')
-      .select('balance, full_name')
+      .select('balance, full_name, referral_code')
       .eq('user_id', user!.id)
       .single();
 
@@ -225,6 +232,44 @@ const Dashboard = () => {
       minimumFractionDigits: 2,
       maximumFractionDigits: value < 1 ? 4 : 2,
     }).format(value);
+  };
+
+  const referralLink = profile?.referral_code
+    ? `${window.location.origin}/auth?ref=${profile.referral_code}`
+    : '';
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(referralLink);
+      setCopied(true);
+      toast({
+        title: 'Link copiado!',
+        description: 'Seu link de indicação foi copiado.',
+      });
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível copiar o link.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const shareLink = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'TOP 3X Invest - Convite',
+          text: 'Venha investir comigo! Use meu link de indicação:',
+          url: referralLink,
+        });
+      } catch (err) {
+        // User cancelled
+      }
+    } else {
+      copyToClipboard();
+    }
   };
 
   return (
@@ -453,6 +498,48 @@ const Dashboard = () => {
               <p>Nenhum investimento ainda</p>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Referral Link Card */}
+      <div className="rounded-xl bg-gradient-to-r from-teal-500/10 to-cyan-500/10 border border-teal-500/20 p-4 md:p-6 transition-all hover:border-teal-500/50 hover:scale-[1.01]">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex items-center gap-4 flex-1">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 shrink-0">
+              <Users className="h-6 w-6 text-white" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-white font-semibold text-sm md:text-base">Seu Link de Indicação</h3>
+              <p className="text-xs text-gray-400 truncate">
+                {referralLink || 'Carregando...'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 sm:shrink-0">
+            <button
+              onClick={copyToClipboard}
+              className="flex items-center justify-center gap-2 h-10 px-4 rounded-lg border border-teal-500/30 text-teal-400 text-sm font-medium transition-all hover:bg-teal-500/20"
+            >
+              {copied ? (
+                <>
+                  <Check className="h-4 w-4" />
+                  <span className="hidden sm:inline">Copiado!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="h-4 w-4" />
+                  <span className="hidden sm:inline">Copiar</span>
+                </>
+              )}
+            </button>
+            <button
+              onClick={shareLink}
+              className="flex items-center justify-center gap-2 h-10 px-4 rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 text-white text-sm font-medium transition-all hover:shadow-lg hover:shadow-teal-500/25"
+            >
+              <Share2 className="h-4 w-4" />
+              <span className="hidden sm:inline">Compartilhar</span>
+            </button>
+          </div>
         </div>
       </div>
 
