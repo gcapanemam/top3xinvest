@@ -129,6 +129,21 @@ Deno.serve(async (req) => {
       // Don't fail the webhook for this, balance is already credited
     }
 
+    // Distribute MLM commissions to the network
+    console.log("Distributing MLM commissions for deposit...");
+    const { error: commissionError } = await supabase.rpc("distribute_deposit_commission", {
+      p_deposit_id: orderId,
+      p_user_id: deposit.user_id,
+      p_deposit_amount: depositAmount,
+    });
+
+    if (commissionError) {
+      console.error("Error distributing commissions:", commissionError);
+      // Don't fail the webhook for this - the deposit is already credited
+    } else {
+      console.log("MLM commissions distributed successfully");
+    }
+
     console.log(`Deposit ${orderId} approved successfully, balance credited: $${depositAmount}`);
 
     return new Response("OK", { status: 200 });
