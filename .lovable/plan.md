@@ -1,168 +1,190 @@
 
 
-# Plano: Melhorar Animacao dos Floating Cards
+# Plano: Mostrar Nome e Email do Usuário na Página de Depósitos
 
 ## Visao Geral
 
-Redesenhar completamente a animacao dos cards de operacoes na hero section, inspirando-se no layout do BWIS onde os cards estao espalhados organicamente pela tela com animacoes de flutuacao em diferentes ritmos e direcoes.
+Atualizar a página de Aprovar Depósitos (AdminDeposits) para exibir o nome completo e email do usuário que fez cada depósito, em vez de mostrar apenas "Usuário".
 
 ---
 
-## Problemas Atuais
+## Problema Atual
 
-1. Cards empilhados verticalmente de forma rigida
-2. Animacao simples de flutuacao vertical igual para todos
-3. Cards aparecem/desaparecem abruptamente
-4. Falta de profundidade visual e dispersao organica
-5. Fundo com pouco impacto visual
+A query de busca de depósitos não está fazendo JOIN com a tabela `profiles` para obter as informações do usuário:
 
----
-
-## Novo Layout Visual
-
-```text
-                    +------------+
-                    |   XRP      |
-                    |   1.10%    |
-                    |   BUY      |
-    +------------+  +------------+
-    |   BNB      |
-    |   0.43%    |       +------------+
-    |   SELL     |       |   ETH      |
-    +------------+       |   0.94%    |
-                         |   BUY      |
-         +------------+  +------------+
-         |   BTC      |
-         |   0.59%    |
-         |   SELL     |        +------------+
-         +------------+        |   BNB      |
-                               |   1.43%    |
-                               |   SELL     |
-                               +------------+
+```typescript
+const { data } = await supabase
+  .from('deposits')
+  .select(`
+    *,
+    cryptocurrency:cryptocurrencies(symbol, name)
+  `)
 ```
 
-Cards espalhados em posicoes aleatorias com:
-- Diferentes delays de animacao
-- Diferentes duracao de animacao
-- Flutuacao vertical suave
-- Efeito de entrada com fade-in
-- Rotacao ciclica suave das operacoes
+Por isso, `deposit.profile` está sempre `undefined`, mostrando apenas "Usuário".
 
 ---
 
-## Melhorias Propostas
+## Solucao
 
-### 1. Layout Disperso
-- Cards posicionados em coordenadas especificas (nao empilhados)
-- Distribuicao organica pelo espaco disponivel
-- Diferentes tamanhos para criar profundidade
+### 1. Atualizar a Interface Deposit
 
-### 2. Animacoes Aprimoradas
-- Flutuacao vertical com diferentes amplitudes (8px a 20px)
-- Duracao variada (3s a 5s) para cada card
-- Delays escalonados para movimento nao sincronizado
-- Transicao suave de opacidade ao trocar operacoes
+Adicionar campo `email` na interface do profile:
 
-### 3. Efeitos Visuais
-- Brilho sutil ao redor dos cards (glow effect)
-- Sombras coloridas baseadas no tipo (verde/vermelho)
-- Fundo com gradiente mais pronunciado
+```typescript
+interface Deposit {
+  // ... campos existentes
+  profile?: { 
+    full_name: string | null;
+    // Observacao: email nao esta em profiles, esta em auth.users
+  } | null;
+}
+```
 
-### 4. Indicador de Direcao
-- Seta para cima (verde) para BUY
-- Seta para baixo (vermelho) para SELL
-- Animacao de pulse na seta
+**Nota importante**: O email do usuario esta na tabela `auth.users` (gerenciada pelo Supabase Auth) e nao na tabela `profiles`. Para exibir o email, temos duas opcoes:
+
+- **Opcao A**: Adicionar coluna `email` na tabela `profiles` (sincronizada via trigger)
+- **Opcao B**: Buscar o email via Edge Function usando service role
+
+### 2. Atualizar a Query fetchDeposits
+
+Adicionar o JOIN com a tabela profiles:
+
+```typescript
+const { data } = await supabase
+  .from('deposits')
+  .select(`
+    *,
+    cryptocurrency:cryptocurrencies(symbol, name),
+    profile:profiles!deposits_user_id_fkey(full_name)
+  `)
+  .order('created_at', { ascending: false });
+```
+
+### 3. Atualizar o Layout dos Cards
+
+**Antes:**
+```text
++----------------------------------------------+
+| [Icon]  Usuário                    R$ 100,00 |
+|         02/02/26 às 11:47              [PIX] |
++----------------------------------------------+
+```
+
+**Depois:**
+```text
++----------------------------------------------+
+| [Icon]  João da Silva              R$ 100,00 |
+|         joao@email.com                 [PIX] |
+|         02/02/26 às 11:47                    |
++----------------------------------------------+
+```
+
+---
+
+## Abordagem Recomendada para Email
+
+Como o email não está na tabela `profiles`, a solução mais simples é:
+
+1. Adicionar coluna `email` na tabela `profiles`
+2. Criar trigger que sincroniza automaticamente o email do `auth.users` para `profiles`
+
+Isso permitirá buscar nome e email em uma única query.
 
 ---
 
 ## Secao Tecnica
 
-### Arquivo: src/components/landing/FloatingCards.tsx
+### Arquivos a Modificar
 
-**Alteracoes principais:**
+| Arquivo | Alteracao |
+|---------|-----------|
+| src/pages/admin/AdminDeposits.tsx | Atualizar query e layout dos cards |
 
-1. **Novo sistema de posicionamento:**
+### Migration SQL (adicionar email em profiles)
+
+```sql
+-- Adicionar coluna email na tabela profiles
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email text;
+
+-- Atualizar emails existentes
+UPDATE public.profiles p
+SET email = u.email
+FROM auth.users u
+WHERE p.user_id = u.id;
+
+-- Trigger para manter sincronizado
+CREATE OR REPLACE FUNCTION public.sync_profile_email()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE public.profiles
+  SET email = NEW.email
+  WHERE user_id = NEW.id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER on_auth_user_email_update
+  AFTER UPDATE OF email ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.sync_profile_email();
+```
+
+### Alteracoes no Componente
+
+1. **Interface Deposit atualizada:**
 ```typescript
-const cardPositions = [
-  { x: "5%", y: "10%", scale: 0.9, delay: 0 },
-  { x: "60%", y: "5%", scale: 1, delay: 0.5 },
-  { x: "20%", y: "35%", scale: 0.95, delay: 1 },
-  { x: "70%", y: "40%", scale: 1.05, delay: 1.5 },
-  { x: "10%", y: "65%", scale: 0.85, delay: 2 },
-  { x: "55%", y: "70%", scale: 1, delay: 0.8 },
-];
-```
-
-2. **Animacao individual por card:**
-- Cada card tera sua propria duracao e amplitude
-- Uso de CSS custom properties para controle dinamico
-
-3. **Transicao suave de conteudo:**
-- Fade out/fade in ao trocar a operacao mostrada
-- Efeito de entrada escalonado
-
-### Arquivo: src/index.css
-
-**Novas animacoes:**
-
-```css
-@keyframes float-gentle {
-  0%, 100% { transform: translateY(0) translateX(0); }
-  25% { transform: translateY(-8px) translateX(2px); }
-  50% { transform: translateY(-12px) translateX(-2px); }
-  75% { transform: translateY(-6px) translateX(1px); }
-}
-
-@keyframes float-medium {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-15px); }
-}
-
-@keyframes float-strong {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-20px); }
-}
-
-@keyframes fade-swap {
-  0% { opacity: 1; }
-  45% { opacity: 0; }
-  55% { opacity: 0; }
-  100% { opacity: 1; }
-}
-
-@keyframes pulse-arrow {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.7; transform: scale(1.2); }
+interface Deposit {
+  // ... campos existentes
+  profile?: { 
+    full_name: string | null;
+    email: string | null;
+  } | null;
 }
 ```
 
-### Design do Card Aprimorado
+2. **Query atualizada:**
+```typescript
+const { data } = await supabase
+  .from('deposits')
+  .select(`
+    *,
+    cryptocurrency:cryptocurrencies(symbol, name),
+    profile:profiles(full_name, email)
+  `)
+  .order('created_at', { ascending: false });
+```
 
-| Elemento | Estilo |
-|----------|--------|
-| Container | Glassmorphism com borda sutil |
-| Icone cripto | Circulo colorido com sigla |
-| Percentual | Fonte maior, cor vibrante |
-| Badge BUY/SELL | Fundo semi-transparente |
-| Seta indicadora | Animada com pulse |
-| Sombra | Colorida (verde/vermelho) |
+3. **Layout do card atualizado:**
+```tsx
+<div>
+  <p className="font-medium text-white">
+    {deposit.profile?.full_name || 'Usuário'}
+  </p>
+  {deposit.profile?.email && (
+    <p className="text-sm text-cyan-400">
+      {deposit.profile.email}
+    </p>
+  )}
+  <p className="text-sm text-gray-400">
+    {format(new Date(deposit.created_at), "dd/MM/yy 'às' HH:mm", { locale: ptBR })}
+  </p>
+</div>
+```
 
 ---
 
-## Arquivos a Modificar
+## Aplicar Mesma Logica em AdminWithdrawals
 
-| Arquivo | Tipo de Alteracao |
-|---------|-------------------|
-| src/components/landing/FloatingCards.tsx | Reescrever completamente |
-| src/index.css | Adicionar novas keyframes de animacao |
+A página de saques (`AdminWithdrawals.tsx`) também exibe "Usuário" e precisa da mesma correção para mostrar nome e email.
 
 ---
 
-## Resultado Esperado
+## Resumo
 
-- Cards distribuidos organicamente pelo espaco
-- Animacoes fluidas e nao sincronizadas
-- Visual mais dinamico e profissional
-- Melhor representacao de "operacoes em tempo real"
-- Alinhamento com a estetica do BWIS
+1. Criar migration para adicionar coluna `email` em `profiles`
+2. Criar trigger para sincronizar email do `auth.users`
+3. Atualizar query em `AdminDeposits.tsx` para incluir JOIN com profiles
+4. Atualizar layout dos cards para mostrar nome e email
+5. Aplicar mesmas alteracoes em `AdminWithdrawals.tsx`
 
