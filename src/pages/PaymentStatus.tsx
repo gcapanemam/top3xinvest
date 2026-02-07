@@ -17,7 +17,8 @@ import {
   ExternalLink,
   ArrowLeft,
   Copy,
-  Wallet
+  Wallet,
+  RotateCcw
 } from 'lucide-react';
 
 interface Deposit {
@@ -107,6 +108,7 @@ const PaymentStatus = () => {
   const [timeLeft, setTimeLeft] = useState<number>(3600); // 60 minutes
   const [isLoading, setIsLoading] = useState(true);
   const [isChecking, setIsChecking] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const [copied, setCopied] = useState(false);
 
   // Fetch deposit from database
@@ -146,6 +148,80 @@ const PaymentStatus = () => {
     setIsLoading(false);
   }, [depositId, user, navigate, toast]);
 
+  // Regenerate payment link
+  const regeneratePaymentLink = useCallback(async () => {
+    if (!deposit || !user) return;
+
+    setIsRegenerating(true);
+
+    try {
+      // Validate session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) {
+        toast({
+          title: 'Sessão expirada',
+          description: 'Faça login novamente para continuar',
+          variant: 'destructive',
+        });
+        navigate('/auth');
+        return;
+      }
+
+      const { data: invoiceData, error: invoiceError } = await supabase.functions.invoke(
+        'oxapay-create-invoice',
+        {
+          body: {
+            amount: deposit.amount,
+            depositId: deposit.id,
+            returnUrl: window.location.origin + '/deposits',
+          },
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
+
+      // Handle 401
+      if (invoiceError?.message?.includes('401') || invoiceData?.error?.includes('Sessão expirada')) {
+        toast({
+          title: 'Sessão expirada',
+          description: 'Faça login novamente para continuar',
+          variant: 'destructive',
+        });
+        navigate('/auth');
+        return;
+      }
+
+      if (invoiceError || !invoiceData?.payLink) {
+        const errorMessage = invoiceData?.error || invoiceError?.message || 'Erro ao gerar link de pagamento';
+        toast({
+          title: 'Erro',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      toast({
+        title: 'Link gerado!',
+        description: 'O link de pagamento foi gerado com sucesso',
+      });
+
+      // Refetch deposit to get updated pay link
+      await fetchDeposit();
+    } catch (error) {
+      console.error('Error regenerating payment link:', error);
+      toast({
+        title: 'Erro',
+        description: 'Erro ao gerar link de pagamento',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsRegenerating(false);
+    }
+  }, [deposit, user, fetchDeposit, navigate, toast]);
+
   // Check status from OxaPay
   const checkStatus = useCallback(async () => {
     if (!deposit?.oxapay_track_id || currentStatus === 'Paid' || currentStatus === 'Expired') {
@@ -155,12 +231,40 @@ const PaymentStatus = () => {
     setIsChecking(true);
 
     try {
+      // Validate session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) {
+        toast({
+          title: 'Sessão expirada',
+          description: 'Faça login novamente para continuar',
+          variant: 'destructive',
+        });
+        navigate('/auth');
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke('oxapay-check-status', {
         body: { 
           trackId: deposit.oxapay_track_id, 
           depositId: deposit.id 
         },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
       });
+
+      // Handle 401
+      if (error?.message?.includes('401') || data?.error?.includes('Sessão expirada')) {
+        console.error('Session expired during status check');
+        toast({
+          title: 'Sessão expirada',
+          description: 'Faça login novamente para continuar',
+          variant: 'destructive',
+        });
+        navigate('/auth');
+        return;
+      }
 
       if (error) {
         console.error('Error checking status:', error);
@@ -283,6 +387,9 @@ const PaymentStatus = () => {
   const StatusIcon = statusConfig.icon;
   const progressValue = (statusConfig.step / 4) * 100;
 
+  // Check if payment link is missing for pending deposit
+  const needsPaymentLinkRegeneration = deposit?.status === 'pending' && !deposit?.oxapay_pay_link;
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -324,27 +431,59 @@ const PaymentStatus = () => {
           </CardHeader>
 
           <CardContent className="space-y-6">
-            {/* Status Icon and Message */}
-            <div className={`flex flex-col items-center justify-center p-6 rounded-xl ${statusConfig.bgColor}`}>
-              <div className={`p-4 rounded-full ${statusConfig.bgColor} mb-3`}>
-                <StatusIcon 
-                  className={`h-12 w-12 ${statusConfig.color} ${
-                    currentStatus === 'Confirming' || currentStatus === 'Waiting' ? 'animate-spin' : ''
-                  }`} 
-                />
-              </div>
-              <p className={`text-lg font-semibold ${statusConfig.color}`}>
-                {statusConfig.message}
-              </p>
-              {isChecking && currentStatus !== 'Paid' && (
-                <p className="text-sm text-muted-foreground mt-1">
-                  Verificando status...
+            {/* Regenerate Payment Link Button - shown when link is missing */}
+            {needsPaymentLinkRegeneration && (
+              <div className="p-4 rounded-xl bg-yellow-500/20 border border-yellow-500/30 space-y-3">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-yellow-400" />
+                  <p className="text-yellow-400 font-medium">Link de pagamento não gerado</p>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Houve um erro ao gerar o link de pagamento. Clique abaixo para tentar novamente.
                 </p>
-              )}
-            </div>
+                <Button 
+                  onClick={regeneratePaymentLink}
+                  disabled={isRegenerating}
+                  className="w-full"
+                >
+                  {isRegenerating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Gerando...
+                    </>
+                  ) : (
+                    <>
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      Gerar Link de Pagamento
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+
+            {/* Status Icon and Message */}
+            {!needsPaymentLinkRegeneration && (
+              <div className={`flex flex-col items-center justify-center p-6 rounded-xl ${statusConfig.bgColor}`}>
+                <div className={`p-4 rounded-full ${statusConfig.bgColor} mb-3`}>
+                  <StatusIcon 
+                    className={`h-12 w-12 ${statusConfig.color} ${
+                      currentStatus === 'Confirming' || currentStatus === 'Waiting' ? 'animate-spin' : ''
+                    }`} 
+                  />
+                </div>
+                <p className={`text-lg font-semibold ${statusConfig.color}`}>
+                  {statusConfig.message}
+                </p>
+                {isChecking && currentStatus !== 'Paid' && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Verificando status...
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Progress Steps */}
-            {currentStatus !== 'Expired' && currentStatus !== 'Failed' && (
+            {currentStatus !== 'Expired' && currentStatus !== 'Failed' && !needsPaymentLinkRegeneration && (
               <div className="space-y-3">
                 <Progress value={progressValue} className="h-2" />
                 <div className="flex justify-between text-xs text-muted-foreground">
@@ -361,7 +500,7 @@ const PaymentStatus = () => {
             )}
 
             {/* Timer */}
-            {currentStatus !== 'Paid' && currentStatus !== 'Expired' && (
+            {currentStatus !== 'Paid' && currentStatus !== 'Expired' && !needsPaymentLinkRegeneration && (
               <div className="text-center p-4 rounded-lg bg-muted/30">
                 <p className="text-sm text-muted-foreground mb-1">Tempo restante</p>
                 <p className={`text-3xl font-mono font-bold ${
@@ -440,7 +579,7 @@ const PaymentStatus = () => {
             )}
 
             {/* Manual Refresh */}
-            {currentStatus !== 'Paid' && currentStatus !== 'Expired' && (
+            {currentStatus !== 'Paid' && currentStatus !== 'Expired' && deposit?.oxapay_track_id && (
               <Button 
                 variant="ghost" 
                 className="w-full text-muted-foreground"

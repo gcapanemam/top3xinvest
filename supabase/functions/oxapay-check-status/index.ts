@@ -20,6 +20,7 @@ Deno.serve(async (req) => {
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     // Create client with user's token for auth validation
     const supabaseAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -62,6 +63,52 @@ Deno.serve(async (req) => {
           status: 400, 
           headers: { ...corsHeaders, "Content-Type": "application/json" } 
         }
+      );
+    }
+
+    if (!depositId) {
+      return new Response(
+        JSON.stringify({ error: "depositId is required" }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+
+    // Create service role client to validate deposit ownership
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // SECURITY: Validate deposit exists and belongs to the authenticated user
+    const { data: deposit, error: depositError } = await supabase
+      .from("deposits")
+      .select("id, user_id, oxapay_track_id")
+      .eq("id", depositId)
+      .single();
+
+    if (depositError || !deposit) {
+      console.error("Deposit not found:", depositId, depositError);
+      return new Response(
+        JSON.stringify({ error: "Depósito não encontrado" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // SECURITY: Check ownership (IDOR protection)
+    if (deposit.user_id !== user.id) {
+      console.error("IDOR attempt: User", user.id, "tried to access deposit", depositId, "owned by", deposit.user_id);
+      return new Response(
+        JSON.stringify({ error: "Acesso não autorizado a este depósito" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // SECURITY: Validate trackId matches what we have on record
+    if (deposit.oxapay_track_id && deposit.oxapay_track_id !== trackId) {
+      console.error("TrackId mismatch: provided", trackId, "vs stored", deposit.oxapay_track_id);
+      return new Response(
+        JSON.stringify({ error: "TrackId inválido para este depósito" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 

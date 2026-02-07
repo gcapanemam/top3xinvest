@@ -87,7 +87,21 @@ const Deposits = () => {
     setIsSubmitting(true);
 
     try {
-      // 1. Create deposit record
+      // 1. Validate session before proceeding
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) {
+        toast({
+          title: 'Sessão expirada',
+          description: 'Faça login novamente para continuar',
+          variant: 'destructive',
+        });
+        setIsSubmitting(false);
+        navigate('/auth');
+        return;
+      }
+
+      // 2. Create deposit record
       const { data: depositData, error: depositError } = await supabase
         .from('deposits')
         .insert({
@@ -110,7 +124,7 @@ const Deposits = () => {
         return;
       }
 
-      // 2. Create invoice on OxaPay
+      // 3. Create invoice on OxaPay with explicit Authorization header
       const { data: invoiceData, error: invoiceError } = await supabase.functions.invoke(
         'oxapay-create-invoice',
         {
@@ -119,21 +133,40 @@ const Deposits = () => {
             depositId: depositData.id,
             returnUrl: window.location.origin + '/deposits',
           },
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
         }
       );
 
-      if (invoiceError || !invoiceData?.payLink) {
-        console.error('Error creating OxaPay invoice:', invoiceError, invoiceData);
+      // Handle 401 specifically
+      if (invoiceError?.message?.includes('401') || invoiceData?.error?.includes('Sessão expirada')) {
         toast({
-          title: 'Erro',
-          description: invoiceData?.error || 'Erro ao gerar link de pagamento',
+          title: 'Sessão expirada',
+          description: 'Faça login novamente para continuar',
           variant: 'destructive',
         });
+        setIsSubmitting(false);
+        navigate('/auth');
+        return;
+      }
+
+      if (invoiceError || !invoiceData?.payLink) {
+        console.error('Error creating OxaPay invoice:', invoiceError, invoiceData);
+        // Show specific error message from backend if available
+        const errorMessage = invoiceData?.error || invoiceError?.message || 'Erro ao gerar link de pagamento';
+        toast({
+          title: 'Erro',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+        // Still navigate to status page so user can retry
+        navigate(`/deposit/status/${depositData.id}`);
         setIsSubmitting(false);
         return;
       }
 
-      // 3. Redirect to payment status page
+      // 4. Redirect to payment status page
       toast({
         title: 'Depósito criado!',
         description: 'Acompanhe o status do seu pagamento',

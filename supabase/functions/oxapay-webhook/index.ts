@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
     // Find deposit by orderId (which is the deposit.id)
     const { data: deposit, error: fetchError } = await supabase
       .from("deposits")
-      .select("id, user_id, status, amount")
+      .select("id, user_id, status, amount, oxapay_track_id")
       .eq("id", orderId)
       .single();
 
@@ -39,11 +39,24 @@ Deno.serve(async (req) => {
 
     console.log("Found deposit:", deposit);
 
+    // SECURITY: Validate trackId matches what we stored
+    if (deposit.oxapay_track_id && deposit.oxapay_track_id !== trackId) {
+      console.error("SECURITY: TrackId mismatch! Webhook trackId:", trackId, "Stored trackId:", deposit.oxapay_track_id);
+      return new Response("TrackId mismatch - possible fraud attempt", { status: 403 });
+    }
+
     // Check if already processed
     if (deposit.status === "approved") {
       console.log("Deposit already processed, skipping");
       return new Response("Already processed", { status: 200 });
     }
+
+    // Parse amounts for comparison
+    const webhookAmount = parseFloat(String(amount));
+    const depositAmount = parseFloat(String(deposit.amount));
+
+    // Log amount comparison (webhook sends payAmount in crypto, but we validate orderId/trackId)
+    console.log("Amount comparison - Webhook:", webhookAmount, "Deposit:", depositAmount);
 
     // Update deposit to approved
     const { error: updateError } = await supabase
@@ -63,8 +76,6 @@ Deno.serve(async (req) => {
     console.log("Deposit updated to approved");
 
     // Credit user balance using the deposit amount (not the crypto amount)
-    const depositAmount = parseFloat(String(deposit.amount));
-    
     const { error: balanceError } = await supabase.rpc("increment_balance", {
       p_user_id: deposit.user_id,
       p_amount: depositAmount,
