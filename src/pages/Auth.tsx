@@ -109,9 +109,23 @@ const Auth = () => {
 
       if (error) {
         let message = 'Erro ao criar conta';
+        
         if (error.message.includes('User already registered')) {
           message = 'Este email já está cadastrado';
+        } else if (error.message.includes('rate limit')) {
+          message = 'Muitas tentativas. Aguarde alguns minutos e tente novamente';
+        } else if (error.message.includes('Signup disabled')) {
+          message = 'Cadastros estão temporariamente desativados';
+        } else if (error.message.includes('invalid email')) {
+          message = 'Formato de email inválido';
+        } else if (error.message.includes('Password')) {
+          message = 'Senha inválida. Use pelo menos 6 caracteres';
+        } else if (error.message.includes('network') || error.message.includes('fetch')) {
+          message = 'Falha de conexão. Verifique sua internet e tente novamente';
         }
+        
+        console.error('Signup error:', error.message);
+        
         toast({
           title: 'Erro',
           description: message,
