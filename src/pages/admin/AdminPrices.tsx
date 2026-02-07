@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { TrendingUp, TrendingDown, Save, RefreshCw } from 'lucide-react';
+import { TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
 import { createAuditLog } from '@/lib/auditLog';
 
 interface Cryptocurrency {
@@ -21,9 +20,9 @@ const AdminPrices = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [cryptos, setCryptos] = useState<Cryptocurrency[]>([]);
-  const [editedPrices, setEditedPrices] = useState<Record<string, { price: string; change: string }>>({});
-  const [isSaving, setIsSaving] = useState(false);
   const [isFetchingReal, setIsFetchingReal] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const hasFetchedRef = useRef(false);
 
   useEffect(() => {
     if (!isLoading && !isAdmin) {
@@ -37,6 +36,14 @@ const AdminPrices = () => {
     }
   }, [isAdmin]);
 
+  // Busca automática de preços reais ao carregar os cryptos
+  useEffect(() => {
+    if (isAdmin && cryptos.length > 0 && !hasFetchedRef.current) {
+      hasFetchedRef.current = true;
+      fetchAndSaveRealPrices();
+    }
+  }, [isAdmin, cryptos.length]);
+
   const fetchCryptos = async () => {
     const { data } = await supabase
       .from('cryptocurrencies')
@@ -45,28 +52,12 @@ const AdminPrices = () => {
 
     if (data) {
       setCryptos(data);
-      const prices: Record<string, { price: string; change: string }> = {};
-      data.forEach((crypto) => {
-        prices[crypto.id] = {
-          price: crypto.current_price.toString(),
-          change: crypto.price_change_24h.toString(),
-        };
-      });
-      setEditedPrices(prices);
     }
   };
 
-  const handlePriceChange = (id: string, field: 'price' | 'change', value: string) => {
-    setEditedPrices((prev) => ({
-      ...prev,
-      [id]: {
-        ...prev[id],
-        [field]: value,
-      },
-    }));
-  };
-
-  const fetchRealPrices = async () => {
+  const fetchAndSaveRealPrices = async () => {
+    if (cryptos.length === 0) return;
+    
     setIsFetchingReal(true);
 
     try {
@@ -78,23 +69,51 @@ const AdminPrices = () => {
 
       if (error) throw error;
 
-      // Update edited prices with real data
-      setEditedPrices((prev) => {
-        const updated = { ...prev };
-        for (const crypto of cryptos) {
-          if (data[crypto.symbol]) {
-            updated[crypto.id] = {
-              price: data[crypto.symbol].price.toString(),
-              change: data[crypto.symbol].change.toFixed(2),
-            };
+      // Salvar automaticamente no banco
+      for (const crypto of cryptos) {
+        if (data[crypto.symbol]) {
+          const newPrice = data[crypto.symbol].price;
+          const newChange = data[crypto.symbol].change;
+
+          // Só atualiza se houver mudança
+          if (newPrice !== crypto.current_price || newChange !== crypto.price_change_24h) {
+            await supabase
+              .from('cryptocurrencies')
+              .update({
+                current_price: newPrice,
+                price_change_24h: newChange,
+              })
+              .eq('id', crypto.id);
+
+            // Registrar histórico de preço
+            await supabase.from('crypto_price_history').insert({
+              cryptocurrency_id: crypto.id,
+              price: newPrice,
+            });
+
+            // Criar log de auditoria
+            await createAuditLog({
+              action: 'crypto_price_updated',
+              entityType: 'cryptocurrency',
+              entityId: crypto.id,
+              details: {
+                symbol: crypto.symbol,
+                previous_price: crypto.current_price,
+                new_price: newPrice,
+                previous_change: crypto.price_change_24h,
+                new_change: newChange,
+              },
+            });
           }
         }
-        return updated;
-      });
+      }
+
+      setLastUpdated(new Date());
+      await fetchCryptos(); // Recarregar dados do banco
 
       toast({
-        title: 'Sucesso',
-        description: 'Preços reais carregados da CoinGecko!',
+        title: 'Cotações Atualizadas',
+        description: 'Preços sincronizados com o mercado!',
       });
     } catch (error) {
       console.error('Error fetching real prices:', error);
@@ -108,60 +127,9 @@ const AdminPrices = () => {
     }
   };
 
-  const saveAllPrices = async () => {
-    setIsSaving(true);
-
-    for (const crypto of cryptos) {
-      const edited = editedPrices[crypto.id];
-      if (!edited) continue;
-
-      const newPrice = parseFloat(edited.price);
-      const newChange = parseFloat(edited.change);
-
-      if (isNaN(newPrice) || isNaN(newChange)) continue;
-
-      // Only update if changed
-      if (
-        newPrice !== crypto.current_price ||
-        newChange !== crypto.price_change_24h
-      ) {
-        await supabase
-          .from('cryptocurrencies')
-          .update({
-            current_price: newPrice,
-            price_change_24h: newChange,
-          })
-          .eq('id', crypto.id);
-
-        // Record price history
-        await supabase.from('crypto_price_history').insert({
-          cryptocurrency_id: crypto.id,
-          price: newPrice,
-        });
-
-        // Create audit log
-        await createAuditLog({
-          action: 'crypto_price_updated',
-          entityType: 'cryptocurrency',
-          entityId: crypto.id,
-          details: {
-            symbol: crypto.symbol,
-            previous_price: crypto.current_price,
-            new_price: newPrice,
-            previous_change: crypto.price_change_24h,
-            new_change: newChange,
-          },
-        });
-      }
-    }
-
-    toast({
-      title: 'Sucesso',
-      description: 'Cotações atualizadas!',
-    });
-
-    setIsSaving(false);
-    fetchCryptos();
+  const handleManualRefresh = () => {
+    hasFetchedRef.current = false;
+    fetchAndSaveRealPrices();
   };
 
   const formatCurrency = (value: number) => {
@@ -171,6 +139,17 @@ const AdminPrices = () => {
       minimumFractionDigits: 2,
       maximumFractionDigits: value < 1 ? 6 : 2,
     }).format(value);
+  };
+
+  const formatDateTime = (date: Date) => {
+    return new Intl.DateTimeFormat('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    }).format(date);
   };
 
   if (isLoading || !isAdmin) {
@@ -185,107 +164,106 @@ const AdminPrices = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Gerenciar Cotações</h1>
+          <h1 className="text-2xl font-bold text-white">Cotações em Tempo Real</h1>
           <p className="text-gray-400">
-            Defina os preços das criptomoedas exibidos na plataforma
+            Preços atualizados automaticamente do mercado (CoinGecko)
           </p>
+          {lastUpdated && (
+            <p className="text-sm text-cyan-400 mt-1">
+              Última atualização: {formatDateTime(lastUpdated)}
+            </p>
+          )}
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={fetchRealPrices}
-            disabled={isFetchingReal || cryptos.length === 0}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1e2a3a] text-cyan-400 font-medium transition-all hover:bg-[#2a3a4a] disabled:opacity-50"
-          >
-            <RefreshCw className={`h-4 w-4 ${isFetchingReal ? 'animate-spin' : ''}`} />
-            {isFetchingReal ? 'Buscando...' : 'Buscar Preços Reais'}
-          </button>
-          <button
-            onClick={saveAllPrices}
-            disabled={isSaving}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium transition-all hover:shadow-lg hover:shadow-teal-500/25 disabled:opacity-50"
-          >
-            <Save className="h-4 w-4" />
-            {isSaving ? 'Salvando...' : 'Salvar Alterações'}
-          </button>
-        </div>
+        <button
+          onClick={handleManualRefresh}
+          disabled={isFetchingReal}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium transition-all hover:shadow-lg hover:shadow-teal-500/25 disabled:opacity-50"
+        >
+          <RefreshCw className={`h-4 w-4 ${isFetchingReal ? 'animate-spin' : ''}`} />
+          {isFetchingReal ? 'Atualizando...' : 'Atualizar Agora'}
+        </button>
       </div>
 
       <div className="rounded-xl bg-[#111820] border border-[#1e2a3a]">
         <div className="p-6 border-b border-[#1e2a3a]">
           <h2 className="text-lg font-semibold text-white">Criptomoedas</h2>
-          <p className="text-sm text-gray-400">Edite os preços e a variação de 24h de cada criptomoeda</p>
+          <p className="text-sm text-gray-400">
+            Cotações sincronizadas automaticamente com a CoinGecko API
+          </p>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-[#1e2a3a]">
-                <th className="text-left p-4 text-gray-400 font-medium">Criptomoeda</th>
-                <th className="text-left p-4 text-gray-400 font-medium">Preço Atual (USD)</th>
-                <th className="text-left p-4 text-gray-400 font-medium">Variação 24h (%)</th>
-                <th className="text-left p-4 text-gray-400 font-medium">Prévia</th>
-              </tr>
-            </thead>
-            <tbody>
-              {cryptos.map((crypto) => {
-                const edited = editedPrices[crypto.id];
-                const change = parseFloat(edited?.change || '0');
+        
+        {isFetchingReal && cryptos.length === 0 ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="flex flex-col items-center gap-3">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-teal-500 border-t-transparent" />
+              <p className="text-gray-400">Buscando cotações do mercado...</p>
+            </div>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-[#1e2a3a]">
+                  <th className="text-left p-4 text-gray-400 font-medium">Criptomoeda</th>
+                  <th className="text-left p-4 text-gray-400 font-medium">Preço (USD)</th>
+                  <th className="text-left p-4 text-gray-400 font-medium">Variação 24h</th>
+                  <th className="text-left p-4 text-gray-400 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cryptos.map((crypto) => {
+                  const change = crypto.price_change_24h;
 
-                return (
-                  <tr key={crypto.id} className="border-b border-[#1e2a3a] hover:bg-[#0a0f14]/50">
-                    <td className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-teal-500/20 to-cyan-500/20 font-bold text-teal-400">
-                          {crypto.symbol.slice(0, 3)}
+                  return (
+                    <tr key={crypto.id} className="border-b border-[#1e2a3a] hover:bg-[#0a0f14]/50">
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-r from-teal-500/20 to-cyan-500/20 font-bold text-teal-400">
+                            {crypto.symbol.slice(0, 3)}
+                          </div>
+                          <div>
+                            <p className="font-medium text-white">{crypto.name}</p>
+                            <p className="text-sm text-gray-400">{crypto.symbol}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-white">{crypto.name}</p>
-                          <p className="text-sm text-gray-400">{crypto.symbol}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <Input
-                        type="number"
-                        step="0.00000001"
-                        value={edited?.price || ''}
-                        onChange={(e) => handlePriceChange(crypto.id, 'price', e.target.value)}
-                        className="w-40 bg-[#0a0f14] border-[#1e2a3a] text-white"
-                      />
-                    </td>
-                    <td className="p-4">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={edited?.change || ''}
-                        onChange={(e) => handlePriceChange(crypto.id, 'change', e.target.value)}
-                        className="w-28 bg-[#0a0f14] border-[#1e2a3a] text-white"
-                      />
-                    </td>
-                    <td className="p-4">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-white">
-                          {formatCurrency(parseFloat(edited?.price || '0'))}
+                      </td>
+                      <td className="p-4">
+                        <span className="font-medium text-white text-lg">
+                          {formatCurrency(crypto.current_price)}
                         </span>
+                      </td>
+                      <td className="p-4">
                         <span
-                          className={`flex items-center text-sm ${
+                          className={`flex items-center gap-1 font-medium ${
                             change >= 0 ? 'text-green-400' : 'text-red-400'
                           }`}
                         >
                           {change >= 0 ? (
-                            <TrendingUp className="mr-1 h-4 w-4" />
+                            <TrendingUp className="h-4 w-4" />
                           ) : (
-                            <TrendingDown className="mr-1 h-4 w-4" />
+                            <TrendingDown className="h-4 w-4" />
                           )}
-                          {Math.abs(change).toFixed(2)}%
+                          {change >= 0 ? '+' : ''}{change.toFixed(2)}%
                         </span>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      </td>
+                      <td className="p-4">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            crypto.is_active
+                              ? 'bg-green-500/20 text-green-400'
+                              : 'bg-red-500/20 text-red-400'
+                          }`}
+                        >
+                          {crypto.is_active ? 'Ativo' : 'Inativo'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
