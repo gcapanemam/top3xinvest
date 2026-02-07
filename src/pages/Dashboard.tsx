@@ -70,7 +70,7 @@ interface RobotInvestment {
 }
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, effectiveUserId } = useAuth();
   const { toast } = useToast();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [cryptos, setCryptos] = useState<Cryptocurrency[]>([]);
@@ -81,18 +81,20 @@ const Dashboard = () => {
   const [robotDistribution, setRobotDistribution] = useState<RobotInvestment[]>([]);
   const [copied, setCopied] = useState(false);
   useEffect(() => {
-    if (user) {
+    if (effectiveUserId) {
       fetchData();
       fetchChartData();
     }
-  }, [user]);
+  }, [effectiveUserId]);
 
   const fetchData = async () => {
+    if (!effectiveUserId) return;
+    
     // Fetch profile
     const { data: profileData } = await supabase
       .from('profiles')
       .select('balance, full_name, referral_code')
-      .eq('user_id', user!.id)
+      .eq('user_id', effectiveUserId)
       .single();
 
     if (profileData) {
@@ -114,7 +116,7 @@ const Dashboard = () => {
     const { data: investmentData } = await supabase
       .from('investments')
       .select('id, amount, profit_accumulated, status, robot:robots(name)')
-      .eq('user_id', user!.id)
+      .eq('user_id', effectiveUserId)
       .eq('status', 'active')
       .limit(5);
 
@@ -128,6 +130,8 @@ const Dashboard = () => {
   };
 
   const fetchChartData = async () => {
+    if (!effectiveUserId) return;
+    
     // Gerar dados para os ultimos 12 meses
     const months = [];
     const now = new Date();
@@ -145,13 +149,13 @@ const Dashboard = () => {
     const { data: investmentsData } = await supabase
       .from('investments')
       .select('amount, profit_accumulated, created_at, robot:robots(name)')
-      .eq('user_id', user!.id);
+      .eq('user_id', effectiveUserId);
     
     // Buscar saques aprovados do usuario
     const { data: withdrawalsData } = await supabase
       .from('withdrawals')
       .select('amount, created_at')
-      .eq('user_id', user!.id)
+      .eq('user_id', effectiveUserId)
       .eq('status', 'approved');
     
     // Processar dados mensais

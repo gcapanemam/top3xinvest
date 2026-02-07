@@ -6,16 +6,25 @@ interface SignUpData {
   user: User | null;
 }
 
+interface ImpersonatedUser {
+  id: string;
+  fullName: string | null;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
   isAdmin: boolean;
+  impersonatedUser: ImpersonatedUser | null;
+  effectiveUserId: string | null;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null; data: SignUpData | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
   updatePassword: (newPassword: string) => Promise<{ error: Error | null }>;
+  impersonateUser: (userId: string, fullName: string | null) => void;
+  stopImpersonation: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,6 +42,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [impersonatedUser, setImpersonatedUser] = useState<ImpersonatedUser | null>(() => {
+    const stored = sessionStorage.getItem('impersonatedUser');
+    return stored ? JSON.parse(stored) : null;
+  });
+
+  const effectiveUserId = impersonatedUser?.id || user?.id || null;
+
+  const impersonateUser = (userId: string, fullName: string | null) => {
+    const impersonation = { id: userId, fullName };
+    setImpersonatedUser(impersonation);
+    sessionStorage.setItem('impersonatedUser', JSON.stringify(impersonation));
+  };
+
+  const stopImpersonation = () => {
+    setImpersonatedUser(null);
+    sessionStorage.removeItem('impersonatedUser');
+  };
 
   const checkAdminRole = (userId: string) => {
     setTimeout(async () => {
@@ -118,6 +144,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     setSession(null);
     setIsAdmin(false);
+    stopImpersonation();
   };
 
   const resetPassword = async (email: string) => {
@@ -143,11 +170,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     session,
     isLoading,
     isAdmin,
+    impersonatedUser,
+    effectiveUserId,
     signUp,
     signIn,
     signOut,
     resetPassword,
     updatePassword,
+    impersonateUser,
+    stopImpersonation,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
