@@ -59,9 +59,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (amount < 50) {
+    if (amount < 1) {
       return new Response(
-        JSON.stringify({ error: "Minimum deposit amount is $50" }),
+        JSON.stringify({ error: "Minimum deposit amount is $1" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
