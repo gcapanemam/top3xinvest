@@ -1,85 +1,10 @@
 
-# Plano: Corrigir Erro 401 na Geração de Link OxaPay
 
-## Diagnóstico do Problema
+# Plano: Remover Funcionalidade de Reenvio de Email de Validação
 
-A análise dos logs de Edge Functions revelou que todas as chamadas POST para `oxapay-create-invoice` estão retornando **HTTP 401 Unauthorized**:
+## Visão Geral
 
-```
-POST | 401 | https://ipxgoqpkbgyijfubqaqi.supabase.co/functions/v1/oxapay-create-invoice
-```
-
-### Causa Raiz
-
-A função `oxapay-create-invoice` está configurada com `verify_jwt = true` no `supabase/config.toml`. Isso significa que o Supabase valida o JWT **antes** de executar a função. Quando a validação falha (sessão expirada, token inválido, ou problema de timing), retorna 401 sem executar o código da função.
-
-Problemas possíveis:
-- Sessão do usuário expirada
-- Token não sendo enviado corretamente pelo cliente
-- Problema de timing onde o token não foi carregado
-
----
-
-## Solução Proposta
-
-Alterar a abordagem de autenticação para **validação manual de JWT no código** (padrão mais robusto usado em outras funções do projeto).
-
-### Benefícios desta abordagem:
-1. Mensagens de erro mais claras e específicas
-2. Logs detalhados para debugging
-3. Maior controle sobre o fluxo de autenticação
-4. Funciona mesmo com problemas de timing no cliente
-
----
-
-## Alterações a Serem Feitas
-
-### 1. Atualizar `supabase/config.toml`
-
-```diff
-[functions.oxapay-create-invoice]
-- verify_jwt = true
-+ verify_jwt = false
-```
-
-### 2. Atualizar `supabase/functions/oxapay-create-invoice/index.ts`
-
-Adicionar validação manual do JWT no início da função:
-
-```typescript
-// No início da função, após CORS handling
-const authHeader = req.headers.get('Authorization');
-if (!authHeader) {
-  console.error("Missing Authorization header");
-  return new Response(
-    JSON.stringify({ error: "Não autorizado - faça login novamente" }),
-    { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
-}
-
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-
-const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  global: { headers: { Authorization: authHeader } }
-});
-
-const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
-
-if (authError || !user) {
-  console.error("Auth error:", authError?.message || "User not found");
-  return new Response(
-    JSON.stringify({ error: "Sessão expirada - faça login novamente" }),
-    { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
-}
-
-console.log("Authenticated user:", user.id);
-```
-
-### 3. Fazer a Mesma Alteração em `oxapay-check-status`
-
-Aplicar a mesma correção para consistência e melhor debugging.
+Remover a opção de "Reenviar Email de Confirmação" do painel de administração, mantendo apenas a funcionalidade de "Enviar Email de Redefinição de Senha" (esqueci minha senha).
 
 ---
 
@@ -87,89 +12,97 @@ Aplicar a mesma correção para consistência e melhor debugging.
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `supabase/config.toml` | Alterar `verify_jwt = false` para ambas as funções OxaPay |
-| `supabase/functions/oxapay-create-invoice/index.ts` | Adicionar validação manual de JWT com logs detalhados |
-| `supabase/functions/oxapay-check-status/index.ts` | Adicionar validação manual de JWT com logs detalhados |
+| `supabase/functions/admin-user-actions/index.ts` | Remover case `send_email_confirmation` |
+| `src/pages/admin/AdminUsers.tsx` | Remover botão, handler e estado relacionado |
+| `src/lib/auditLog.ts` | Remover `user_email_confirmation_resent` do ActionType |
 
 ---
 
-## Fluxo de Autenticação Após a Correção
+## Alterações Detalhadas
 
-```text
-1. Usuário clica "Continuar para Pagamento"
-          |
-          v
-2. supabase.functions.invoke() envia token JWT no header
-          |
-          v
-3. Edge Function verifica token manualmente
-          |
-    [Token válido?]
-        /    \
-      Sim     Não
-       |       |
-       v       v
-4. Cria invoice   Retorna erro claro:
-   no OxaPay      "Sessão expirada - faça login novamente"
-```
+### 1. Edge Function: admin-user-actions
 
----
-
-## Seção Técnica - Código Completo
-
-### oxapay-create-invoice/index.ts (Trecho Modificado)
+Remover o case `send_email_confirmation` (linhas 176-222):
 
 ```typescript
-import { corsHeaders } from "../_shared/cors.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// REMOVER ESTE BLOCO INTEIRO:
+case 'send_email_confirmation': {
+  // ... todo o código
+}
+```
 
-Deno.serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+### 2. AdminUsers.tsx - Estado
 
-  try {
-    // Validate authentication
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      console.error("Missing Authorization header");
-      return new Response(
-        JSON.stringify({ error: "Não autorizado - faça login novamente" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+Remover o estado:
+```typescript
+// REMOVER:
+const [isSendingEmailConfirmation, setIsSendingEmailConfirmation] = useState(false);
+```
 
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+### 3. AdminUsers.tsx - Handler
 
-    // Create client with user's token for auth validation
-    const supabaseAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: { headers: { Authorization: authHeader } }
-    });
+Remover a função `handleSendEmailConfirmation` (linhas 432-459):
+```typescript
+// REMOVER ESTE BLOCO INTEIRO:
+const handleSendEmailConfirmation = async () => {
+  // ...
+};
+```
 
-    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+### 4. AdminUsers.tsx - Interface
 
-    if (authError || !user) {
-      console.error("Auth validation failed:", authError?.message || "No user");
-      return new Response(
-        JSON.stringify({ error: "Sessão expirada - faça login novamente" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+Remover o botão de reenvio de email de confirmação (linhas 1094-1106):
+```tsx
+// REMOVER ESTE BLOCO:
+<div>
+  <button
+    onClick={handleSendEmailConfirmation}
+    disabled={isSendingEmailConfirmation}
+    ...
+  >
+    <Mail className="h-4 w-4" />
+    {isSendingEmailConfirmation ? 'Enviando...' : 'Reenviar Email de Confirmação'}
+  </button>
+  <p className="text-xs text-gray-500 mt-1">
+    O usuário receberá um email com link para validar seu email
+  </p>
+</div>
+```
 
-    console.log("Authenticated user:", user.id);
+### 5. auditLog.ts - ActionType
 
-    // ... resto do código continua igual ...
-  }
-});
+Remover do tipo `ActionType`:
+```typescript
+// REMOVER:
+| 'user_email_confirmation_resent'
+```
+
+Remover do `getActionDisplayName`:
+```typescript
+// REMOVER:
+user_email_confirmation_resent: 'Email de confirmação reenviado',
 ```
 
 ---
 
 ## Resultado Esperado
 
-1. Usuário logado consegue criar depósitos normalmente
-2. Se a sessão expirar, recebe mensagem clara: "Sessão expirada - faça login novamente"
-3. Logs detalhados aparecem no Edge Function Logs para debugging
-4. Erro genérico "Erro ao gerar link de pagamento" é substituído por mensagens específicas
+1. A seção "Segurança" no dialog de edição de usuários mostrará apenas o botão "Enviar Email de Redefinição de Senha"
+2. O código da Edge Function será mais limpo, sem lógica não utilizada
+3. Tipos de auditoria atualizados sem referência à funcionalidade removida
+
+---
+
+## Interface Final
+
+```text
+┌─────────────────────────────────────────────┐
+│ Segurança                                   │
+├─────────────────────────────────────────────┤
+│ [Enviar Email de Redefinição de Senha]      │
+│                                             │
+│ O usuário receberá um email com link        │
+│ para criar uma nova senha                   │
+└─────────────────────────────────────────────┘
+```
+
