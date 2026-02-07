@@ -158,6 +158,8 @@ export type Database = {
           cryptocurrency_id: string | null
           id: string
           network_name: string | null
+          oxapay_pay_link: string | null
+          oxapay_track_id: string | null
           payment_method: string | null
           payment_proof_url: string | null
           processed_at: string | null
@@ -174,6 +176,8 @@ export type Database = {
           cryptocurrency_id?: string | null
           id?: string
           network_name?: string | null
+          oxapay_pay_link?: string | null
+          oxapay_track_id?: string | null
           payment_method?: string | null
           payment_proof_url?: string | null
           processed_at?: string | null
@@ -190,6 +194,8 @@ export type Database = {
           cryptocurrency_id?: string | null
           id?: string
           network_name?: string | null
+          oxapay_pay_link?: string | null
+          oxapay_track_id?: string | null
           payment_method?: string | null
           payment_proof_url?: string | null
           processed_at?: string | null
@@ -695,6 +701,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_balance: {
+        Args: { p_amount: number; p_user_id: string }
+        Returns: undefined
       }
       is_admin: { Args: never; Returns: boolean }
       process_referral: {

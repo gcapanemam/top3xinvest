@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -15,7 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Plus, Copy, ArrowDownCircle, Clock, CheckCircle, XCircle, Bitcoin } from 'lucide-react';
+import { Plus, ArrowDownCircle, Clock, CheckCircle, XCircle, Bitcoin, Wallet } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -31,15 +30,6 @@ interface Deposit {
   cryptocurrency?: { symbol: string; name: string } | null;
 }
 
-interface DepositWallet {
-  id: string;
-  cryptocurrency_id: string;
-  network_name: string;
-  wallet_address: string;
-  is_active: boolean;
-  cryptocurrency?: { symbol: string; name: string };
-}
-
 const Deposits = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -48,15 +38,10 @@ const Deposits = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [amount, setAmount] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // Crypto deposit states
-  const [depositWallets, setDepositWallets] = useState<DepositWallet[]>([]);
-  const [selectedWallet, setSelectedWallet] = useState<DepositWallet | null>(null);
 
   useEffect(() => {
     if (user) {
       fetchDeposits();
-      fetchDepositWallets();
     }
   }, [user]);
 
@@ -74,20 +59,6 @@ const Deposits = () => {
       setDeposits(data as unknown as Deposit[]);
     }
     setIsLoading(false);
-  };
-
-  const fetchDepositWallets = async () => {
-    const { data } = await supabase
-      .from('deposit_wallets')
-      .select(`
-        *,
-        cryptocurrency:cryptocurrencies(symbol, name)
-      `)
-      .eq('is_active', true);
-
-    if (data) {
-      setDepositWallets(data as unknown as DepositWallet[]);
-    }
   };
 
   const handleDeposit = async () => {
@@ -111,55 +82,71 @@ const Deposits = () => {
       return;
     }
 
-    if (!selectedWallet) {
-      toast({
-        title: 'Erro',
-        description: 'Selecione uma carteira para depósito',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setIsSubmitting(true);
 
-    const depositData = {
-      user_id: user!.id,
-      amount: numAmount,
-      status: 'pending' as const,
-      payment_method: 'crypto',
-      cryptocurrency_id: selectedWallet.cryptocurrency_id,
-      network_name: selectedWallet.network_name,
-      wallet_address: selectedWallet.wallet_address,
-    };
+    try {
+      // 1. Create deposit record
+      const { data: depositData, error: depositError } = await supabase
+        .from('deposits')
+        .insert({
+          user_id: user!.id,
+          amount: numAmount,
+          status: 'pending' as const,
+          payment_method: 'oxapay',
+        })
+        .select()
+        .single();
 
-    const { error } = await supabase.from('deposits').insert(depositData);
+      if (depositError || !depositData) {
+        console.error('Error creating deposit:', depositError);
+        toast({
+          title: 'Erro',
+          description: 'Erro ao criar depósito',
+          variant: 'destructive',
+        });
+        setIsSubmitting(false);
+        return;
+      }
 
-    if (error) {
+      // 2. Create invoice on OxaPay
+      const { data: invoiceData, error: invoiceError } = await supabase.functions.invoke(
+        'oxapay-create-invoice',
+        {
+          body: {
+            amount: numAmount,
+            depositId: depositData.id,
+            returnUrl: window.location.origin + '/deposits',
+          },
+        }
+      );
+
+      if (invoiceError || !invoiceData?.payLink) {
+        console.error('Error creating OxaPay invoice:', invoiceError, invoiceData);
+        toast({
+          title: 'Erro',
+          description: invoiceData?.error || 'Erro ao gerar link de pagamento',
+          variant: 'destructive',
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      // 3. Redirect to OxaPay payment page
+      toast({
+        title: 'Redirecionando...',
+        description: 'Você será redirecionado para a página de pagamento',
+      });
+
+      window.location.href = invoiceData.payLink;
+    } catch (error) {
+      console.error('Error in handleDeposit:', error);
       toast({
         title: 'Erro',
-        description: 'Erro ao solicitar depósito',
+        description: 'Erro ao processar depósito',
         variant: 'destructive',
       });
-    } else {
-      toast({
-        title: 'Depósito solicitado!',
-        description: 'Envie o valor para o endereço informado e aguarde a aprovação',
-      });
-      setAmount('');
-      setSelectedWallet(null);
-      setIsDialogOpen(false);
-      fetchDeposits();
+      setIsSubmitting(false);
     }
-
-    setIsSubmitting(false);
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast({
-      title: 'Copiado!',
-      description: 'Endereço copiado para a área de transferência',
-    });
   };
 
   const formatCurrency = (value: number) => {
@@ -194,7 +181,7 @@ const Deposits = () => {
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-500/20 text-gray-400 text-xs font-medium">
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-muted/50 text-muted-foreground text-xs font-medium">
             {status}
           </span>
         );
@@ -202,10 +189,18 @@ const Deposits = () => {
   };
 
   const getPaymentMethodBadge = (deposit: Deposit) => {
+    if (deposit.payment_method === 'oxapay') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary/20 text-primary text-xs">
+          <Wallet className="h-3 w-3" />
+          OxaPay
+        </span>
+      );
+    }
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-orange-500/20 text-orange-400 text-xs">
         <Bitcoin className="h-3 w-3" />
-        {deposit.cryptocurrency?.symbol} - {deposit.network_name}
+        {deposit.cryptocurrency?.symbol || 'Crypto'} {deposit.network_name ? `- ${deposit.network_name}` : ''}
       </span>
     );
   };
@@ -213,7 +208,7 @@ const Deposits = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-teal-500 border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     );
   }
@@ -222,74 +217,45 @@ const Deposits = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-white">Depósitos</h1>
-          <p className="text-sm md:text-base text-gray-400">Adicione saldo à sua conta</p>
+          <h1 className="text-xl md:text-2xl font-bold text-foreground">Depósitos</h1>
+          <p className="text-sm md:text-base text-muted-foreground">Adicione saldo à sua conta</p>
         </div>
 
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
           setIsDialogOpen(open);
           if (!open) {
-            setSelectedWallet(null);
             setAmount('');
           }
         }}>
           <DialogTrigger asChild>
-            <button className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium text-sm md:text-base transition-all hover:shadow-lg hover:shadow-teal-500/25 w-full sm:w-auto">
+            <button className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-primary to-cyan-500 text-primary-foreground font-medium text-sm md:text-base transition-all hover:shadow-lg hover:shadow-primary/25 w-full sm:w-auto">
               <Plus className="h-4 w-4" />
               Novo Depósito
             </button>
           </DialogTrigger>
-          <DialogContent className="bg-[#111820] border-[#1e2a3a] text-white max-w-[95vw] md:max-w-md mx-auto max-h-[90vh] overflow-y-auto">
+          <DialogContent className="bg-card border-border text-foreground max-w-[95vw] md:max-w-md mx-auto max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="text-white">Solicitar Depósito</DialogTitle>
-              <DialogDescription className="text-gray-400">
-                Selecione a criptomoeda e informe o valor
+              <DialogTitle className="text-foreground">Depositar via Criptomoeda</DialogTitle>
+              <DialogDescription className="text-muted-foreground">
+                Informe o valor e você será redirecionado para escolher a criptomoeda
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4">
-              {/* Crypto Wallet Selection */}
-              <div className="space-y-2">
-                <Label className="text-gray-300">Selecione a Criptomoeda</Label>
-                {depositWallets.length === 0 ? (
-                  <div className="text-center py-6 text-gray-400 border border-[#1e2a3a] rounded-lg bg-[#0a0f14]">
-                    <Bitcoin className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">Nenhuma carteira disponível</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                    {depositWallets.map((wallet) => (
-                      <div
-                        key={wallet.id}
-                        onClick={() => setSelectedWallet(wallet)}
-                        className={cn(
-                          "p-3 rounded-lg border cursor-pointer transition-all",
-                          selectedWallet?.id === wallet.id
-                            ? "border-teal-500 bg-teal-500/10"
-                            : "border-[#1e2a3a] hover:border-teal-500/50 bg-[#0a0f14]"
-                        )}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500/20">
-                            <Bitcoin className="h-4 w-4 text-orange-400" />
-                          </div>
-                          <div>
-                            <span className="font-bold text-teal-400">
-                              {wallet.cryptocurrency?.symbol}
-                            </span>
-                            <span className="text-gray-400 mx-2">-</span>
-                            <span className="text-white">{wallet.network_name}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+              {/* Info about OxaPay */}
+              <div className="rounded-lg border border-border p-4 space-y-2 bg-muted/20">
+                <div className="flex items-center gap-2">
+                  <Wallet className="h-5 w-5 text-primary" />
+                  <h4 className="font-medium text-foreground">Pagamento via OxaPay</h4>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Você será redirecionado para escolher entre diversas criptomoedas (BTC, ETH, USDT, etc.) e completar o pagamento de forma segura.
+                </p>
               </div>
 
               {/* Amount in USD */}
               <div className="space-y-2">
-                <Label className="text-gray-300">Valor em USD</Label>
+                <Label className="text-muted-foreground">Valor em USD</Label>
                 <Input
                   type="number"
                   placeholder="$ 0.00"
@@ -297,54 +263,22 @@ const Deposits = () => {
                   onChange={(e) => setAmount(e.target.value)}
                   min={50}
                   step={0.01}
-                  className="bg-[#0a0f14] border-[#1e2a3a] text-white placeholder:text-gray-500"
+                  className="bg-background border-border text-foreground placeholder:text-muted-foreground"
                 />
-                <p className="text-xs text-gray-400">Mínimo: $50.00</p>
+                <p className="text-xs text-muted-foreground">Mínimo: $50.00</p>
               </div>
-
-              {/* Selected Wallet Address */}
-              {selectedWallet && (
-                <div className="rounded-lg border border-[#1e2a3a] p-4 space-y-3 bg-[#0a0f14]">
-                  <h4 className="font-medium text-white flex items-center gap-2">
-                    <Bitcoin className="h-4 w-4 text-orange-400" />
-                    Envie para este endereço
-                  </h4>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-400">Rede:</span>
-                      <span className="text-sm text-white font-medium">{selectedWallet.network_name}</span>
-                    </div>
-                    <div>
-                      <span className="text-sm text-gray-400 block mb-1">Endereço:</span>
-                      <div className="flex items-center gap-2">
-                        <code className="text-xs text-cyan-400 bg-[#111820] px-2 py-1.5 rounded flex-1 break-all">
-                          {selectedWallet.wallet_address}
-                        </code>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 shrink-0 text-gray-400 hover:text-white hover:bg-[#1e2a3a]"
-                          onClick={() => copyToClipboard(selectedWallet.wallet_address)}
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="border-[#1e2a3a] text-gray-300 hover:bg-[#1e2a3a] hover:text-white">
+              <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="border-border">
                 Cancelar
               </Button>
               <button
                 onClick={handleDeposit}
-                disabled={isSubmitting || !selectedWallet}
-                className="px-4 py-2 rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium transition-all hover:shadow-lg hover:shadow-teal-500/25 disabled:opacity-50"
+                disabled={isSubmitting || !amount || parseFloat(amount) < 50}
+                className="px-4 py-2 rounded-lg bg-gradient-to-r from-primary to-cyan-500 text-primary-foreground font-medium transition-all hover:shadow-lg hover:shadow-primary/25 disabled:opacity-50"
               >
-                {isSubmitting ? 'Enviando...' : 'Confirmar Depósito'}
+                {isSubmitting ? 'Processando...' : 'Continuar para Pagamento'}
               </button>
             </DialogFooter>
           </DialogContent>
@@ -353,33 +287,33 @@ const Deposits = () => {
 
       {/* Deposits List */}
       {deposits.length === 0 ? (
-        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a] p-12 text-center">
-          <ArrowDownCircle className="h-12 w-12 text-gray-400 mx-auto" />
-          <h3 className="mt-4 text-lg font-medium text-white">Nenhum depósito ainda</h3>
-          <p className="text-gray-400">
+        <div className="rounded-xl bg-card border border-border p-12 text-center">
+          <ArrowDownCircle className="h-12 w-12 text-muted-foreground mx-auto" />
+          <h3 className="mt-4 text-lg font-medium text-foreground">Nenhum depósito ainda</h3>
+          <p className="text-muted-foreground">
             Clique no botão acima para fazer seu primeiro depósito
           </p>
         </div>
       ) : (
-        <div className="rounded-xl bg-[#111820] border border-[#1e2a3a]">
-          <div className="p-6 border-b border-[#1e2a3a]">
-            <h2 className="text-lg font-semibold text-white">Histórico de Depósitos</h2>
-            <p className="text-sm text-gray-400">Todos os seus depósitos e status de aprovação</p>
+        <div className="rounded-xl bg-card border border-border">
+          <div className="p-6 border-b border-border">
+            <h2 className="text-lg font-semibold text-foreground">Histórico de Depósitos</h2>
+            <p className="text-sm text-muted-foreground">Todos os seus depósitos e status de aprovação</p>
           </div>
           <div className="p-6 space-y-4">
             {deposits.map((deposit) => (
               <div
                 key={deposit.id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-[#1e2a3a] p-4 hover:border-teal-500/30 transition-all"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-border p-4 hover:border-primary/30 transition-all"
               >
                 <div className="flex items-center gap-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-500/10">
-                    <Bitcoin className="h-5 w-5 text-orange-400" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                    <Wallet className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <p className="font-medium text-white">{formatCurrency(deposit.amount)}</p>
+                    <p className="font-medium text-foreground">{formatCurrency(deposit.amount)}</p>
                     <div className="flex items-center gap-2 mt-1">
-                      <p className="text-sm text-gray-400">
+                      <p className="text-sm text-muted-foreground">
                         {format(new Date(deposit.created_at), "dd 'de' MMM 'às' HH:mm", {
                           locale: ptBR,
                         })}
@@ -391,7 +325,7 @@ const Deposits = () => {
                 <div className="text-right">
                   {getStatusBadge(deposit.status)}
                   {deposit.admin_notes && (
-                    <p className="mt-1 text-xs text-gray-400">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       {deposit.admin_notes}
                     </p>
                   )}
