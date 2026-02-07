@@ -324,6 +324,7 @@ export type Database = {
           email: string | null
           full_name: string | null
           id: string
+          is_active: boolean
           is_blocked: boolean
           phone: string | null
           referral_code: string | null
@@ -337,6 +338,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          is_active?: boolean
           is_blocked?: boolean
           phone?: string | null
           referral_code?: string | null
@@ -350,6 +352,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          is_active?: boolean
           is_blocked?: boolean
           phone?: string | null
           referral_code?: string | null

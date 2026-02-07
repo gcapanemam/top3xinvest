@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Link as RouterLink } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,6 +22,8 @@ import {
   Network,
   TrendingUp,
   Share2,
+  AlertTriangle,
+  Bot,
   Link,
   Star,
   Crown,
@@ -278,18 +281,56 @@ const MLMNetwork = () => {
         </p>
       </div>
 
+      {/* Inactive Account Alert */}
+      {profile && !profile.is_active && (
+        <Card className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-amber-500/20 mb-6">
+          <CardContent className="p-4 md:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <div className="flex items-center gap-4 flex-1">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 shrink-0">
+                  <AlertTriangle className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-white font-semibold">Conta Inativa</h3>
+                  <p className="text-sm text-gray-400">
+                    Seu link de indicação ainda não está ativo. Para começar a indicar pessoas, invista em pelo menos um robô.
+                  </p>
+                </div>
+              </div>
+              <RouterLink
+                to="/robots"
+                className="flex items-center justify-center gap-2 h-10 px-4 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-medium transition-all hover:shadow-lg hover:shadow-amber-500/25 shrink-0"
+              >
+                <Bot className="h-4 w-4" />
+                Ver Robôs
+              </RouterLink>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Referral Link Card */}
-      <Card className="bg-gradient-to-r from-teal-500/10 to-cyan-500/10 border-teal-500/20 mb-6">
+      <Card className={cn(
+        "mb-6",
+        profile?.is_active 
+          ? "bg-gradient-to-r from-teal-500/10 to-cyan-500/10 border-teal-500/20" 
+          : "bg-[#111820] border-[#1e2a3a] opacity-60"
+      )}>
         <CardContent className="p-4 md:p-6">
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500">
+              <div className={cn(
+                "flex h-12 w-12 items-center justify-center rounded-xl",
+                profile?.is_active 
+                  ? "bg-gradient-to-r from-teal-500 to-cyan-500" 
+                  : "bg-gray-600"
+              )}>
                 <Link className="h-6 w-6 text-white" />
               </div>
               <div>
                 <h3 className="text-white font-semibold">Seu Link de Indicação</h3>
                 <p className="text-sm text-gray-400">
-                  Código: <span className="text-teal-400 font-mono">{profile?.referral_code || '...'}</span>
+                  Código: <span className={cn(profile?.is_active ? "text-teal-400" : "text-gray-500", "font-mono")}>{profile?.referral_code || '...'}</span>
                 </p>
               </div>
             </div>
@@ -303,7 +344,8 @@ const MLMNetwork = () => {
                 variant="outline"
                 size="icon"
                 onClick={copyToClipboard}
-                className="shrink-0 border-teal-500/30 hover:bg-teal-500/20"
+                disabled={!profile?.is_active}
+                className="shrink-0 border-teal-500/30 hover:bg-teal-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {copied ? (
                   <Check className="h-4 w-4 text-green-400" />
@@ -313,7 +355,8 @@ const MLMNetwork = () => {
               </Button>
               <Button
                 onClick={shareLink}
-                className="shrink-0 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600"
+                disabled={!profile?.is_active}
+                className="shrink-0 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Share2 className="h-4 w-4 mr-2" />
                 Compartilhar
