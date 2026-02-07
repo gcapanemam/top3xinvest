@@ -1,190 +1,230 @@
 
 
-# Plano: Mostrar Nome e Email do Usuário na Página de Depósitos
+# Plano: Buscar Dados Reais de Cotacoes via CoinGecko API
 
 ## Visao Geral
 
-Atualizar a página de Aprovar Depósitos (AdminDeposits) para exibir o nome completo e email do usuário que fez cada depósito, em vez de mostrar apenas "Usuário".
+Adicionar funcionalidade na pagina de Gerenciar Cotacoes (AdminPrices) para buscar precos reais de criptomoedas da API CoinGecko, permitindo que o administrador atualize as cotacoes com dados do mercado em tempo real com um clique.
 
 ---
 
-## Problema Atual
+## Fluxo Proposto
 
-A query de busca de depósitos não está fazendo JOIN com a tabela `profiles` para obter as informações do usuário:
-
-```typescript
-const { data } = await supabase
-  .from('deposits')
-  .select(`
-    *,
-    cryptocurrency:cryptocurrencies(symbol, name)
-  `)
+```text
++-------------------------------------------------+
+|        Gerenciar Cotações                       |
++-------------------------------------------------+
+|                                                 |
+|  [🔄 Buscar Preços Reais]    [💾 Salvar]        |
+|                                                 |
+|  Criptomoeda    Preço Atual    Variação    ... |
+|  Bitcoin BTC    $42,500.00     +2.35%          |
+|  Ethereum ETH   $2,250.00      -1.20%          |
+|  ...                                           |
++-------------------------------------------------+
 ```
 
-Por isso, `deposit.profile` está sempre `undefined`, mostrando apenas "Usuário".
+1. Admin clica em "Buscar Precos Reais"
+2. Sistema busca dados da CoinGecko API
+3. Campos sao preenchidos automaticamente com precos e variacoes
+4. Admin pode editar manualmente se necessario
+5. Admin clica em "Salvar Alteracoes" para persistir no banco
 
 ---
 
-## Solucao
+## API CoinGecko (Gratuita)
 
-### 1. Atualizar a Interface Deposit
+A CoinGecko oferece uma API publica gratuita sem necessidade de chave:
 
-Adicionar campo `email` na interface do profile:
+**Endpoint principal:**
+```
+GET https://api.coingecko.com/api/v3/simple/price
+  ?ids=bitcoin,ethereum,binancecoin,solana,cardano,ripple,dogecoin,polkadot,tether
+  &vs_currencies=usd
+  &include_24hr_change=true
+```
 
-```typescript
-interface Deposit {
-  // ... campos existentes
-  profile?: { 
-    full_name: string | null;
-    // Observacao: email nao esta em profiles, esta em auth.users
-  } | null;
+**Resposta:**
+```json
+{
+  "bitcoin": {
+    "usd": 42500,
+    "usd_24h_change": 2.35
+  },
+  "ethereum": {
+    "usd": 2250,
+    "usd_24h_change": -1.2
+  }
 }
 ```
 
-**Nota importante**: O email do usuario esta na tabela `auth.users` (gerenciada pelo Supabase Auth) e nao na tabela `profiles`. Para exibir o email, temos duas opcoes:
-
-- **Opcao A**: Adicionar coluna `email` na tabela `profiles` (sincronizada via trigger)
-- **Opcao B**: Buscar o email via Edge Function usando service role
-
-### 2. Atualizar a Query fetchDeposits
-
-Adicionar o JOIN com a tabela profiles:
-
-```typescript
-const { data } = await supabase
-  .from('deposits')
-  .select(`
-    *,
-    cryptocurrency:cryptocurrencies(symbol, name),
-    profile:profiles!deposits_user_id_fkey(full_name)
-  `)
-  .order('created_at', { ascending: false });
-```
-
-### 3. Atualizar o Layout dos Cards
-
-**Antes:**
-```text
-+----------------------------------------------+
-| [Icon]  Usuário                    R$ 100,00 |
-|         02/02/26 às 11:47              [PIX] |
-+----------------------------------------------+
-```
-
-**Depois:**
-```text
-+----------------------------------------------+
-| [Icon]  João da Silva              R$ 100,00 |
-|         joao@email.com                 [PIX] |
-|         02/02/26 às 11:47                    |
-+----------------------------------------------+
-```
-
 ---
 
-## Abordagem Recomendada para Email
+## Mapeamento de Simbolos
 
-Como o email não está na tabela `profiles`, a solução mais simples é:
-
-1. Adicionar coluna `email` na tabela `profiles`
-2. Criar trigger que sincroniza automaticamente o email do `auth.users` para `profiles`
-
-Isso permitirá buscar nome e email em uma única query.
+| Simbolo BD | ID CoinGecko |
+|------------|--------------|
+| BTC | bitcoin |
+| ETH | ethereum |
+| BNB | binancecoin |
+| SOL | solana |
+| ADA | cardano |
+| XRP | ripple |
+| DOGE | dogecoin |
+| DOT | polkadot |
+| USDT | tether |
 
 ---
 
 ## Secao Tecnica
 
-### Arquivos a Modificar
+### Abordagem: Edge Function
 
-| Arquivo | Alteracao |
-|---------|-----------|
-| src/pages/admin/AdminDeposits.tsx | Atualizar query e layout dos cards |
+Criar uma Edge Function para fazer a chamada a API externa (evitando CORS no frontend):
 
-### Migration SQL (adicionar email em profiles)
+**Arquivo:** `supabase/functions/fetch-crypto-prices/index.ts`
 
-```sql
--- Adicionar coluna email na tabela profiles
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email text;
-
--- Atualizar emails existentes
-UPDATE public.profiles p
-SET email = u.email
-FROM auth.users u
-WHERE p.user_id = u.id;
-
--- Trigger para manter sincronizado
-CREATE OR REPLACE FUNCTION public.sync_profile_email()
-RETURNS TRIGGER AS $$
-BEGIN
-  UPDATE public.profiles
-  SET email = NEW.email
-  WHERE user_id = NEW.id;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-CREATE TRIGGER on_auth_user_email_update
-  AFTER UPDATE OF email ON auth.users
-  FOR EACH ROW
-  EXECUTE FUNCTION public.sync_profile_email();
-```
-
-### Alteracoes no Componente
-
-1. **Interface Deposit atualizada:**
 ```typescript
-interface Deposit {
-  // ... campos existentes
-  profile?: { 
-    full_name: string | null;
-    email: string | null;
-  } | null;
-}
+import { corsHeaders } from "../_shared/cors.ts";
+
+const COINGECKO_IDS: Record<string, string> = {
+  BTC: "bitcoin",
+  ETH: "ethereum",
+  BNB: "binancecoin",
+  SOL: "solana",
+  ADA: "cardano",
+  XRP: "ripple",
+  DOGE: "dogecoin",
+  DOT: "polkadot",
+  USDT: "tether",
+  // Adicionar mais conforme necessario
+};
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  const { symbols } = await req.json();
+  
+  // Mapear simbolos para IDs CoinGecko
+  const ids = symbols
+    .map((s: string) => COINGECKO_IDS[s.toUpperCase()])
+    .filter(Boolean)
+    .join(",");
+
+  const url = `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`;
+  
+  const response = await fetch(url);
+  const data = await response.json();
+
+  // Transformar resposta para formato esperado
+  const prices: Record<string, { price: number; change: number }> = {};
+  
+  for (const symbol of symbols) {
+    const geckoId = COINGECKO_IDS[symbol.toUpperCase()];
+    if (geckoId && data[geckoId]) {
+      prices[symbol] = {
+        price: data[geckoId].usd,
+        change: data[geckoId].usd_24h_change || 0,
+      };
+    }
+  }
+
+  return new Response(JSON.stringify(prices), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+});
 ```
 
-2. **Query atualizada:**
+### Alteracoes em AdminPrices.tsx
+
+1. **Novo estado para loading:**
 ```typescript
-const { data } = await supabase
-  .from('deposits')
-  .select(`
-    *,
-    cryptocurrency:cryptocurrencies(symbol, name),
-    profile:profiles(full_name, email)
-  `)
-  .order('created_at', { ascending: false });
+const [isFetchingReal, setIsFetchingReal] = useState(false);
 ```
 
-3. **Layout do card atualizado:**
+2. **Nova funcao para buscar precos reais:**
+```typescript
+const fetchRealPrices = async () => {
+  setIsFetchingReal(true);
+  
+  try {
+    const symbols = cryptos.map(c => c.symbol);
+    
+    const { data, error } = await supabase.functions.invoke('fetch-crypto-prices', {
+      body: { symbols }
+    });
+    
+    if (error) throw error;
+    
+    // Atualizar os campos editados com precos reais
+    setEditedPrices(prev => {
+      const updated = { ...prev };
+      for (const crypto of cryptos) {
+        if (data[crypto.symbol]) {
+          updated[crypto.id] = {
+            price: data[crypto.symbol].price.toString(),
+            change: data[crypto.symbol].change.toFixed(2),
+          };
+        }
+      }
+      return updated;
+    });
+    
+    toast({
+      title: 'Sucesso',
+      description: 'Preços reais carregados da CoinGecko!',
+    });
+  } catch (error) {
+    toast({
+      title: 'Erro',
+      description: 'Falha ao buscar preços reais',
+      variant: 'destructive',
+    });
+  } finally {
+    setIsFetchingReal(false);
+  }
+};
+```
+
+3. **Novo botao no header:**
 ```tsx
-<div>
-  <p className="font-medium text-white">
-    {deposit.profile?.full_name || 'Usuário'}
-  </p>
-  {deposit.profile?.email && (
-    <p className="text-sm text-cyan-400">
-      {deposit.profile.email}
-    </p>
-  )}
-  <p className="text-sm text-gray-400">
-    {format(new Date(deposit.created_at), "dd/MM/yy 'às' HH:mm", { locale: ptBR })}
-  </p>
-</div>
+<button 
+  onClick={fetchRealPrices} 
+  disabled={isFetchingReal}
+  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1e2a3a] text-cyan-400 font-medium transition-all hover:bg-[#2a3a4a] disabled:opacity-50"
+>
+  <RefreshCw className={`h-4 w-4 ${isFetchingReal ? 'animate-spin' : ''}`} />
+  {isFetchingReal ? 'Buscando...' : 'Buscar Preços Reais'}
+</button>
 ```
 
 ---
 
-## Aplicar Mesma Logica em AdminWithdrawals
+## Arquivos a Criar/Modificar
 
-A página de saques (`AdminWithdrawals.tsx`) também exibe "Usuário" e precisa da mesma correção para mostrar nome e email.
+| Arquivo | Tipo |
+|---------|------|
+| supabase/functions/_shared/cors.ts | Criar (se nao existir) |
+| supabase/functions/fetch-crypto-prices/index.ts | Criar |
+| src/pages/admin/AdminPrices.tsx | Modificar |
 
 ---
 
-## Resumo
+## Resultado Esperado
 
-1. Criar migration para adicionar coluna `email` em `profiles`
-2. Criar trigger para sincronizar email do `auth.users`
-3. Atualizar query em `AdminDeposits.tsx` para incluir JOIN com profiles
-4. Atualizar layout dos cards para mostrar nome e email
-5. Aplicar mesmas alteracoes em `AdminWithdrawals.tsx`
+1. Botao "Buscar Precos Reais" no cabecalho da pagina
+2. Ao clicar, busca precos atualizados da CoinGecko
+3. Campos de preco e variacao sao preenchidos automaticamente
+4. Admin ainda pode editar manualmente antes de salvar
+5. Ao salvar, dados sao persistidos no banco
+
+---
+
+## Limitacoes CoinGecko API Gratuita
+
+- Rate limit: 10-50 chamadas/minuto
+- Delay de alguns segundos nos dados
+- Ideal para uso administrativo (nao para atualizacao em tempo real para usuarios)
 
