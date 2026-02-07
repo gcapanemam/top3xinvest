@@ -116,7 +116,6 @@ const AdminUsers = () => {
 
   // Estados para ações de admin
   const [isSendingReset, setIsSendingReset] = useState(false);
-  const [isSendingEmailConfirmation, setIsSendingEmailConfirmation] = useState(false);
   const [isTogglingAdmin, setIsTogglingAdmin] = useState(false);
 
   useEffect(() => {
@@ -427,35 +426,6 @@ const AdminUsers = () => {
     }
 
     setIsSendingReset(false);
-  };
-
-  const handleSendEmailConfirmation = async () => {
-    if (!editUser) return;
-
-    setIsSendingEmailConfirmation(true);
-
-    const { data, error } = await supabase.functions.invoke('admin-user-actions', {
-      body: {
-        action: 'send_email_confirmation',
-        user_id: editUser.user_id,
-        data: { redirectTo: `${window.location.origin}/` },
-      },
-    });
-
-    if (error || data?.error) {
-      toast({
-        title: 'Erro',
-        description: data?.error || 'Não foi possível reenviar o email de confirmação',
-        variant: 'destructive',
-      });
-    } else {
-      toast({
-        title: 'Email enviado!',
-        description: 'O usuário receberá um link para confirmar seu email',
-      });
-    }
-
-    setIsSendingEmailConfirmation(false);
   };
 
   const handleDeleteUser = async () => {
@@ -1089,19 +1059,6 @@ const AdminUsers = () => {
                     </button>
                     <p className="text-xs text-gray-500 mt-1">
                       O usuário receberá um email com link para criar uma nova senha
-                    </p>
-                  </div>
-                  <div>
-                    <button
-                      onClick={handleSendEmailConfirmation}
-                      disabled={isSendingEmailConfirmation}
-                      className="w-full flex items-center justify-center gap-2 h-10 rounded-lg bg-teal-500/20 text-teal-400 hover:bg-teal-500/30 font-medium transition-colors disabled:opacity-50"
-                    >
-                      <Mail className="h-4 w-4" />
-                      {isSendingEmailConfirmation ? 'Enviando...' : 'Reenviar Email de Confirmação'}
-                    </button>
-                    <p className="text-xs text-gray-500 mt-1">
-                      O usuário receberá um email com link para validar seu email
                     </p>
                   </div>
                 </div>
