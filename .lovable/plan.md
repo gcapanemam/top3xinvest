@@ -1,170 +1,164 @@
 
 
-# Plano: Bonificação de Rede Baseada em Depósitos
+# Plano: Animação de Simulação de Operações em Investimentos
 
 ## Resumo
-Ajustar o sistema de comissões MLM para que a bonificação seja calculada sobre o **valor do depósito** do usuário, não sobre o lucro dos investimentos. Os percentuais configuráveis pelo admin (ex: Nível 1 = 10%, Nível 2 = 5%, etc.) serão aplicados sobre o valor depositado.
+Adicionar um componente de animação visual que simula operações de trading em tempo real, exibido nos cartões de investimentos ativos. A animação mostrará etapas como "Analisando o mercado...", "Conectando na Binance...", "Executando Operações...", "Finalizando...", com logos das corretoras selecionadas aleatoriamente.
 
-## Exemplo (conforme especificado)
-- Usuário deposita **$100**
-- Nível 1 (quem indicou diretamente) ganha: **10% = $10**
-- Nível 2 ganha: **5% = $5**
-- Nível 3 ganha: **3% = $3**
-- Nível 4 ganha: **2% = $2**
-- O usuário que depositou **permanece com os $100** (sem dedução)
+## Corretoras a serem incluídas (com logos)
 
-## Mudanças Necessárias
+| Corretora | Cor da marca |
+|-----------|--------------|
+| Binance | #F0B90B (amarelo) |
+| Coinbase | #0052FF (azul) |
+| Upbit | #093687 (azul escuro) |
+| OKX | #000000 (preto/branco) |
+| Bybit | #F7A600 (laranja) |
+| Bitget | #00F0FF (ciano) |
+| Gate | #2354E6 (azul) |
+| KuCoin | #24AE8F (verde) |
+| MEXC | #2A54DB (azul) |
+| HTX | #1C89E5 (azul) |
 
-### 1. Banco de Dados (Nova Função RPC)
+## Arquivos a serem criados/modificados
 
-Criar uma nova função `distribute_deposit_commission` que será chamada quando um depósito for aprovado:
+### 1. Novo componente: `src/components/investments/TradingSimulation.tsx`
 
-```sql
-CREATE OR REPLACE FUNCTION public.distribute_deposit_commission(
-    p_deposit_id uuid,
-    p_user_id uuid,
-    p_deposit_amount numeric
-)
-RETURNS boolean
-LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-    v_upline_user_id uuid;
-    v_upline_level integer;
-    v_commission_percentage numeric;
-    v_commission_amount numeric;
-BEGIN
-    -- Distribuir comissões para a upline (4 níveis)
-    FOR v_upline_user_id, v_upline_level IN 
-        SELECT get_user_upline.user_id, get_user_upline.level 
-        FROM public.get_user_upline(p_user_id)
-    LOOP
-        -- Buscar percentual da tabela mlm_settings
-        SELECT commission_percentage INTO v_commission_percentage
-        FROM public.mlm_settings
-        WHERE level = v_upline_level;
-        
-        -- Fallback se não encontrar
-        IF v_commission_percentage IS NULL THEN
-            v_commission_percentage := 0;
-        END IF;
-        
-        -- Calcular valor da comissão sobre o depósito
-        v_commission_amount := (p_deposit_amount * v_commission_percentage) / 100;
-        
-        IF v_commission_amount > 0 THEN
-            -- Inserir registro de comissão (usando deposit_id)
-            INSERT INTO public.referral_commissions 
-                (user_id, from_user_id, investment_id, level, percentage, amount)
-            VALUES 
-                (v_upline_user_id, p_user_id, NULL, 
-                 v_upline_level, v_commission_percentage, v_commission_amount);
-            
-            -- Creditar saldo na carteira do usuário da upline
-            UPDATE public.profiles
-            SET balance = balance + v_commission_amount,
-                updated_at = now()
-            WHERE user_id = v_upline_user_id;
-        END IF;
-    END LOOP;
-    
-    RETURN TRUE;
-END;
-$$;
+Componente que exibe a animação de operações simuladas com as seguintes características:
+
+- **Estados da animação (loop contínuo)**:
+  1. "Analisando o mercado..." (2-3 segundos)
+  2. "Conectando na [Corretora X]..." (2-3 segundos) - corretora aleatória com logo
+  3. "Executando operações..." (2-3 segundos)
+  4. "Finalizando..." (1-2 segundos)
+  5. Reinicia o ciclo com nova corretora aleatória
+
+- **Visual**:
+  - Ícone animado de loading/spinner
+  - Logo da corretora quando conectando
+  - Texto com animação de "typing" ou fade
+  - Barra de progresso sutil
+  - Cores consistentes com o tema (green/teal para operações ativas)
+
+### 2. Modificar: `src/pages/Investments.tsx`
+
+- Importar e exibir o componente `TradingSimulation` dentro de cada cartão de investimento ativo
+- Posicionar abaixo do botão "Histórico de Trades" ou como parte da área de status
+
+### 3. Adicionar logos ao projeto: `public/images/exchanges/`
+
+Criar ícones simples SVG inline ou usar texto estilizado para cada corretora (evita dependência de imagens externas).
+
+## Fluxo Visual da Animação
+
+```text
+┌────────────────────────────────────────────────────────────┐
+│  🔄 Analisando o mercado...                                │
+│  ████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  25%    │
+└────────────────────────────────────────────────────────────┘
+                          ↓ (após 2-3s)
+┌────────────────────────────────────────────────────────────┐
+│  [Logo Binance] Conectando na Binance...                   │
+│  ████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  50%    │
+└────────────────────────────────────────────────────────────┘
+                          ↓ (após 2-3s)
+┌────────────────────────────────────────────────────────────┐
+│  ⚡ Executando operações...                                │
+│  ████████████████████████░░░░░░░░░░░░░░░░░░░░░░░░  75%    │
+└────────────────────────────────────────────────────────────┘
+                          ↓ (após 2-3s)
+┌────────────────────────────────────────────────────────────┐
+│  ✅ Finalizando...                                         │
+│  ████████████████████████████████████████████████  100%   │
+└────────────────────────────────────────────────────────────┘
+                          ↓ (reinicia com nova corretora)
 ```
 
-### 2. Edge Function: `oxapay-webhook`
-
-Modificar para chamar a nova função quando o depósito for aprovado:
-
-**Arquivo:** `supabase/functions/oxapay-webhook/index.ts`
-
-Após creditar o saldo do usuário (linha ~114), adicionar chamada para distribuir comissões:
+## Estrutura do Componente
 
 ```typescript
-// Após creditar o saldo do usuário...
-// Distribuir comissões MLM para a rede
-console.log("Distributing MLM commissions for deposit...");
-const { error: commissionError } = await supabase.rpc("distribute_deposit_commission", {
-  p_deposit_id: orderId,
-  p_user_id: deposit.user_id,
-  p_deposit_amount: depositAmount,
-});
+interface Exchange {
+  name: string;
+  color: string;
+  logo: React.ReactNode; // SVG inline ou ícone estilizado
+}
 
-if (commissionError) {
-  console.error("Error distributing commissions:", commissionError);
-  // Não falhar o webhook por isso - o depósito já foi creditado
-} else {
-  console.log("MLM commissions distributed successfully");
+const EXCHANGES: Exchange[] = [
+  { name: 'Binance', color: '#F0B90B', logo: <BinanceLogo /> },
+  { name: 'Coinbase', color: '#0052FF', logo: <CoinbaseLogo /> },
+  // ... outras corretoras
+];
+
+interface AnimationStep {
+  text: string;
+  duration: number;
+  progress: number;
+  showExchange?: boolean;
+}
+
+const ANIMATION_STEPS: AnimationStep[] = [
+  { text: 'Analisando o mercado...', duration: 2500, progress: 25 },
+  { text: 'Conectando na {exchange}...', duration: 3000, progress: 50, showExchange: true },
+  { text: 'Executando operações...', duration: 2500, progress: 75 },
+  { text: 'Finalizando...', duration: 1500, progress: 100 },
+];
+```
+
+## Detalhes Técnicos
+
+### Animações CSS necessárias (adicionar ao tailwind.config.ts)
+
+- `animate-typing`: efeito de digitação
+- `animate-progress`: barra de progresso suave
+
+### Props do componente
+
+```typescript
+interface TradingSimulationProps {
+  isActive: boolean; // Só animar se investimento ativo
+  compact?: boolean; // Versão menor para mobile
 }
 ```
 
-### 3. Atualizar Valores Padrão da Tabela `mlm_settings`
+### Logos das corretoras (SVG inline simplificado)
 
-Os valores atuais (100%, 50%, 25%, 10%) eram baseados no lucro. Para depósitos, atualizar para valores mais baixos:
+Para evitar carregar imagens externas, criar ícones simples com as iniciais e cores da marca:
 
-```sql
-UPDATE public.mlm_settings SET commission_percentage = 10 WHERE level = 1;
-UPDATE public.mlm_settings SET commission_percentage = 5 WHERE level = 2;
-UPDATE public.mlm_settings SET commission_percentage = 3 WHERE level = 3;
-UPDATE public.mlm_settings SET commission_percentage = 2 WHERE level = 4;
+```tsx
+const ExchangeIcon = ({ name, color }: { name: string; color: string }) => (
+  <div 
+    className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
+    style={{ backgroundColor: color, color: color === '#000000' ? '#fff' : '#000' }}
+  >
+    {name.slice(0, 2).toUpperCase()}
+  </div>
+);
 ```
 
-### 4. (Opcional) Alterar Função `distribute_investment_profit`
+## Integração na página
 
-Se o admin **não quiser mais** distribuir comissões sobre lucros de investimento:
-- Remover a lógica de comissão da função `distribute_investment_profit`
-- Manter apenas a atualização do `profit_accumulated`
+No cartão de investimento ativo, adicionar logo abaixo do botão de histórico:
 
-**Ou**, se quiser manter **ambos** (comissão sobre depósito E sobre lucro):
-- Não alterar a função `distribute_investment_profit`
-- Ambas as bonificações funcionarão
-
-## Fluxo Final
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│                  USUÁRIO FAZ DEPÓSITO                       │
-└─────────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│      OxaPay confirma pagamento via Webhook                  │
-└─────────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│  1. Depósito atualizado para "approved"                     │
-│  2. Saldo do usuário creditado ($100)                       │
-│  3. distribute_deposit_commission() chamada                 │
-└─────────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│           DISTRIBUIÇÃO DE COMISSÕES (exemplo)               │
-├─────────────────────────────────────────────────────────────┤
-│  • Nível 1 (quem indicou): 10% × $100 = $10                 │
-│  • Nível 2: 5% × $100 = $5                                  │
-│  • Nível 3: 3% × $100 = $3                                  │
-│  • Nível 4: 2% × $100 = $2                                  │
-│                                                             │
-│  → Cada usuário tem seu saldo creditado                     │
-│  → Registro inserido em referral_commissions                │
-└─────────────────────────────────────────────────────────────┘
+```tsx
+{isActive && investment.robot_id && (
+  <div className="mt-4 pt-4 border-t border-[#1e2a3a]">
+    <div className="flex items-center justify-between">
+      <Button variant="outline" size="sm" ... >
+        <History className="h-4 w-4 mr-2" />
+        Histórico de Trades
+      </Button>
+      
+      {/* Nova animação de trading */}
+      <TradingSimulation isActive={isActive} />
+    </div>
+  </div>
+)}
 ```
 
-## Arquivos que Serão Modificados
+## Considerações
 
-| Arquivo | Tipo de Mudança |
-|---------|-----------------|
-| Nova migration SQL | Criar função `distribute_deposit_commission` + atualizar valores padrão |
-| `supabase/functions/oxapay-webhook/index.ts` | Adicionar chamada à RPC de distribuição |
-
-## Impacto e Considerações
-
-- **Sem dedução do usuário**: O usuário que deposita recebe 100% do valor na carteira
-- **Comissões são "custo" da plataforma**: A bonificação é paga pela plataforma, não descontada do depositante
-- **Retroatividade**: Depósitos já aprovados não receberão comissão automaticamente
-- **Configurável pelo admin**: Os percentuais podem ser ajustados a qualquer momento via tela de configuração MLM
+- **Performance**: A animação usa CSS e timers JavaScript leves
+- **Acessibilidade**: Respeitar `prefers-reduced-motion`
+- **Responsividade**: Versão compacta para mobile
+- **UX**: Loop infinito enquanto investimento ativo, transmitindo sensação de trabalho contínuo
 
