@@ -1,184 +1,175 @@
 
-# Plano: Adicionar Opção para Reenviar Email de Validação de Email
+# Plano: Corrigir Erro 401 na Geração de Link OxaPay
 
-## Visão Geral
+## Diagnóstico do Problema
 
-Adicionar uma funcionalidade para que usuários possam reenviar o email de confirmação/validação de email, similar à opção de "Enviar Email de Redefinição de Senha" que já existe no painel de admin.
-
-## Contexto Atual
-
-A aplicação já possui:
-- **AuthContext** (`src/contexts/AuthContext.tsx`): Gerencia autenticação com métodos como `signUp`, `signIn`, `resetPassword`, `updatePassword`
-- **Edge Function admin-user-actions** (`supabase/functions/admin-user-actions/index.ts`): Executa ações privilegiadas como `send_password_reset`, `delete_user`, `get_user_email`
-- **Painel AdminUsers** (`src/pages/admin/AdminUsers.tsx`): Possui um dialog de edição de usuários com uma seção "Segurança" que inclui o botão "Enviar Email de Redefinição de Senha" (linhas ~1049-1055)
-- **Supabase Auth** configurado com verificação de email obrigatória
-
-## Fluxo Atual para Redefinição de Senha
-
-O usuário já pode:
-1. Entrar no painel de admin
-2. Procurar por um usuário específico
-3. Clicar no dropdown de ações e depois em "Editar"
-4. No dialog, ir para a aba "Ações" (ou seção "Segurança")
-5. Clicar em "Enviar Email de Redefinição de Senha"
-6. Um email é enviado via `admin-user-actions` edge function
-
-## O que Será Implementado
-
-### 1. Nova Ação na Edge Function `admin-user-actions`
-
-Adicionar novo caso `send_email_confirmation`:
-- Recebe `user_id` como parâmetro
-- Usa o método Supabase `supabaseAdmin.auth.resendEnrollmentEmail(email)` para reenviar email de confirmação
-- Cria um audit log registrando a ação
-- Retorna sucesso ou erro
-
-### 2. Novo Método no AuthContext
-
-Adicionar método `resendEmailConfirmation`:
-- Permite que usuários (não apenas admins) ressubmitam o email de confirmação
-- Usa `supabase.auth.resendEnrollmentEmail(email)` 
-- Retorna erro ou sucesso
-
-### 3. Alterações no Painel AdminUsers
-
-Na seção "Segurança" do dialog de edição de usuários:
-- Adicionar novo botão: "Reenviar Email de Confirmação" (com ícone de envelope/mail)
-- Colocar após ou ao lado do botão "Enviar Email de Redefinição de Senha"
-- Implementar `handleSendEmailConfirmation` que invoca a edge function
-- Adicionar estado `isSendingEmailConfirmation` para controlar o estado de carregamento
-
-### 4. Interface do Usuário
-
-Adicionar um botão visual simples na seção de "Segurança":
+A análise dos logs de Edge Functions revelou que todas as chamadas POST para `oxapay-create-invoice` estão retornando **HTTP 401 Unauthorized**:
 
 ```
-┌─────────────────────────────────────────────┐
-│ Segurança                                   │
-├─────────────────────────────────────────────┤
-│ [Enviar Email de Redefinição de Senha]      │
-│ [Reenviar Email de Confirmação] ← NOVO      │
-└─────────────────────────────────────────────┘
+POST | 401 | https://ipxgoqpkbgyijfubqaqi.supabase.co/functions/v1/oxapay-create-invoice
 ```
+
+### Causa Raiz
+
+A função `oxapay-create-invoice` está configurada com `verify_jwt = true` no `supabase/config.toml`. Isso significa que o Supabase valida o JWT **antes** de executar a função. Quando a validação falha (sessão expirada, token inválido, ou problema de timing), retorna 401 sem executar o código da função.
+
+Problemas possíveis:
+- Sessão do usuário expirada
+- Token não sendo enviado corretamente pelo cliente
+- Problema de timing onde o token não foi carregado
+
+---
+
+## Solução Proposta
+
+Alterar a abordagem de autenticação para **validação manual de JWT no código** (padrão mais robusto usado em outras funções do projeto).
+
+### Benefícios desta abordagem:
+1. Mensagens de erro mais claras e específicas
+2. Logs detalhados para debugging
+3. Maior controle sobre o fluxo de autenticação
+4. Funciona mesmo com problemas de timing no cliente
+
+---
+
+## Alterações a Serem Feitas
+
+### 1. Atualizar `supabase/config.toml`
+
+```diff
+[functions.oxapay-create-invoice]
+- verify_jwt = true
++ verify_jwt = false
+```
+
+### 2. Atualizar `supabase/functions/oxapay-create-invoice/index.ts`
+
+Adicionar validação manual do JWT no início da função:
+
+```typescript
+// No início da função, após CORS handling
+const authHeader = req.headers.get('Authorization');
+if (!authHeader) {
+  console.error("Missing Authorization header");
+  return new Response(
+    JSON.stringify({ error: "Não autorizado - faça login novamente" }),
+    { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  global: { headers: { Authorization: authHeader } }
+});
+
+const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+
+if (authError || !user) {
+  console.error("Auth error:", authError?.message || "User not found");
+  return new Response(
+    JSON.stringify({ error: "Sessão expirada - faça login novamente" }),
+    { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+
+console.log("Authenticated user:", user.id);
+```
+
+### 3. Fazer a Mesma Alteração em `oxapay-check-status`
+
+Aplicar a mesma correção para consistência e melhor debugging.
+
+---
 
 ## Arquivos a Modificar
 
-| Arquivo | Modificação | Descrição |
-|---------|-------------|-----------|
-| `supabase/functions/admin-user-actions/index.ts` | Adicionar case | Novo caso `send_email_confirmation` |
-| `src/contexts/AuthContext.tsx` | Adicionar método | Novo método `resendEmailConfirmation` |
-| `src/pages/admin/AdminUsers.tsx` | Modificar | Adicionar handler + UI button na seção Segurança |
+| Arquivo | Alteração |
+|---------|-----------|
+| `supabase/config.toml` | Alterar `verify_jwt = false` para ambas as funções OxaPay |
+| `supabase/functions/oxapay-create-invoice/index.ts` | Adicionar validação manual de JWT com logs detalhados |
+| `supabase/functions/oxapay-check-status/index.ts` | Adicionar validação manual de JWT com logs detalhados |
 
-## Detalhes Técnicos
+---
 
-### Edge Function - Novo Case
+## Fluxo de Autenticação Após a Correção
 
-```typescript
-case 'send_email_confirmation': {
-  const { data: userData, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(user_id);
-  
-  if (getUserError || !userData.user?.email) {
-    return new Response(
-      JSON.stringify({ error: 'Usuário não encontrado ou sem email' }),
-      { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-
-  const { error: resendError } = await supabaseAdmin.auth.admin.sendEnrollmentInvitation(userData.user.email);
-
-  if (resendError) {
-    return new Response(
-      JSON.stringify({ error: 'Erro ao reenviar email de confirmação' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-
-  await createAuditLog('user_email_confirmation_resent', 'user', user_id, {
-    user_email: userData.user.email,
-    action_via: 'edge_function',
-  });
-
-  return new Response(
-    JSON.stringify({ success: true, message: 'Email de confirmação reenviado com sucesso' }),
-    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-  );
-}
+```text
+1. Usuário clica "Continuar para Pagamento"
+          |
+          v
+2. supabase.functions.invoke() envia token JWT no header
+          |
+          v
+3. Edge Function verifica token manualmente
+          |
+    [Token válido?]
+        /    \
+      Sim     Não
+       |       |
+       v       v
+4. Cria invoice   Retorna erro claro:
+   no OxaPay      "Sessão expirada - faça login novamente"
 ```
 
-### AuthContext - Novo Método
+---
+
+## Seção Técnica - Código Completo
+
+### oxapay-create-invoice/index.ts (Trecho Modificado)
 
 ```typescript
-const resendEmailConfirmation = async (email: string) => {
-  const { error } = await supabase.auth.resendEnrollmentEmail(email);
-  return { error: error as Error | null };
-};
-```
+import { corsHeaders } from "../_shared/cors.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-### AdminUsers - Handler
+Deno.serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
 
-```typescript
-const handleSendEmailConfirmation = async () => {
-  if (!editUser) return;
-  
-  setIsSendingEmailConfirmation(true);
-  
-  const { data, error } = await supabase.functions.invoke('admin-user-actions', {
-    body: {
-      action: 'send_email_confirmation',
-      user_id: editUser.user_id,
-    },
-  });
+  try {
+    // Validate authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error("Missing Authorization header");
+      return new Response(
+        JSON.stringify({ error: "Não autorizado - faça login novamente" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
-  if (error || data?.error) {
-    toast({
-      title: 'Erro',
-      description: data?.error || 'Não foi possível reenviar o email de confirmação',
-      variant: 'destructive',
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+    // Create client with user's token for auth validation
+    const supabaseAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: authHeader } }
     });
-  } else {
-    toast({
-      title: 'Email enviado!',
-      description: 'O usuário receberá um link para confirmar seu email',
-    });
+
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+
+    if (authError || !user) {
+      console.error("Auth validation failed:", authError?.message || "No user");
+      return new Response(
+        JSON.stringify({ error: "Sessão expirada - faça login novamente" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("Authenticated user:", user.id);
+
+    // ... resto do código continua igual ...
   }
-
-  setIsSendingEmailConfirmation(false);
-};
+});
 ```
 
-### AdminUsers - UI Button
+---
 
-Adicionar na seção "Segurança" (próximo ao botão de password reset):
+## Resultado Esperado
 
-```tsx
-<button
-  onClick={handleSendEmailConfirmation}
-  disabled={isSendingEmailConfirmation}
-  className="w-full flex items-center justify-center gap-2 h-10 rounded-lg bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 font-medium transition-colors disabled:opacity-50"
->
-  <Mail className="h-4 w-4" />
-  {isSendingEmailConfirmation ? 'Enviando...' : 'Reenviar Email de Confirmação'}
-</button>
-```
-
-## Fluxo Esperado
-
-1. Admin abre painel de AdminUsers
-2. Procura por um usuário cuja confirmação de email pode ter falhado
-3. Clica em "Editar Usuário"
-4. Vai para a seção "Segurança"
-5. Clica em "Reenviar Email de Confirmação"
-6. O email é enviado via Supabase Auth
-7. Sistema registra a ação no audit log
-8. Admin recebe confirmação visual (toast)
-9. Usuário recebe novo email com link de confirmação
-
-## Segurança
-
-- Apenas admins (verificado via `has_role` function na edge function) podem reenviar emails de confirmação para outros usuários
-- Cada ação é registrada no audit log para rastreabilidade
-- Usa o método seguro do Supabase Auth (`sendEnrollmentInvitation`)
-
-## Estado Adicional Necessário em AdminUsers
-
-- `const [isSendingEmailConfirmation, setIsSendingEmailConfirmation] = useState(false);` (já existe `isSendingReset`)
+1. Usuário logado consegue criar depósitos normalmente
+2. Se a sessão expirar, recebe mensagem clara: "Sessão expirada - faça login novamente"
+3. Logs detalhados aparecem no Edge Function Logs para debugging
+4. Erro genérico "Erro ao gerar link de pagamento" é substituído por mensagens específicas
