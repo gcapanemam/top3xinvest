@@ -3,15 +3,18 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { ImpersonationBanner } from './ImpersonationBanner';
 import { Bot } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 
 export const DashboardLayout = () => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, impersonatedUser } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  
+  const hasImpersonation = !!impersonatedUser;
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -47,6 +50,9 @@ export const DashboardLayout = () => {
 
   return (
     <div className="min-h-screen bg-[#0a0f14]">
+      {/* Impersonation Banner */}
+      <ImpersonationBanner />
+      
       {/* Background decorations */}
       <div className="fixed inset-0 -z-10 overflow-hidden">
         <div className="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-teal-500/5 blur-3xl" />
@@ -69,7 +75,8 @@ export const DashboardLayout = () => {
       
       <div className={cn(
         "transition-all duration-300",
-        isMobile ? "pl-0" : "pl-64"
+        isMobile ? "pl-0" : "pl-64",
+        hasImpersonation && "pt-10"
       )}>
         <Header onMenuClick={() => setSidebarOpen(true)} />
         <main className="p-4 md:p-6">

@@ -42,7 +42,8 @@ import {
   AlertTriangle,
   Mail,
   Phone,
-  KeyRound
+  KeyRound,
+  Eye
 } from 'lucide-react';
 import { createAuditLog } from '@/lib/auditLog';
 
@@ -88,7 +89,7 @@ interface NetworkStats {
 }
 
 const AdminUsers = () => {
-  const { isAdmin, isLoading, user: currentUser } = useAuth();
+  const { isAdmin, isLoading, user: currentUser, impersonateUser } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [users, setUsers] = useState<UserWithStats[]>([]);
@@ -798,6 +799,17 @@ const AdminUsers = () => {
                           >
                             <Edit className="mr-2 h-4 w-4" />
                             Editar Usuário
+                          </DropdownMenuItem>
+                          
+                          <DropdownMenuItem
+                            onClick={() => {
+                              impersonateUser(user.user_id, user.full_name);
+                              navigate('/dashboard');
+                            }}
+                            className="cursor-pointer text-cyan-400 focus:text-cyan-400 focus:bg-[#1e2a3a]"
+                          >
+                            <Eye className="mr-2 h-4 w-4" />
+                            Acessar Painel
                           </DropdownMenuItem>
                           
                           <DropdownMenuItem
