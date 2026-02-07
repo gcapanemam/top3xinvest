@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { TrendingUp, TrendingDown, Save } from 'lucide-react';
+import { TrendingUp, TrendingDown, Save, RefreshCw } from 'lucide-react';
 import { createAuditLog } from '@/lib/auditLog';
 
 interface Cryptocurrency {
@@ -23,6 +23,7 @@ const AdminPrices = () => {
   const [cryptos, setCryptos] = useState<Cryptocurrency[]>([]);
   const [editedPrices, setEditedPrices] = useState<Record<string, { price: string; change: string }>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [isFetchingReal, setIsFetchingReal] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !isAdmin) {
@@ -63,6 +64,48 @@ const AdminPrices = () => {
         [field]: value,
       },
     }));
+  };
+
+  const fetchRealPrices = async () => {
+    setIsFetchingReal(true);
+
+    try {
+      const symbols = cryptos.map((c) => c.symbol);
+
+      const { data, error } = await supabase.functions.invoke('fetch-crypto-prices', {
+        body: { symbols },
+      });
+
+      if (error) throw error;
+
+      // Update edited prices with real data
+      setEditedPrices((prev) => {
+        const updated = { ...prev };
+        for (const crypto of cryptos) {
+          if (data[crypto.symbol]) {
+            updated[crypto.id] = {
+              price: data[crypto.symbol].price.toString(),
+              change: data[crypto.symbol].change.toFixed(2),
+            };
+          }
+        }
+        return updated;
+      });
+
+      toast({
+        title: 'Sucesso',
+        description: 'Preços reais carregados da CoinGecko!',
+      });
+    } catch (error) {
+      console.error('Error fetching real prices:', error);
+      toast({
+        title: 'Erro',
+        description: 'Falha ao buscar preços reais',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsFetchingReal(false);
+    }
   };
 
   const saveAllPrices = async () => {
@@ -147,14 +190,24 @@ const AdminPrices = () => {
             Defina os preços das criptomoedas exibidos na plataforma
           </p>
         </div>
-        <button 
-          onClick={saveAllPrices} 
-          disabled={isSaving} 
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium transition-all hover:shadow-lg hover:shadow-teal-500/25 disabled:opacity-50"
-        >
-          <Save className="h-4 w-4" />
-          {isSaving ? 'Salvando...' : 'Salvar Alterações'}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={fetchRealPrices}
+            disabled={isFetchingReal || cryptos.length === 0}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1e2a3a] text-cyan-400 font-medium transition-all hover:bg-[#2a3a4a] disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${isFetchingReal ? 'animate-spin' : ''}`} />
+            {isFetchingReal ? 'Buscando...' : 'Buscar Preços Reais'}
+          </button>
+          <button
+            onClick={saveAllPrices}
+            disabled={isSaving}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium transition-all hover:shadow-lg hover:shadow-teal-500/25 disabled:opacity-50"
+          >
+            <Save className="h-4 w-4" />
+            {isSaving ? 'Salvando...' : 'Salvar Alterações'}
+          </button>
+        </div>
       </div>
 
       <div className="rounded-xl bg-[#111820] border border-[#1e2a3a]">
