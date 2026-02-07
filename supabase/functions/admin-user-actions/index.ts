@@ -173,54 +173,6 @@ Deno.serve(async (req) => {
         );
       }
 
-      case 'send_email_confirmation': {
-        // Get user email from auth.users
-        const { data: userData, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(user_id);
-        
-        if (getUserError || !userData.user?.email) {
-          console.error('Get user error:', getUserError);
-          return new Response(
-            JSON.stringify({ error: 'Usuário não encontrado ou sem email' }),
-            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        // Resend confirmation email using signUp invite
-        const { error: resendError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
-          userData.user.email,
-          { redirectTo: data?.redirectTo || 'https://top3xinvest.lovable.app/' }
-        );
-
-        if (resendError) {
-          console.error('Resend email confirmation error:', resendError);
-          
-          // Check for rate limit error
-          const errorCode = (resendError as { code?: string }).code;
-          if (errorCode === 'over_email_send_rate_limit' || resendError.message?.includes('rate limit')) {
-            return new Response(
-              JSON.stringify({ error: 'Limite de envio de emails excedido. Aguarde alguns minutos e tente novamente.' }),
-              { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-          }
-          
-          return new Response(
-            JSON.stringify({ error: 'Erro ao reenviar email de confirmação' }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-
-        // Create audit log
-        await createAuditLog('user_email_confirmation_resent', 'user', user_id, {
-          user_email: userData.user.email,
-          action_via: 'edge_function',
-        });
-
-        return new Response(
-          JSON.stringify({ success: true, message: 'Email de confirmação reenviado com sucesso' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
       default:
         return new Response(
           JSON.stringify({ error: 'Ação não reconhecida' }),
