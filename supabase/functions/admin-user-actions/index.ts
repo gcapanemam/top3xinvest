@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
         // Send password reset email
         const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(
           userData.user.email,
-          { redirectTo: data?.redirectTo || 'https://top3xinvest.lovable.app/reset-password' }
+          { redirectTo: data?.redirectTo || 'https://top3xinvest.lovable.app/auth/reset-password' }
         );
 
         if (resetError) {
