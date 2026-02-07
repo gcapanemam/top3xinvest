@@ -659,6 +659,14 @@ export type Database = {
         Args: { p_profit_percentage: number; p_robot_id: string }
         Returns: number
       }
+      distribute_deposit_commission: {
+        Args: {
+          p_deposit_amount: number
+          p_deposit_id: string
+          p_user_id: string
+        }
+        Returns: boolean
+      }
       distribute_investment_profit: {
         Args: { p_investment_id: string; p_profit_amount: number }
         Returns: boolean
