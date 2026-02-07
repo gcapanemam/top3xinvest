@@ -1,201 +1,210 @@
 
-# Plano: Sistema de Status Ativo/Inativo para Usuários
+
+# Plano: Adicionar Filtro de Usuários Inativos no Painel Admin
 
 ## Objetivo
-Implementar um sistema onde usuários novos começam com status "inativo" e só podem indicar pessoas para a rede MLM após ativar pelo menos um robô de investimento.
+Adicionar um filtro na página de Gestão de Usuários para mostrar apenas usuários inativos (aqueles que ainda não ativaram nenhum robô).
 
 ---
 
-## Regras de Negócio
+## Contexto
 
-1. **Cadastro**: Usuário é criado com status `is_active = false`
-2. **Ativação**: Ao investir em qualquer robô pela primeira vez, status muda para `is_active = true`
-3. **Indicação**: Apenas usuários ativos podem ter seu código de referral válido para indicar novos membros
+O sistema já possui o campo `is_active` na tabela `profiles`:
+- `is_active = false`: Usuário ainda não investiu em nenhum robô
+- `is_active = true`: Usuário já ativou pelo menos um robô
+
+Atualmente, a página Admin Users não utiliza esse campo.
 
 ---
 
 ## Alterações Necessárias
 
-### 1. Banco de Dados
-
-| Ação | Descrição |
-|------|-----------|
-| Adicionar coluna | `is_active BOOLEAN DEFAULT false` na tabela `profiles` |
-| Criar trigger | Atualizar `is_active = true` quando usuário criar primeiro investimento |
-| Modificar função | `process_referral` para validar se o referrer está ativo |
-
-**SQL Migration:**
-```sql
--- Adicionar coluna is_active
-ALTER TABLE public.profiles 
-ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT false;
-
--- Atualizar usuários existentes com investimentos para ativo
-UPDATE public.profiles SET is_active = true 
-WHERE user_id IN (SELECT DISTINCT user_id FROM public.investments);
-
--- Trigger para ativar usuário no primeiro investimento
-CREATE OR REPLACE FUNCTION public.activate_user_on_investment()
-RETURNS TRIGGER AS $$
-BEGIN
-  UPDATE public.profiles 
-  SET is_active = true, updated_at = now()
-  WHERE user_id = NEW.user_id AND is_active = false;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-CREATE TRIGGER trigger_activate_user_on_investment
-AFTER INSERT ON public.investments
-FOR EACH ROW EXECUTE FUNCTION public.activate_user_on_investment();
-
--- Atualizar process_referral para validar referrer ativo
-CREATE OR REPLACE FUNCTION public.process_referral(
-    new_user_id UUID,
-    referrer_code TEXT
-)
-RETURNS BOOLEAN AS $$
-DECLARE
-    referrer_user_id UUID;
-    referrer_is_active BOOLEAN;
-BEGIN
-    -- Encontrar o usuário que fez a indicação e verificar se está ativo
-    SELECT user_id, is_active INTO referrer_user_id, referrer_is_active
-    FROM public.profiles 
-    WHERE referral_code = upper(referrer_code);
-    
-    IF referrer_user_id IS NULL THEN
-        RETURN FALSE;
-    END IF;
-    
-    -- Verificar se o referrer está ativo
-    IF referrer_is_active IS NOT TRUE THEN
-        RETURN FALSE;
-    END IF;
-    
-    -- Evitar auto-indicação
-    IF referrer_user_id = new_user_id THEN
-        RETURN FALSE;
-    END IF;
-    
-    -- Inserir a indicação
-    INSERT INTO public.referrals (user_id, referrer_id, referral_code, level)
-    VALUES (new_user_id, referrer_user_id, upper(referrer_code), 1);
-    
-    RETURN TRUE;
-EXCEPTION
-    WHEN unique_violation THEN
-        RETURN FALSE;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
-```
-
----
-
-### 2. Arquivos a Modificar
-
 | Arquivo | Ação | Descrição |
 |---------|------|-----------|
-| `src/pages/Dashboard.tsx` | Modificar | Ocultar/desabilitar link de indicação se usuário inativo |
-| `src/pages/MLMNetwork.tsx` | Modificar | Mostrar aviso para usuários inativos |
+| `src/pages/admin/AdminUsers.tsx` | Modificar | Adicionar campo `is_active` e filtro de usuários inativos |
 
 ---
 
-## Interface do Usuário
+## Detalhes da Implementação
 
-### Dashboard - Usuário Inativo
-O card de link de indicação mostrará um aviso em vez do link:
+### 1. Atualizar Interface `UserWithStats`
 
-```text
-┌───────────────────────────────────────────────────────┐
-│ 🔒 Ative sua conta para indicar                       │
-│                                                       │
-│ Para compartilhar seu link de indicação e começar     │
-│ a ganhar comissões, ative pelo menos um robô.         │
-│                                                       │
-│                           [Ver Robôs]                 │
-└───────────────────────────────────────────────────────┘
+Adicionar o campo `is_active`:
+
+```typescript
+interface UserWithStats {
+  // ... campos existentes
+  is_active: boolean; // Novo campo
+}
 ```
 
-### Dashboard - Usuário Ativo
-Continua igual (mostra o link de indicação normalmente)
+### 2. Buscar Campo `is_active` no fetchUsersWithStats
 
-### Página Minha Rede - Usuário Inativo
-Mostra banner de aviso no topo:
+Na função que busca os perfis, incluir o campo `is_active` no mapeamento:
+
+```typescript
+return {
+  // ... campos existentes
+  is_active: profile.is_active,
+};
+```
+
+### 3. Adicionar Estado de Filtro
+
+Criar estado para controlar o filtro selecionado:
+
+```typescript
+const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'blocked'>('all');
+```
+
+### 4. Atualizar Lógica de Filtragem
+
+Modificar `filteredUsers` para considerar o novo filtro:
+
+```typescript
+const filteredUsers = users.filter((user) => {
+  // Filtro de busca por texto
+  const matchesSearch =
+    user.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.user_id.includes(searchQuery);
+  
+  // Filtro por status
+  const matchesStatus =
+    statusFilter === 'all' ||
+    (statusFilter === 'active' && user.is_active && !user.is_blocked) ||
+    (statusFilter === 'inactive' && !user.is_active) ||
+    (statusFilter === 'blocked' && user.is_blocked);
+  
+  return matchesSearch && matchesStatus;
+});
+```
+
+### 5. Adicionar UI do Filtro
+
+Adicionar botões/tabs de filtro junto ao campo de busca:
 
 ```text
-┌───────────────────────────────────────────────────────┐
-│ ⚠️ Conta Inativa                                      │
-│                                                       │
-│ Seu link de indicação ainda não está ativo. Para      │
-│ começar a indicar pessoas, invista em pelo menos      │
-│ um robô.                                [Ver Robôs]   │
-└───────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Lista de Usuários                                                           │
+│                                                                             │
+│ [Todos] [Ativos] [Inativos] [Bloqueados]        🔍 Buscar por nome...      │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+Implementação com botões estilizados:
+
+```typescript
+<div className="flex items-center gap-2">
+  <Button
+    variant={statusFilter === 'all' ? 'default' : 'outline'}
+    size="sm"
+    onClick={() => setStatusFilter('all')}
+  >
+    Todos
+  </Button>
+  <Button
+    variant={statusFilter === 'active' ? 'default' : 'outline'}
+    size="sm"
+    onClick={() => setStatusFilter('active')}
+  >
+    Ativos
+  </Button>
+  <Button
+    variant={statusFilter === 'inactive' ? 'default' : 'outline'}
+    size="sm"
+    onClick={() => setStatusFilter('inactive')}
+    className="text-amber-400"
+  >
+    Inativos
+  </Button>
+  <Button
+    variant={statusFilter === 'blocked' ? 'default' : 'outline'}
+    size="sm"
+    onClick={() => setStatusFilter('blocked')}
+    className="text-red-400"
+  >
+    Bloqueados
+  </Button>
+</div>
+```
+
+### 6. Atualizar Contadores de Stats
+
+Adicionar contador de usuários inativos nos cards:
+
+```typescript
+const inactiveUsers = users.filter((u) => !u.is_active).length;
+```
+
+Adicionar novo card de estatísticas (ou substituir um existente):
+
+```text
+┌──────────────────────┐
+│ ⏳ Inativos          │
+│      12              │
+└──────────────────────┘
+```
+
+### 7. Exibir Badge de Status na Tabela
+
+Atualizar a coluna de Status para mostrar o estado de ativação:
+
+```typescript
+{/* Status */}
+<td className="px-4 py-4">
+  <div className="flex flex-col gap-1">
+    {user.is_admin && (
+      <Badge className="bg-purple-500/20 text-purple-400 border-0 w-fit">
+        <Shield className="h-3 w-3 mr-1" />
+        Admin
+      </Badge>
+    )}
+    {user.is_blocked ? (
+      <Badge className="bg-red-500/20 text-red-400 border-0">
+        Bloqueado
+      </Badge>
+    ) : user.is_active ? (
+      <Badge className="bg-green-500/20 text-green-400 border-0">
+        Ativo
+      </Badge>
+    ) : (
+      <Badge className="bg-amber-500/20 text-amber-400 border-0">
+        Inativo
+      </Badge>
+    )}
+  </div>
+</td>
 ```
 
 ---
 
-## Fluxo do Sistema
+## Layout do Filtro
 
 ```text
-1. Usuário se cadastra
-       |
-       v
-2. Profile criado com is_active = false
-       |
-       v
-3. Usuário tenta compartilhar link?
-       |
-       ├── Sim, mas inativo → Mostra aviso "Ative um robô"
-       |
-       v
-4. Usuário investe em robô
-       |
-       v
-5. Trigger ativa is_active = true
-       |
-       v
-6. Link de indicação liberado!
-       |
-       v
-7. Novos usuários podem usar o código
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Lista de Usuários                                                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │ [Todos (45)] [Ativos (30)] [Inativos (12)] [Bloqueados (3)]          │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌────────────────────────────────────┐                                     │
+│  │ 🔍 Buscar por nome ou email...    │                                     │
+│  └────────────────────────────────────┘                                     │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
-
----
-
-## Detalhes Técnicos
-
-### Dashboard.tsx
-- Buscar campo `is_active` junto com o profile
-- Renderizar card diferente baseado no status:
-  - Se `is_active = true`: mostra link de indicação
-  - Se `is_active = false`: mostra card com aviso e botão para robôs
-
-### MLMNetwork.tsx
-- Verificar `is_active` do profile
-- Se inativo, mostrar banner de alerta no topo da página
-- Desabilitar botões de copiar/compartilhar link
-
-### Auth.tsx (indicação)
-- A validação já acontece no banco via `process_referral`
-- Se o referrer estiver inativo, a indicação simplesmente não é processada
-- Não precisa mostrar erro ao novo usuário (ele apenas não será vinculado)
-
----
-
-## Segurança
-
-- A validação principal ocorre no **banco de dados** via função `process_referral`
-- Mesmo que o frontend seja manipulado, a indicação não será processada
-- O trigger garante que a ativação aconteça automaticamente
-- Apenas admins podem alterar o status diretamente
 
 ---
 
 ## Resultado Esperado
 
-1. Novos usuários começam com status inativo
-2. O link de indicação aparece bloqueado no dashboard e página de rede
-3. Ao investir pela primeira vez, usuário é ativado automaticamente
-4. Após ativação, pode indicar normalmente
-5. Usuários existentes com investimentos são migrados como ativos
+Após a implementação:
+
+1. Admin verá botões de filtro acima da tabela de usuários
+2. Ao clicar em "Inativos", verá apenas usuários que não ativaram robôs
+3. A coluna Status mostrará badge amarelo "Inativo" para esses usuários
+4. O contador no card de estatísticas mostrará quantos usuários inativos existem
+5. Os filtros combinam com a busca por texto (pode buscar "João" entre os inativos)
+
