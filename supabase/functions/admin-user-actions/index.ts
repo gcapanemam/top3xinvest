@@ -91,6 +91,16 @@ Deno.serve(async (req) => {
 
         if (resetError) {
           console.error('Reset password error:', resetError);
+          
+          // Check for rate limit error
+          const errorCode = (resetError as { code?: string }).code;
+          if (errorCode === 'over_email_send_rate_limit' || resetError.message?.includes('rate limit')) {
+            return new Response(
+              JSON.stringify({ error: 'Limite de envio de emails excedido. Aguarde alguns minutos e tente novamente.' }),
+              { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          
           return new Response(
             JSON.stringify({ error: 'Erro ao enviar email de redefinição' }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -183,6 +193,16 @@ Deno.serve(async (req) => {
 
         if (resendError) {
           console.error('Resend email confirmation error:', resendError);
+          
+          // Check for rate limit error
+          const errorCode = (resendError as { code?: string }).code;
+          if (errorCode === 'over_email_send_rate_limit' || resendError.message?.includes('rate limit')) {
+            return new Response(
+              JSON.stringify({ error: 'Limite de envio de emails excedido. Aguarde alguns minutos e tente novamente.' }),
+              { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          
           return new Response(
             JSON.stringify({ error: 'Erro ao reenviar email de confirmação' }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
