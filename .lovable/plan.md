@@ -1,16 +1,25 @@
 
-# Plano: Adicionar Botão "Acessar Painel do Usuário" para Admin
+# Plano: Implementar Página de Configurações do Usuário
 
 ## Objetivo
-Permitir que administradores acessem o painel de um usuário específico, visualizando a plataforma exatamente como esse usuário veria. Isso é útil para suporte, debug e verificação de problemas reportados pelos usuários.
+Criar uma página de configurações completa para o painel do usuário, permitindo gerenciar informações pessoais e de segurança da conta.
 
-## Abordagem
+---
 
-A implementação usará um sistema de **impersonação visual** onde:
-1. O admin continua logado normalmente
-2. A sessão de visualização é armazenada no localStorage
-3. Uma barra fixa no topo indica que está no "modo visualização como usuário"
-4. O admin pode sair desse modo a qualquer momento
+## Funcionalidades da Página
+
+### Aba 1: Perfil
+- Editar nome completo
+- Editar telefone
+- Visualizar email (somente leitura)
+- Visualizar código de indicação (somente leitura)
+- Upload de foto de perfil (avatar)
+
+### Aba 2: Segurança
+- Alterar senha (senha atual + nova senha + confirmação)
+
+### Aba 3: Preferências (futuro)
+- Espaço reservado para configurações de notificações e preferências
 
 ---
 
@@ -18,124 +27,156 @@ A implementação usará um sistema de **impersonação visual** onde:
 
 | Arquivo | Ação | Descrição |
 |---------|------|-----------|
-| `src/contexts/AuthContext.tsx` | Modificar | Adicionar estado e funções para impersonação |
-| `src/pages/admin/AdminUsers.tsx` | Modificar | Adicionar botão "Acessar Painel" no menu de ações |
-| `src/components/layout/ImpersonationBanner.tsx` | Criar | Componente da barra de aviso de impersonação |
-| `src/components/layout/DashboardLayout.tsx` | Modificar | Incluir o banner de impersonação |
-| `src/pages/Dashboard.tsx` | Modificar | Buscar dados do usuário impersonado quando aplicável |
+| `src/pages/Settings.tsx` | Criar | Página principal de configurações |
+| `src/App.tsx` | Modificar | Adicionar rota `/settings` |
+| `src/components/layout/Sidebar.tsx` | Modificar | Adicionar item "Configurações" no menu |
 
 ---
 
-## Detalhes da Implementação
-
-### 1. Atualizar AuthContext
-
-Adicionar ao contexto:
-- `impersonatedUser`: dados do usuário sendo visualizado (id, nome)
-- `impersonateUser(userId, fullName)`: função para iniciar impersonação
-- `stopImpersonation()`: função para parar impersonação
-- `effectiveUserId`: retorna o ID do usuário impersonado (se houver) ou o ID real
-
-```typescript
-interface ImpersonatedUser {
-  id: string;
-  fullName: string | null;
-}
-
-// No contexto:
-impersonatedUser: ImpersonatedUser | null;
-impersonateUser: (userId: string, fullName: string | null) => void;
-stopImpersonation: () => void;
-effectiveUserId: string | null;
-```
-
-### 2. Modificar AdminUsers.tsx
-
-Adicionar novo item no dropdown de ações de cada usuário:
-- Ícone: `Eye` (olho)
-- Texto: "Acessar Painel"
-- Ação: Chama `impersonateUser()` e redireciona para `/dashboard`
-
-```typescript
-<DropdownMenuItem
-  onClick={() => {
-    impersonateUser(user.user_id, user.full_name);
-    navigate('/dashboard');
-  }}
-  className="cursor-pointer text-cyan-400 focus:text-cyan-400 focus:bg-[#1e2a3a]"
->
-  <Eye className="mr-2 h-4 w-4" />
-  Acessar Painel
-</DropdownMenuItem>
-```
-
-### 3. Criar ImpersonationBanner.tsx
-
-Componente fixo no topo que aparece durante impersonação:
-- Fundo amarelo/âmbar para destaque
-- Mostra nome do usuário sendo visualizado
-- Botão para sair do modo impersonação
+## Estrutura da Página
 
 ```text
-┌──────────────────────────────────────────────────────────────┐
-│ ⚠️ Visualizando como: João Silva           [Sair do Modo]   │
-└──────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│  Configurações                                              │
+├─────────────────────────────────────────────────────────────┤
+│  [Perfil]  [Segurança]                                      │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  📷 Avatar                                          │   │
+│  │  ┌──────┐                                           │   │
+│  │  │  AB  │  [Alterar foto]                           │   │
+│  │  └──────┘                                           │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  Nome Completo                                              │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  João Silva                                         │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  Telefone                                                   │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  (11) 99999-9999                                    │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  Email (não editável)                                       │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  joao@email.com                                     │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  Código de Indicação                                        │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  ABC123XYZ                              [Copiar]    │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│                              [Salvar Alterações]            │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### 4. Modificar DashboardLayout.tsx
+---
 
-- Importar e renderizar `ImpersonationBanner` quando houver impersonação ativa
-- Banner fica acima do Header
+## Detalhes Técnicos
 
-### 5. Modificar Páginas do Dashboard
+### 1. Criar Settings.tsx
 
-Nas páginas que buscam dados do usuário (Dashboard, Investments, etc):
-- Usar `effectiveUserId` do contexto ao invés de `user.id`
-- Isso faz com que os dados do usuário impersonado sejam exibidos
+A página terá:
+- Tabs para navegação entre seções (Perfil / Segurança)
+- Busca de dados do perfil atual via Supabase
+- Formulário para edição com validação
+- Toast de feedback para sucesso/erro
+- Uso do `effectiveUserId` para compatibilidade com impersonação
+
+```typescript
+// Estrutura base
+const Settings = () => {
+  const { user, effectiveUserId, updatePassword } = useAuth();
+  const [profile, setProfile] = useState({ full_name, phone, avatar_url, email, referral_code });
+  
+  // Aba Perfil: atualiza tabela profiles
+  const handleSaveProfile = async () => {
+    await supabase.from('profiles').update({...}).eq('user_id', effectiveUserId);
+  };
+  
+  // Aba Segurança: atualiza senha via auth
+  const handleChangePassword = async () => {
+    await updatePassword(newPassword);
+  };
+};
+```
+
+### 2. Modificar App.tsx
+
+Adicionar nova rota dentro do DashboardLayout:
+
+```typescript
+import Settings from "./pages/Settings";
+
+// Dentro das rotas protegidas:
+<Route path="/settings" element={<Settings />} />
+```
+
+### 3. Modificar Sidebar.tsx
+
+Adicionar item de menu na lista `userNavItems`:
+
+```typescript
+import { Settings } from 'lucide-react';
+
+const userNavItems: NavItem[] = [
+  // ... itens existentes
+  { label: 'Configurações', href: '/settings', icon: Settings },
+];
+```
 
 ---
 
-## Persistência
+## Funcionalidades de Segurança
 
-- A impersonação será armazenada no `sessionStorage` (não localStorage)
-- Isso garante que a impersonação termina quando o navegador é fechado
-- Ao recarregar a página, a impersonação continua ativa
+### Alteração de Senha
+- Campo para nova senha (mínimo 6 caracteres)
+- Campo para confirmar nova senha
+- Validação de que as senhas coincidem
+- Usa `updatePassword()` do AuthContext (já implementado)
+
+### Validações
+- Nome: mínimo 2 caracteres
+- Telefone: formato válido (opcional)
+- Senha: mínimo 6 caracteres
+- Confirmação de senha: deve coincidir
 
 ---
 
-## Segurança
+## Design Visual
 
-- Apenas administradores podem iniciar impersonação (verificação de `isAdmin`)
-- A impersonação é apenas visual/leitura - não permite alterações como se fosse o usuário
-- O admin real continua autenticado, então qualquer ação sensível (como depósitos/saques) ainda seria associada ao admin
-- O banner sempre visível impede confusão sobre qual contexto está sendo visualizado
+A página seguirá o padrão visual existente:
+- Background: `bg-[#0a0f14]` e `bg-[#111820]`
+- Bordas: `border-[#1e2a3a]`
+- Cores de destaque: gradientes teal-to-cyan
+- Cards com hover effects
+- Inputs com estilo dark consistente
 
 ---
 
 ## Fluxo do Usuário
 
 ```text
-1. Admin acessa "Gestão de Usuários"
+1. Usuário clica em "Configurações" no menu lateral
        |
        v
-2. Clica em "..." no usuário desejado
+2. Página carrega com dados do perfil atual
        |
        v
-3. Clica em "Acessar Painel"
+3. Usuário edita informações desejadas
        |
        v
-4. É redirecionado para /dashboard
-   com banner amarelo no topo
+4. Clica em "Salvar Alterações"
        |
        v
-5. Visualiza dados do usuário
-   (saldo, investimentos, rede, etc)
+5. Sistema valida e salva no banco
        |
        v
-6. Clica em "Sair do Modo Visualização"
-       |
-       v
-7. Volta a ver seus próprios dados
+6. Toast de sucesso confirma a ação
 ```
 
 ---
@@ -143,8 +184,8 @@ Nas páginas que buscam dados do usuário (Dashboard, Investments, etc):
 ## Resultado Esperado
 
 Após a implementação:
-1. O dropdown de ações em cada usuário terá a opção "Acessar Painel"
-2. Ao clicar, o admin será levado para o dashboard com os dados daquele usuário
-3. Uma barra amarela no topo indicará claramente o modo de visualização
-4. O admin pode navegar por todas as páginas vendo os dados do usuário
-5. A qualquer momento pode clicar para sair do modo e voltar ao normal
+1. Item "Configurações" aparecerá no menu lateral (com ícone de engrenagem)
+2. Ao clicar, usuário verá página com abas Perfil e Segurança
+3. Poderá editar nome, telefone e foto de perfil
+4. Poderá alterar sua senha na aba Segurança
+5. Links no Header (dropdown) para Configurações e Meu Perfil funcionarão corretamente
