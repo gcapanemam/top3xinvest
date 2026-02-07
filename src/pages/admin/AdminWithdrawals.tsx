@@ -133,8 +133,8 @@ const AdminWithdrawals = () => {
       user_id: selectedWithdrawal.user_id,
       title: approve ? 'Saque Aprovado!' : 'Saque Recusado',
       message: approve
-        ? `Seu saque de R$ ${selectedWithdrawal.amount.toFixed(2)} foi aprovado e será enviado para o PIX informado.`
-        : `Seu saque de R$ ${selectedWithdrawal.amount.toFixed(2)} foi recusado. ${adminNotes || ''}`,
+        ? `Seu saque de $${selectedWithdrawal.amount.toFixed(2)} foi aprovado e será enviado para o PIX informado.`
+        : `Seu saque de $${selectedWithdrawal.amount.toFixed(2)} foi recusado. ${adminNotes || ''}`,
       type: approve ? 'info' : 'alert',
     });
 
@@ -163,9 +163,9 @@ const AdminWithdrawals = () => {
   };
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'BRL',
+      currency: 'USD',
     }).format(value);
   };
 

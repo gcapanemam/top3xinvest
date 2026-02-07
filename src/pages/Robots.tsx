@@ -98,9 +98,9 @@ const Robots = () => {
   };
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'BRL',
+      currency: 'USD',
     }).format(value);
   };
 
@@ -393,7 +393,7 @@ const Robots = () => {
             <div className="space-y-2">
               <Label className="text-gray-300">Valor do investimento</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">R$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
                 <Input
                   type="text"
                   placeholder="0,00"

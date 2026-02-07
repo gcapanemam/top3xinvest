@@ -107,9 +107,9 @@ const getAvatarColor = (name: string | null) => {
 };
 
 const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', {
+  return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'BRL',
+    currency: 'USD',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value);
@@ -117,10 +117,10 @@ const formatCurrency = (value: number) => {
 
 const formatCurrencyShort = (value: number) => {
   if (value >= 1000000) {
-    return `R$ ${(value / 1000000).toFixed(1)}M`;
+    return `$${(value / 1000000).toFixed(1)}M`;
   }
   if (value >= 1000) {
-    return `R$ ${(value / 1000).toFixed(0)} mil`;
+    return `$${(value / 1000).toFixed(0)}k`;
   }
   return formatCurrency(value);
 };
