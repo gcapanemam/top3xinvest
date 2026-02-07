@@ -127,8 +127,8 @@ const AdminDeposits = () => {
       user_id: selectedDeposit.user_id,
       title: approve ? 'Depósito Aprovado!' : 'Depósito Recusado',
       message: approve
-        ? `Seu depósito de R$ ${selectedDeposit.amount.toFixed(2)} foi aprovado e o saldo já está disponível.`
-        : `Seu depósito de R$ ${selectedDeposit.amount.toFixed(2)} foi recusado. ${adminNotes || ''}`,
+        ? `Seu depósito de $${selectedDeposit.amount.toFixed(2)} foi aprovado e o saldo já está disponível.`
+        : `Seu depósito de $${selectedDeposit.amount.toFixed(2)} foi recusado. ${adminNotes || ''}`,
       type: approve ? 'info' : 'alert',
     });
 
@@ -156,15 +156,9 @@ const AdminDeposits = () => {
   };
 
   const formatCurrency = (value: number, method?: string | null) => {
-    if (method === 'crypto') {
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-      }).format(value);
-    }
-    return new Intl.NumberFormat('pt-BR', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'BRL',
+      currency: 'USD',
     }).format(value);
   };
 

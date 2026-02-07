@@ -90,7 +90,7 @@ const Withdrawals = () => {
     if (numAmount < 20) {
       toast({
         title: 'Erro',
-        description: 'Valor mínimo para saque é R$ 20,00',
+        description: 'Minimum withdrawal amount is $20.00',
         variant: 'destructive',
       });
       return;
@@ -144,9 +144,9 @@ const Withdrawals = () => {
   };
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'BRL',
+      currency: 'USD',
     }).format(value);
   };
 
@@ -239,7 +239,7 @@ const Withdrawals = () => {
                 <Input
                   id="amount"
                   type="number"
-                  placeholder="R$ 0,00"
+                  placeholder="$0.00"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   max={profile?.balance || 0}
@@ -247,7 +247,7 @@ const Withdrawals = () => {
                   step={0.01}
                   className="bg-[#0a0f14] border-[#1e2a3a] text-white placeholder:text-gray-500"
                 />
-                <p className="text-xs text-gray-400">Mínimo: R$ 20,00</p>
+                <p className="text-xs text-gray-400">Minimum: $20.00</p>
               </div>
 
               <div className="space-y-2">

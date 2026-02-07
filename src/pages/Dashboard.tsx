@@ -225,9 +225,9 @@ const Dashboard = () => {
   };
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'BRL',
+      currency: 'USD',
     }).format(value);
   };
 
@@ -448,7 +448,7 @@ const Dashboard = () => {
                   stroke="#6b7280" 
                   tick={{ fill: '#6b7280', fontSize: 12 }}
                   axisLine={{ stroke: '#1e2a3a' }}
-                  tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
+                  tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
                 />
                 <Tooltip 
                   contentStyle={{ 
