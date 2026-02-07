@@ -1,108 +1,75 @@
 
+# Plano: Corrigir URL de Redirecionamento do Email de Recuperação de Senha
 
-# Plano: Remover Funcionalidade de Reenvio de Email de Validação
+## Problema Identificado
 
-## Visão Geral
+O link enviado no email de recuperação de senha está direcionando para uma página inexistente.
 
-Remover a opção de "Reenviar Email de Confirmação" do painel de administração, mantendo apenas a funcionalidade de "Enviar Email de Redefinição de Senha" (esqueci minha senha).
+### Inconsistência Encontrada:
+
+| Local | URL Atual | Status |
+|-------|-----------|--------|
+| Rota no App.tsx | `/auth/reset-password` | ✅ Correto |
+| AuthContext.tsx (esqueci senha do usuário) | `/auth/reset-password` | ✅ Correto |
+| Edge Function (admin envia reset) | `/reset-password` | ❌ **Errado** |
+
+A Edge Function `admin-user-actions` está enviando emails com o link `https://top3xinvest.lovable.app/reset-password`, mas a rota correta é `https://top3xinvest.lovable.app/auth/reset-password`.
 
 ---
 
-## Arquivos a Modificar
+## Solução
+
+Corrigir a URL na Edge Function `admin-user-actions` para usar o caminho correto `/auth/reset-password`.
+
+---
+
+## Arquivo a Modificar
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `supabase/functions/admin-user-actions/index.ts` | Remover case `send_email_confirmation` |
-| `src/pages/admin/AdminUsers.tsx` | Remover botão, handler e estado relacionado |
-| `src/lib/auditLog.ts` | Remover `user_email_confirmation_resent` do ActionType |
+| `supabase/functions/admin-user-actions/index.ts` | Corrigir URL de `/reset-password` para `/auth/reset-password` |
 
 ---
 
-## Alterações Detalhadas
+## Alteração Detalhada
 
-### 1. Edge Function: admin-user-actions
-
-Remover o case `send_email_confirmation` (linhas 176-222):
-
+**Linha 89 - Antes:**
 ```typescript
-// REMOVER ESTE BLOCO INTEIRO:
-case 'send_email_confirmation': {
-  // ... todo o código
-}
+{ redirectTo: data?.redirectTo || 'https://top3xinvest.lovable.app/reset-password' }
 ```
 
-### 2. AdminUsers.tsx - Estado
-
-Remover o estado:
+**Depois:**
 ```typescript
-// REMOVER:
-const [isSendingEmailConfirmation, setIsSendingEmailConfirmation] = useState(false);
+{ redirectTo: data?.redirectTo || 'https://top3xinvest.lovable.app/auth/reset-password' }
 ```
 
-### 3. AdminUsers.tsx - Handler
+---
 
-Remover a função `handleSendEmailConfirmation` (linhas 432-459):
-```typescript
-// REMOVER ESTE BLOCO INTEIRO:
-const handleSendEmailConfirmation = async () => {
-  // ...
-};
-```
+## Fluxo Corrigido
 
-### 4. AdminUsers.tsx - Interface
-
-Remover o botão de reenvio de email de confirmação (linhas 1094-1106):
-```tsx
-// REMOVER ESTE BLOCO:
-<div>
-  <button
-    onClick={handleSendEmailConfirmation}
-    disabled={isSendingEmailConfirmation}
-    ...
-  >
-    <Mail className="h-4 w-4" />
-    {isSendingEmailConfirmation ? 'Enviando...' : 'Reenviar Email de Confirmação'}
-  </button>
-  <p className="text-xs text-gray-500 mt-1">
-    O usuário receberá um email com link para validar seu email
-  </p>
-</div>
-```
-
-### 5. auditLog.ts - ActionType
-
-Remover do tipo `ActionType`:
-```typescript
-// REMOVER:
-| 'user_email_confirmation_resent'
-```
-
-Remover do `getActionDisplayName`:
-```typescript
-// REMOVER:
-user_email_confirmation_resent: 'Email de confirmação reenviado',
+```text
+1. Admin clica "Enviar Email de Redefinição"
+          |
+          v
+2. Edge Function envia email via Supabase Auth
+   com redirectTo = /auth/reset-password
+          |
+          v
+3. Usuário recebe email e clica no link
+          |
+          v
+4. Supabase redireciona para:
+   https://top3xinvest.lovable.app/auth/reset-password#access_token=...
+          |
+          v
+5. Página ResetPassword.tsx carrega ✅
+          |
+          v
+6. Usuário define nova senha
 ```
 
 ---
 
 ## Resultado Esperado
 
-1. A seção "Segurança" no dialog de edição de usuários mostrará apenas o botão "Enviar Email de Redefinição de Senha"
-2. O código da Edge Function será mais limpo, sem lógica não utilizada
-3. Tipos de auditoria atualizados sem referência à funcionalidade removida
-
----
-
-## Interface Final
-
-```text
-┌─────────────────────────────────────────────┐
-│ Segurança                                   │
-├─────────────────────────────────────────────┤
-│ [Enviar Email de Redefinição de Senha]      │
-│                                             │
-│ O usuário receberá um email com link        │
-│ para criar uma nova senha                   │
-└─────────────────────────────────────────────┘
-```
-
+Após a correção, quando um admin enviar o email de redefinição de senha, o usuário receberá um link que abrirá corretamente a página de redefinição de senha, onde poderá criar uma nova senha.
