@@ -2,3 +2,6 @@ project_id = "ipxgoqpkbgyijfubqaqi"
 
 [functions.admin-user-actions]
 verify_jwt = false
+
+[functions.fetch-crypto-prices]
+verify_jwt = false
