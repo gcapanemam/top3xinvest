@@ -1,274 +1,184 @@
 
+# Plano: Adicionar Opção para Reenviar Email de Validação de Email
 
-# Plano: Pagina de Acompanhamento de Status OxaPay em Tempo Real
+## Visão Geral
 
-## Visao Geral
+Adicionar uma funcionalidade para que usuários possam reenviar o email de confirmação/validação de email, similar à opção de "Enviar Email de Redefinição de Senha" que já existe no painel de admin.
 
-Criar uma pagina dedicada que mostra o status do pagamento OxaPay em tempo real. O usuario sera redirecionado para esta pagina apos criar um deposito, podendo acompanhar cada etapa do pagamento sem precisar sair da plataforma.
+## Contexto Atual
 
----
+A aplicação já possui:
+- **AuthContext** (`src/contexts/AuthContext.tsx`): Gerencia autenticação com métodos como `signUp`, `signIn`, `resetPassword`, `updatePassword`
+- **Edge Function admin-user-actions** (`supabase/functions/admin-user-actions/index.ts`): Executa ações privilegiadas como `send_password_reset`, `delete_user`, `get_user_email`
+- **Painel AdminUsers** (`src/pages/admin/AdminUsers.tsx`): Possui um dialog de edição de usuários com uma seção "Segurança" que inclui o botão "Enviar Email de Redefinição de Senha" (linhas ~1049-1055)
+- **Supabase Auth** configurado com verificação de email obrigatória
 
-## Fluxo do Usuario
+## Fluxo Atual para Redefinição de Senha
 
-```text
-Usuario cria deposito
-        |
-        v
-Redireciona para /deposit/status/:depositId
-        |
-        v
-Pagina mostra:
-  - Timer de expiracao (60 minutos)
-  - Status atual (New > Waiting > Confirming > Paid)
-  - Botao para ir para OxaPay pagar
-  - Link para copiar
-        |
-        v
-Pagina consulta status a cada 10 segundos
-        |
-        v
-Quando status = Paid:
-  - Mostra animacao de sucesso
-  - Redireciona para /deposits apos 3 segundos
+O usuário já pode:
+1. Entrar no painel de admin
+2. Procurar por um usuário específico
+3. Clicar no dropdown de ações e depois em "Editar"
+4. No dialog, ir para a aba "Ações" (ou seção "Segurança")
+5. Clicar em "Enviar Email de Redefinição de Senha"
+6. Um email é enviado via `admin-user-actions` edge function
+
+## O que Será Implementado
+
+### 1. Nova Ação na Edge Function `admin-user-actions`
+
+Adicionar novo caso `send_email_confirmation`:
+- Recebe `user_id` como parâmetro
+- Usa o método Supabase `supabaseAdmin.auth.resendEnrollmentEmail(email)` para reenviar email de confirmação
+- Cria um audit log registrando a ação
+- Retorna sucesso ou erro
+
+### 2. Novo Método no AuthContext
+
+Adicionar método `resendEmailConfirmation`:
+- Permite que usuários (não apenas admins) ressubmitam o email de confirmação
+- Usa `supabase.auth.resendEnrollmentEmail(email)` 
+- Retorna erro ou sucesso
+
+### 3. Alterações no Painel AdminUsers
+
+Na seção "Segurança" do dialog de edição de usuários:
+- Adicionar novo botão: "Reenviar Email de Confirmação" (com ícone de envelope/mail)
+- Colocar após ou ao lado do botão "Enviar Email de Redefinição de Senha"
+- Implementar `handleSendEmailConfirmation` que invoca a edge function
+- Adicionar estado `isSendingEmailConfirmation` para controlar o estado de carregamento
+
+### 4. Interface do Usuário
+
+Adicionar um botão visual simples na seção de "Segurança":
+
+```
+┌─────────────────────────────────────────────┐
+│ Segurança                                   │
+├─────────────────────────────────────────────┤
+│ [Enviar Email de Redefinição de Senha]      │
+│ [Reenviar Email de Confirmação] ← NOVO      │
+└─────────────────────────────────────────────┘
 ```
 
----
+## Arquivos a Modificar
 
-## O Que Sera Criado
+| Arquivo | Modificação | Descrição |
+|---------|-------------|-----------|
+| `supabase/functions/admin-user-actions/index.ts` | Adicionar case | Novo caso `send_email_confirmation` |
+| `src/contexts/AuthContext.tsx` | Adicionar método | Novo método `resendEmailConfirmation` |
+| `src/pages/admin/AdminUsers.tsx` | Modificar | Adicionar handler + UI button na seção Segurança |
 
-### 1. Nova Pagina: PaymentStatus
+## Detalhes Técnicos
 
-Arquivo: `src/pages/PaymentStatus.tsx`
-
-Pagina com:
-- Parametro de rota `:depositId`
-- Consulta deposito no banco de dados
-- Exibe informacoes do pagamento (valor, data, link)
-- Timer de contagem regressiva (60 minutos)
-- Barra de progresso visual com status
-- Polling automatico a cada 10 segundos
-- Estados visuais para cada status (New, Waiting, Confirming, Paid, Expired)
-
-### 2. Nova Edge Function: oxapay-check-status
-
-Arquivo: `supabase/functions/oxapay-check-status/index.ts`
-
-- Recebe `trackId` como parametro
-- Consulta API OxaPay (`POST https://api.oxapay.com/merchants/inquiry`)
-- Atualiza status do deposito no banco
-- Retorna status atualizado para o frontend
-
-### 3. Atualizar Rota no App.tsx
-
-Adicionar rota `/deposit/status/:depositId`
-
-### 4. Atualizar Deposits.tsx
-
-Redirecionar para a pagina de status ao inves de diretamente para OxaPay
-
----
-
-## Detalhes da Interface
-
-### Estados de Status
-
-| Status OxaPay | Icone | Cor | Mensagem |
-|---------------|-------|-----|----------|
-| New | Clock | Amarelo | Aguardando pagamento |
-| Waiting | Loader | Azul | Pagamento detectado |
-| Confirming | RefreshCw | Ciano | Confirmando transacao |
-| Paid | CheckCircle | Verde | Pagamento confirmado! |
-| Expired | XCircle | Vermelho | Pagamento expirado |
-| Failed | AlertTriangle | Vermelho | Falha no pagamento |
-
-### Layout da Pagina
-
-```text
-+--------------------------------------------------+
-|                                                  |
-|    [Logo/Header - Acompanhe seu Pagamento]       |
-|                                                  |
-|    +------------------------------------------+  |
-|    |                                          |  |
-|    |   Deposito de $100.00                    |  |
-|    |                                          |  |
-|    |   [====Barra de Progresso Visual====]    |  |
-|    |                                          |  |
-|    |   Status: Aguardando pagamento           |  |
-|    |                                          |  |
-|    |   Tempo restante: 58:42                  |  |
-|    |                                          |  |
-|    |   [ Ir para Pagamento (OxaPay) ]         |  |
-|    |                                          |  |
-|    +------------------------------------------+  |
-|                                                  |
-|    Voltar para Depositos                         |
-|                                                  |
-+--------------------------------------------------+
-```
-
----
-
-## Secao Tecnica
-
-### Edge Function: oxapay-check-status
+### Edge Function - Novo Case
 
 ```typescript
-import { corsHeaders } from "../_shared/cors.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  try {
-    const OXAPAY_MERCHANT_KEY = Deno.env.get("OXAPAY_MERCHANT_KEY");
-    const { trackId, depositId } = await req.json();
-
-    console.log("Checking OxaPay status:", { trackId, depositId });
-
-    // Call OxaPay inquiry API
-    const response = await fetch("https://api.oxapay.com/merchants/inquiry", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        merchant: OXAPAY_MERCHANT_KEY,
-        trackId: trackId,
-      }),
-    });
-
-    const data = await response.json();
-    console.log("OxaPay inquiry response:", data);
-
-    if (data.result !== 100) {
-      return new Response(
-        JSON.stringify({ error: data.message || "Error checking status" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Return status info to frontend
+case 'send_email_confirmation': {
+  const { data: userData, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(user_id);
+  
+  if (getUserError || !userData.user?.email) {
     return new Response(
-      JSON.stringify({
-        status: data.status,
-        amount: data.amount,
-        payAmount: data.payAmount,
-        payCurrency: data.payCurrency,
-        network: data.network,
-        address: data.address,
-        txID: data.txID,
-        expiredAt: data.expiredAt,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  } catch (error) {
-    console.error("Error in oxapay-check-status:", error);
-    return new Response(
-      JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: 'Usuário não encontrado ou sem email' }),
+      { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
-});
+
+  const { error: resendError } = await supabaseAdmin.auth.admin.sendEnrollmentInvitation(userData.user.email);
+
+  if (resendError) {
+    return new Response(
+      JSON.stringify({ error: 'Erro ao reenviar email de confirmação' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  await createAuditLog('user_email_confirmation_resent', 'user', user_id, {
+    user_email: userData.user.email,
+    action_via: 'edge_function',
+  });
+
+  return new Response(
+    JSON.stringify({ success: true, message: 'Email de confirmação reenviado com sucesso' }),
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
 ```
 
-### Pagina PaymentStatus.tsx (Resumo)
+### AuthContext - Novo Método
 
 ```typescript
-const PaymentStatus = () => {
-  const { depositId } = useParams();
-  const [deposit, setDeposit] = useState(null);
-  const [status, setStatus] = useState("New");
-  const [timeLeft, setTimeLeft] = useState(3600); // 60 min
-
-  // Buscar deposito do banco
-  useEffect(() => {
-    fetchDeposit();
-  }, [depositId]);
-
-  // Polling de status a cada 10 segundos
-  useEffect(() => {
-    const interval = setInterval(checkStatus, 10000);
-    return () => clearInterval(interval);
-  }, [deposit?.oxapay_track_id]);
-
-  // Countdown timer
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft(prev => Math.max(0, prev - 1));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const checkStatus = async () => {
-    if (!deposit?.oxapay_track_id) return;
-    
-    const { data } = await supabase.functions.invoke("oxapay-check-status", {
-      body: { trackId: deposit.oxapay_track_id, depositId }
-    });
-    
-    if (data?.status) {
-      setStatus(data.status);
-      
-      // Se pago, redirecionar
-      if (data.status === "Paid") {
-        setTimeout(() => navigate("/deposits"), 3000);
-      }
-    }
-  };
-
-  // Render visual progress bar and status info...
+const resendEmailConfirmation = async (email: string) => {
+  const { error } = await supabase.auth.resendEnrollmentEmail(email);
+  return { error: error as Error | null };
 };
 ```
 
-### Rota no App.tsx
+### AdminUsers - Handler
 
 ```typescript
-<Route path="/deposit/status/:depositId" element={<PaymentStatus />} />
+const handleSendEmailConfirmation = async () => {
+  if (!editUser) return;
+  
+  setIsSendingEmailConfirmation(true);
+  
+  const { data, error } = await supabase.functions.invoke('admin-user-actions', {
+    body: {
+      action: 'send_email_confirmation',
+      user_id: editUser.user_id,
+    },
+  });
+
+  if (error || data?.error) {
+    toast({
+      title: 'Erro',
+      description: data?.error || 'Não foi possível reenviar o email de confirmação',
+      variant: 'destructive',
+    });
+  } else {
+    toast({
+      title: 'Email enviado!',
+      description: 'O usuário receberá um link para confirmar seu email',
+    });
+  }
+
+  setIsSendingEmailConfirmation(false);
+};
 ```
 
-### Alteracao em Deposits.tsx
+### AdminUsers - UI Button
 
-```typescript
-// Ao inves de redirecionar direto para OxaPay:
-// window.location.href = invoiceData.payLink;
+Adicionar na seção "Segurança" (próximo ao botão de password reset):
 
-// Redirecionar para pagina de status:
-navigate(`/deposit/status/${depositData.id}`);
+```tsx
+<button
+  onClick={handleSendEmailConfirmation}
+  disabled={isSendingEmailConfirmation}
+  className="w-full flex items-center justify-center gap-2 h-10 rounded-lg bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 font-medium transition-colors disabled:opacity-50"
+>
+  <Mail className="h-4 w-4" />
+  {isSendingEmailConfirmation ? 'Enviando...' : 'Reenviar Email de Confirmação'}
+</button>
 ```
 
----
+## Fluxo Esperado
 
-## Arquivos a Criar/Modificar
+1. Admin abre painel de AdminUsers
+2. Procura por um usuário cuja confirmação de email pode ter falhado
+3. Clica em "Editar Usuário"
+4. Vai para a seção "Segurança"
+5. Clica em "Reenviar Email de Confirmação"
+6. O email é enviado via Supabase Auth
+7. Sistema registra a ação no audit log
+8. Admin recebe confirmação visual (toast)
+9. Usuário recebe novo email com link de confirmação
 
-| Arquivo | Tipo | Descricao |
-|---------|------|-----------|
-| src/pages/PaymentStatus.tsx | Criar | Pagina de acompanhamento de status |
-| supabase/functions/oxapay-check-status/index.ts | Criar | Edge Function para consultar status |
-| supabase/config.toml | Modificar | Adicionar config da nova funcao |
-| src/App.tsx | Modificar | Adicionar nova rota |
-| src/pages/Deposits.tsx | Modificar | Redirecionar para pagina de status |
+## Segurança
 
----
+- Apenas admins (verificado via `has_role` function na edge function) podem reenviar emails de confirmação para outros usuários
+- Cada ação é registrada no audit log para rastreabilidade
+- Usa o método seguro do Supabase Auth (`sendEnrollmentInvitation`)
 
-## Recursos Visuais
+## Estado Adicional Necessário em AdminUsers
 
-- Barra de progresso animada com 4 etapas
-- Icones animados (spin para Confirming)
-- Cores de status (amarelo > azul > ciano > verde)
-- Timer com contagem regressiva
-- Animacao de confete quando status = Paid
-- Skeleton loading enquanto carrega dados
-
----
-
-## Resultado Esperado
-
-1. Usuario clica em "Novo Deposito" e informa valor
-2. Sistema cria deposito e invoice no OxaPay
-3. Usuario e redirecionado para `/deposit/status/:id`
-4. Pagina mostra status em tempo real com polling
-5. Usuario clica "Ir para Pagamento" para abrir OxaPay
-6. Apos pagar, status atualiza automaticamente
-7. Quando Paid, mostra sucesso e redireciona para `/deposits`
-
+- `const [isSendingEmailConfirmation, setIsSendingEmailConfirmation] = useState(false);` (já existe `isSendingReset`)
