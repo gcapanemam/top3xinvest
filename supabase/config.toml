@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.oxapay-webhook]
 verify_jwt = false
+
+[functions.oxapay-check-status]
+verify_jwt = true
