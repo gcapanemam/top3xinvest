@@ -1,116 +1,168 @@
 
-# Plano: Redesenhar Animação de Trading
+
+# Plano: Aprimorar Apresentação para Investidores
 
 ## Resumo
-Alterar o componente `TradingSimulation` para exibir um layout diferente:
-1. **"Corretoras conectadas:"** - Título com lista de todas as corretoras
-2. Cada corretora exibe: **bolinha verde + ícone + nome**
-3. **Indicador circular animado** com texto "Robô em operação"
+Criar novas seções e melhorar a landing page existente para torná-la mais atrativa e informativa para investidores comuns que desejam começar a lucrar com trading automatizado. O foco será em simplicidade, confiança e clareza.
 
-## Visual Proposto
+## Novas Seções a Criar
 
-```text
-┌────────────────────────────────────────────────────────────────────┐
-│  Corretoras conectadas:                                            │
-│                                                                     │
-│  🟢 [BI] Binance    🟢 [CO] Coinbase    🟢 [UP] Upbit              │
-│  🟢 [OK] OKX        🟢 [BY] Bybit       🟢 [BG] Bitget             │
-│  🟢 [GA] Gate       🟢 [KU] KuCoin      🟢 [ME] MEXC               │
-│  🟢 [HT] HTX                                                        │
-│                                                                     │
-│     ( ⟳ )  Robô em operação                                        │
-│   [spinner]                                                         │
-└────────────────────────────────────────────────────────────────────┘
+### 1. Seção de FAQ (Perguntas Frequentes)
+**Arquivo:** `src/components/landing/FAQSection.tsx`
+
+Responder às principais dúvidas de novos investidores:
+- "Como funciona o trading automatizado?"
+- "Qual o valor mínimo para investir?"
+- "Como recebo meus lucros?"
+- "Posso sacar meu dinheiro a qualquer momento?"
+- "O que acontece se o robô tiver prejuízo?"
+- "Como faço para começar?"
+
+Usar componente Accordion para expandir/recolher as respostas.
+
+### 2. Seção de Depoimentos/Resultados
+**Arquivo:** `src/components/landing/TestimonialsSection.tsx`
+
+Exibir "casos de sucesso" simulados (para demonstração):
+- Cards com avatar, nome e valor de lucro
+- Animação de novos resultados aparecendo
+- Estatísticas gerais de pagamentos
+
+### 3. Seção de Video/Apresentação
+**Arquivo:** `src/components/landing/VideoSection.tsx`
+
+Área para um vídeo explicativo (placeholder):
+- Thumbnail com botão de play
+- Título: "Veja como é fácil começar a lucrar"
+- Descrição breve do que será mostrado
+
+### 4. Seção "Por que nos escolher"
+**Arquivo:** `src/components/landing/WhyChooseUsSection.tsx`
+
+Comparativo visual com concorrentes:
+- Interface intuitiva
+- Suporte 24/7
+- Saques rápidos
+- Sem conhecimento técnico necessário
+- Comunidade ativa
+
+### 5. Seção CTA Final
+**Arquivo:** `src/components/landing/CTASection.tsx`
+
+Call-to-action final antes do footer:
+- Frase de impacto
+- Botão grande para cadastro
+- Contador de usuários registrados
+
+## Melhorias nas Seções Existentes
+
+### HeroSection
+- Adicionar contador animado nos stats
+- Badge "Novo usuário ganha bônus" (opcional)
+
+### ProfitSection (Simulador)
+- Adicionar projeção de 90 dias e 365 dias
+- Mostrar comparativo com poupança/CDI
+
+### StepsSection
+- Adicionar 4º passo: "Saque seus lucros"
+
+### PartnersSection
+- Atualizar percentuais para valores reais do banco (10%, 5%, 3%, 2%)
+
+## Estrutura Final da Página
+
 ```
-
-## Arquivo a ser Modificado
-
-### `src/components/investments/TradingSimulation.tsx`
-
-#### Mudanças:
-
-1. **Remover lógica de steps** - Não precisa mais dos passos animados
-2. **Exibir todas as corretoras** - Lista completa com bolinha verde + ícone + nome
-3. **Adicionar spinner circular** - Com texto "Robô em operação"
-
-#### Novo código:
-
-```typescript
-const EXCHANGES = [
-  { name: 'Binance', color: '#F0B90B', textColor: '#000000' },
-  { name: 'Coinbase', color: '#0052FF', textColor: '#FFFFFF' },
-  // ... todas as 10 corretoras
-];
-
-// Componente de bolinha verde pulsante
-const GreenDot = () => (
-  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-);
-
-// Logo da corretora
-const ExchangeLogo = ({ name, color, textColor }) => (
-  <div
-    className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold"
-    style={{ backgroundColor: color, color: textColor }}
-  >
-    {name.slice(0, 2).toUpperCase()}
-  </div>
-);
-
-// Spinner circular animado
-const Spinner = () => (
-  <div className="relative w-10 h-10">
-    <div className="absolute inset-0 rounded-full border-2 border-green-500/20" />
-    <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-green-500 animate-spin" />
-  </div>
-);
-
-export const TradingSimulation = ({ isActive }) => {
-  if (!isActive) return null;
-
-  return (
-    <div className="space-y-4">
-      {/* Título */}
-      <p className="text-sm text-gray-400 font-medium">Corretoras conectadas:</p>
-      
-      {/* Grid de corretoras */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-        {EXCHANGES.map((exchange) => (
-          <div key={exchange.name} className="flex items-center gap-2">
-            <GreenDot />
-            <ExchangeLogo {...exchange} />
-            <span className="text-xs text-gray-300">{exchange.name}</span>
-          </div>
-        ))}
-      </div>
-      
-      {/* Indicador de operação */}
-      <div className="flex items-center gap-3 pt-2">
-        <Spinner />
-        <span className="text-sm text-green-400 font-medium">Robô em operação</span>
-      </div>
-    </div>
-  );
-};
+LandingHeader
+HeroSection
+QuickNavCards
+VideoSection (NOVA)
+AboutSection
+ProfitSection (melhorada)
+WhyChooseUsSection (NOVA)
+SecuritySection
+StepsSection (melhorada)
+TestimonialsSection (NOVA)
+AdvantagesSection
+PartnersSection (atualizada)
+FAQSection (NOVA)
+CTASection (NOVA)
+LandingFooter
 ```
 
 ## Detalhes Técnicos
 
-### Animações CSS
-- **Bolinha verde**: `animate-pulse` (já existe no Tailwind)
-- **Spinner**: `animate-spin` (já existe no Tailwind)
+### FAQSection.tsx
+```typescript
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
-### Responsividade
-- **Mobile**: 2 colunas de corretoras
-- **Tablet**: 3 colunas
-- **Desktop**: 5 colunas
+const faqs = [
+  {
+    question: "Como funciona o trading automatizado?",
+    answer: "Nossos robôs operam 24 horas por dia nas principais exchanges do mundo, utilizando algoritmos avançados para identificar as melhores oportunidades de compra e venda de criptomoedas..."
+  },
+  {
+    question: "Qual o valor mínimo para começar?",
+    answer: "Você pode começar a investir a partir de apenas $1.00. Não há limite máximo de investimento."
+  },
+  // ... mais perguntas
+];
+```
 
-### Acessibilidade
-- Manter suporte a `prefers-reduced-motion` (remover animações se ativado)
+### TestimonialsSection.tsx
+```typescript
+const testimonials = [
+  {
+    name: "Carlos M.",
+    avatar: "CM",
+    profit: 1250.00,
+    period: "30 dias",
+    robot: "Alpha Trader"
+  },
+  // ... mais depoimentos simulados
+];
+```
 
-## Resultado Final
+### VideoSection.tsx
+```typescript
+// Thumbnail com overlay de play
+// Ao clicar, abre modal com vídeo (YouTube/Vimeo embed)
+// Ou mantém como placeholder para futuro conteúdo
+```
 
-O componente será mais simples visualmente, mostrando:
-1. Todas as 10 corretoras com status "conectado" (bolinha verde)
-2. Um spinner circular indicando que o robô está operando
-3. Layout responsivo em grid
+### CTASection.tsx
+```typescript
+// Seção full-width com gradiente
+// Título grande: "Pronto para começar a lucrar?"
+// Subtítulo: "Junte-se a mais de 15.000 investidores"
+// Botão CTA grande com animação
+```
+
+## Animações e Efeitos
+- Contadores animados (count-up) para estatísticas
+- Fade-in ao scroll para novas seções
+- Hover effects nos cards de depoimentos
+- Gradientes e glows consistentes com design atual
+
+## Responsividade
+- Todas as novas seções serão responsivas
+- Mobile-first approach
+- Grids adaptáveis (1 coluna mobile, 2-4 colunas desktop)
+
+## Arquivos a Criar
+| Arquivo | Descrição |
+|---------|-----------|
+| `src/components/landing/FAQSection.tsx` | Perguntas frequentes com accordion |
+| `src/components/landing/TestimonialsSection.tsx` | Depoimentos e resultados |
+| `src/components/landing/VideoSection.tsx` | Seção de vídeo explicativo |
+| `src/components/landing/WhyChooseUsSection.tsx` | Diferenciais da plataforma |
+| `src/components/landing/CTASection.tsx` | Call-to-action final |
+
+## Arquivos a Modificar
+| Arquivo | Mudança |
+|---------|---------|
+| `src/pages/Index.tsx` | Importar e adicionar novas seções |
+| `src/components/landing/PartnersSection.tsx` | Atualizar % para valores corretos |
+| `src/components/landing/StepsSection.tsx` | Adicionar 4º passo opcional |
+| `src/components/landing/ProfitSection.tsx` | Adicionar projeções de 90/365 dias |
+
