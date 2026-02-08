@@ -3,10 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Users, Percent, TrendingUp, Gift } from "lucide-react";
 
 const levels = [
-  { level: 1, percentage: "5%", color: "from-teal-500 to-cyan-500" },
-  { level: 2, percentage: "3%", color: "from-cyan-500 to-blue-500" },
-  { level: 3, percentage: "2%", color: "from-blue-500 to-violet-500" },
-  { level: 4, percentage: "1%", color: "from-violet-500 to-purple-500" },
+  { level: 1, percentage: "10%", color: "from-teal-500 to-cyan-500" },
+  { level: 2, percentage: "5%", color: "from-cyan-500 to-blue-500" },
+  { level: 3, percentage: "3%", color: "from-blue-500 to-violet-500" },
+  { level: 4, percentage: "2%", color: "from-violet-500 to-purple-500" },
 ];
 
 export const PartnersSection = () => {

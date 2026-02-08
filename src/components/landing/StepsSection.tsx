@@ -21,6 +21,12 @@ const steps = [
     title: "Lucre!",
     description: "Aproveite os ganhos diários gerados automaticamente",
   },
+  {
+    number: "04",
+    icon: ArrowRight,
+    title: "Saque seus Lucros",
+    description: "Retire seus rendimentos a qualquer momento, de forma rápida e segura",
+  },
 ];
 
 export const StepsSection = () => {
@@ -39,7 +45,7 @@ export const StepsSection = () => {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto mb-12">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto mb-12">
           {steps.map((step, index) => (
             <div 
               key={step.number}
