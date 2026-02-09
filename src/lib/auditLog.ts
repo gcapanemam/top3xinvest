@@ -21,6 +21,8 @@ export type ActionType =
   | 'robot_created'
   | 'robot_edited'
   | 'robot_deleted'
+  | 'robot_hidden'
+  | 'robot_activated'
   | 'robot_profit_credited'
   // Crypto actions
   | 'crypto_price_updated'
@@ -84,6 +86,8 @@ export const getActionDisplayName = (action: ActionType): string => {
     robot_created: 'Robô criado',
     robot_edited: 'Robô editado',
     robot_deleted: 'Robô excluído',
+    robot_hidden: 'Robô ocultado',
+    robot_activated: 'Robô ativado',
     robot_profit_credited: 'Lucro creditado',
     crypto_price_updated: 'Cotação atualizada',
     notification_sent: 'Notificação enviada',
