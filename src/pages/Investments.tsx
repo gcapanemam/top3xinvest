@@ -1,19 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Bot, Lock, Unlock, History, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Bot, Lock, Unlock, History } from 'lucide-react';
 import { format, isPast } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { TradingSimulation } from '@/components/investments/TradingSimulation';
+import { TradesHistoryDialog } from '@/components/investments/TradesHistoryDialog';
 
 interface Investment {
   id: string;
@@ -307,92 +301,13 @@ const Investments = () => {
       )}
 
       {/* Dialog de Histórico de Operações */}
-      <Dialog open={operationsDialogOpen} onOpenChange={setOperationsDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] bg-[#111820] border-[#1e2a3a] text-white flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="text-white flex items-center gap-2">
-              <History className="h-5 w-5 text-green-400" />
-              Histórico de Trades - {selectedInvestment?.robot?.name}
-            </DialogTitle>
-            <DialogDescription className="text-gray-400">
-              {operations.length} operação(ões) realizada(s)
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="flex-1 overflow-y-auto space-y-3 py-4">
-            {isLoadingOperations ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-green-500 border-t-transparent" />
-              </div>
-            ) : operations.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">
-                Nenhuma operação registrada ainda
-              </div>
-            ) : (
-              operations.map((op) => (
-                <div
-                  key={op.id}
-                  className="rounded-lg bg-[#0a0f14] border border-[#1e2a3a] p-4"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={cn(
-                          "flex h-8 w-8 items-center justify-center rounded-lg",
-                          op.operation_type === 'buy'
-                            ? "bg-green-500/20"
-                            : "bg-red-500/20"
-                        )}
-                      >
-                        {op.operation_type === 'buy' ? (
-                          <ArrowUpRight className="h-4 w-4 text-green-400" />
-                        ) : (
-                          <ArrowDownRight className="h-4 w-4 text-red-400" />
-                        )}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={cn(
-                              "text-xs font-bold px-2 py-0.5 rounded",
-                              op.operation_type === 'buy'
-                                ? "bg-green-500/20 text-green-400"
-                                : "bg-red-500/20 text-red-400"
-                            )}
-                          >
-                            {op.operation_type.toUpperCase()}
-                          </span>
-                          <span className="text-white font-medium">
-                            {op.cryptocurrency_symbol}
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-400 mt-1">
-                          Entrada: ${op.entry_price.toLocaleString()}
-                          {op.exit_price && ` → Saída: $${op.exit_price.toLocaleString()}`}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p
-                        className={cn(
-                          "font-bold",
-                          (op.profit_percentage || 0) >= 0 ? "text-green-400" : "text-red-400"
-                        )}
-                      >
-                        {(op.profit_percentage || 0) >= 0 ? '+' : ''}
-                        {op.profit_percentage?.toFixed(2)}%
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        {format(new Date(op.created_at), 'dd/MM/yy HH:mm', { locale: ptBR })}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <TradesHistoryDialog
+        open={operationsDialogOpen}
+        onOpenChange={setOperationsDialogOpen}
+        robotName={selectedInvestment?.robot?.name || 'Robô'}
+        operations={operations}
+        isLoading={isLoadingOperations}
+      />
     </div>
   );
 };
