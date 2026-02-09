@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { 
+import { format } from 'date-fns';
+import {
   Wallet, 
   TrendingUp, 
   Bot, 
@@ -53,6 +54,7 @@ interface Investment {
   profit_accumulated: number;
   status: string;
   created_at: string;
+  robot_id: string | null;
   robot: {
     name: string;
   } | null;
@@ -117,17 +119,47 @@ const Dashboard = () => {
     // Fetch investments
     const { data: investmentData } = await supabase
       .from('investments')
-      .select('id, amount, profit_accumulated, status, robot:robots(name)')
+      .select('id, amount, profit_accumulated, status, robot_id, created_at, robot:robots(name)')
       .eq('user_id', effectiveUserId)
       .eq('status', 'active')
       .limit(5);
 
     if (investmentData) {
-      setInvestments(investmentData as Investment[]);
-      const invested = investmentData.reduce((sum, inv) => sum + Number(inv.amount), 0);
-      const profit = investmentData.reduce((sum, inv) => sum + Number(inv.profit_accumulated), 0);
+      const invs = investmentData as Investment[];
+      setInvestments(invs);
+      const invested = invs.reduce((sum, inv) => sum + Number(inv.amount), 0);
       setTotalInvested(invested);
-      setTotalProfit(profit);
+
+      // Calculate profit from robot_operations
+      const robotIds = [...new Set(invs.map(i => i.robot_id).filter(Boolean))] as string[];
+      if (robotIds.length > 0) {
+        const { data: allOps } = await supabase
+          .from('robot_operations')
+          .select('robot_id, profit_percentage, created_at')
+          .in('robot_id', robotIds);
+
+        if (allOps) {
+          let total = 0;
+          for (const inv of invs) {
+            if (inv.robot_id) {
+              const ops = allOps.filter(op => op.robot_id === inv.robot_id);
+              const grouped: Record<string, number> = {};
+              for (const op of ops) {
+                const day = format(new Date(op.created_at), 'yyyy-MM-dd');
+                grouped[day] = (grouped[day] || 0) + (op.profit_percentage || 0);
+              }
+              for (const pct of Object.values(grouped)) {
+                total += inv.amount * (pct / 100);
+              }
+            }
+          }
+          setTotalProfit(total);
+        } else {
+          setTotalProfit(0);
+        }
+      } else {
+        setTotalProfit(0);
+      }
     }
   };
 
@@ -150,9 +182,20 @@ const Dashboard = () => {
     // Buscar investimentos do usuario
     const { data: investmentsData } = await supabase
       .from('investments')
-      .select('amount, profit_accumulated, created_at, robot:robots(name)')
+      .select('amount, robot_id, created_at, robot:robots(name)')
       .eq('user_id', effectiveUserId);
     
+    // Buscar operacoes de todos os robos para calcular retornos
+    const chartRobotIds = [...new Set((investmentsData || []).map(i => (i as any).robot_id).filter(Boolean))] as string[];
+    let allChartOps: any[] = [];
+    if (chartRobotIds.length > 0) {
+      const { data: opsData } = await supabase
+        .from('robot_operations')
+        .select('robot_id, profit_percentage, created_at')
+        .in('robot_id', chartRobotIds);
+      if (opsData) allChartOps = opsData;
+    }
+
     // Buscar saques aprovados do usuario
     const { data: withdrawalsData } = await supabase
       .from('withdrawals')
@@ -168,7 +211,9 @@ const Dashboard = () => {
       saques: 0,
     }));
     
+    // Calcular retornos por mes a partir das operacoes
     investmentsData?.forEach(inv => {
+      const invAny = inv as any;
       const invDate = new Date(inv.created_at);
       const monthIndex = months.findIndex(m => {
         const start = new Date(m.start);
@@ -177,7 +222,22 @@ const Dashboard = () => {
       });
       if (monthIndex >= 0) {
         monthly[monthIndex].investido += Number(inv.amount);
-        monthly[monthIndex].retornos += Number(inv.profit_accumulated);
+      }
+
+      // Calculate profit from ops for this investment, grouped by month
+      if (invAny.robot_id) {
+        const ops = allChartOps.filter(op => op.robot_id === invAny.robot_id);
+        ops.forEach(op => {
+          const opDate = new Date(op.created_at);
+          const opMonthIndex = months.findIndex(m => {
+            const start = new Date(m.start);
+            const end = new Date(m.end);
+            return opDate >= start && opDate <= end;
+          });
+          if (opMonthIndex >= 0) {
+            monthly[opMonthIndex].retornos += Number(inv.amount) * ((op.profit_percentage || 0) / 100);
+          }
+        });
       }
     });
     
