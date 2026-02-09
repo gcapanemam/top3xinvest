@@ -45,6 +45,7 @@ const Investments = () => {
   const [selectedInvestment, setSelectedInvestment] = useState<Investment | null>(null);
   const [operations, setOperations] = useState<Operation[]>([]);
   const [isLoadingOperations, setIsLoadingOperations] = useState(false);
+  const [profitMap, setProfitMap] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (user) {
@@ -52,15 +53,51 @@ const Investments = () => {
     }
   }, [user]);
 
+  const calculateProfitFromOps = (amount: number, ops: Operation[]): number => {
+    const grouped: Record<string, number> = {};
+    for (const op of ops) {
+      const day = format(new Date(op.created_at), 'yyyy-MM-dd');
+      grouped[day] = (grouped[day] || 0) + (op.profit_percentage || 0);
+    }
+    let total = 0;
+    for (const dailyPercent of Object.values(grouped)) {
+      total += amount * (dailyPercent / 100);
+    }
+    return total;
+  };
+
   const fetchInvestments = async () => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('investments')
       .select('*, robot:robots(name, profit_percentage_min, profit_percentage_max, profit_period_days)')
       .eq('user_id', user!.id)
       .order('created_at', { ascending: false });
 
     if (data) {
-      setInvestments(data as Investment[]);
+      const invs = data as Investment[];
+      setInvestments(invs);
+
+      // Fetch operations for all unique robot_ids
+      const robotIds = [...new Set(invs.map(i => i.robot_id).filter(Boolean))] as string[];
+      if (robotIds.length > 0) {
+        const { data: allOps } = await supabase
+          .from('robot_operations')
+          .select('*')
+          .in('robot_id', robotIds);
+
+        if (allOps) {
+          const newProfitMap: Record<string, number> = {};
+          for (const inv of invs) {
+            if (inv.robot_id) {
+              const robotOps = allOps.filter(op => op.robot_id === inv.robot_id);
+              newProfitMap[inv.id] = calculateProfitFromOps(inv.amount, robotOps as Operation[]);
+            } else {
+              newProfitMap[inv.id] = 0;
+            }
+          }
+          setProfitMap(newProfitMap);
+        }
+      }
     }
     setIsLoading(false);
   };
@@ -142,7 +179,7 @@ const Investments = () => {
   }
 
   const totalInvested = investments.reduce((sum, inv) => sum + Number(inv.amount), 0);
-  const totalProfit = investments.reduce((sum, inv) => sum + Number(inv.profit_accumulated), 0);
+  const totalProfit = investments.reduce((sum, inv) => sum + (profitMap[inv.id] || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -246,7 +283,7 @@ const Investments = () => {
                     <div>
                       <p className="text-xs text-gray-400">Lucro</p>
                       <p className="font-medium text-green-400">
-                        +{formatCurrency(investment.profit_accumulated)}
+                        +{formatCurrency(profitMap[investment.id] || 0)}
                       </p>
                     </div>
                     <div>
