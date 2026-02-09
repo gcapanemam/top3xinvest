@@ -1,168 +1,73 @@
 
 
-# Plano: Aprimorar Apresentação para Investidores
+# Plano: Botao Ocultar Robo no Admin
 
 ## Resumo
-Criar novas seções e melhorar a landing page existente para torná-la mais atrativa e informativa para investidores comuns que desejam começar a lucrar com trading automatizado. O foco será em simplicidade, confiança e clareza.
+Adicionar um botao "Ocultar" na lista de robos do admin que seta `is_active = false`. Na pagina de usuarios (Robots.tsx), o robo oculto so aparece se o usuario ja tem investimento ativo nele.
 
-## Novas Seções a Criar
+## Mudancas
 
-### 1. Seção de FAQ (Perguntas Frequentes)
-**Arquivo:** `src/components/landing/FAQSection.tsx`
+### 1. `src/pages/admin/AdminRobots.tsx`
+- Adicionar icone `EyeOff` / `Eye` dos imports do lucide-react
+- Adicionar funcao `toggleRobotVisibility(robot)` que faz toggle de `is_active` no banco e registra audit log
+- Adicionar botao de olho entre os botoes de acao de cada robo (ao lado do Edit), com icone `Eye` quando ativo e `EyeOff` quando oculto
+- Cor amarela/laranja para indicar estado oculto
 
-Responder às principais dúvidas de novos investidores:
-- "Como funciona o trading automatizado?"
-- "Qual o valor mínimo para investir?"
-- "Como recebo meus lucros?"
-- "Posso sacar meu dinheiro a qualquer momento?"
-- "O que acontece se o robô tiver prejuízo?"
-- "Como faço para começar?"
+### 2. `src/pages/Robots.tsx`
+- Alterar a query para buscar tambem robos inativos (`is_active = false`)
+- Buscar investimentos ativos do usuario para saber em quais robos ele ja tem investimento
+- Filtrar: mostrar robos ativos normalmente + robos inativos somente se o usuario tiver investimento ativo neles
+- No card do robo oculto (com investimento), esconder o botao "Investir Agora" e mostrar badge "Encerrado para novos aportes"
 
-Usar componente Accordion para expandir/recolher as respostas.
+## Detalhes Tecnicos
 
-### 2. Seção de Depoimentos/Resultados
-**Arquivo:** `src/components/landing/TestimonialsSection.tsx`
-
-Exibir "casos de sucesso" simulados (para demonstração):
-- Cards com avatar, nome e valor de lucro
-- Animação de novos resultados aparecendo
-- Estatísticas gerais de pagamentos
-
-### 3. Seção de Video/Apresentação
-**Arquivo:** `src/components/landing/VideoSection.tsx`
-
-Área para um vídeo explicativo (placeholder):
-- Thumbnail com botão de play
-- Título: "Veja como é fácil começar a lucrar"
-- Descrição breve do que será mostrado
-
-### 4. Seção "Por que nos escolher"
-**Arquivo:** `src/components/landing/WhyChooseUsSection.tsx`
-
-Comparativo visual com concorrentes:
-- Interface intuitiva
-- Suporte 24/7
-- Saques rápidos
-- Sem conhecimento técnico necessário
-- Comunidade ativa
-
-### 5. Seção CTA Final
-**Arquivo:** `src/components/landing/CTASection.tsx`
-
-Call-to-action final antes do footer:
-- Frase de impacto
-- Botão grande para cadastro
-- Contador de usuários registrados
-
-## Melhorias nas Seções Existentes
-
-### HeroSection
-- Adicionar contador animado nos stats
-- Badge "Novo usuário ganha bônus" (opcional)
-
-### ProfitSection (Simulador)
-- Adicionar projeção de 90 dias e 365 dias
-- Mostrar comparativo com poupança/CDI
-
-### StepsSection
-- Adicionar 4º passo: "Saque seus lucros"
-
-### PartnersSection
-- Atualizar percentuais para valores reais do banco (10%, 5%, 3%, 2%)
-
-## Estrutura Final da Página
-
-```
-LandingHeader
-HeroSection
-QuickNavCards
-VideoSection (NOVA)
-AboutSection
-ProfitSection (melhorada)
-WhyChooseUsSection (NOVA)
-SecuritySection
-StepsSection (melhorada)
-TestimonialsSection (NOVA)
-AdvantagesSection
-PartnersSection (atualizada)
-FAQSection (NOVA)
-CTASection (NOVA)
-LandingFooter
-```
-
-## Detalhes Técnicos
-
-### FAQSection.tsx
+### toggleRobotVisibility (AdminRobots.tsx)
 ```typescript
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-
-const faqs = [
-  {
-    question: "Como funciona o trading automatizado?",
-    answer: "Nossos robôs operam 24 horas por dia nas principais exchanges do mundo, utilizando algoritmos avançados para identificar as melhores oportunidades de compra e venda de criptomoedas..."
-  },
-  {
-    question: "Qual o valor mínimo para começar?",
-    answer: "Você pode começar a investir a partir de apenas $1.00. Não há limite máximo de investimento."
-  },
-  // ... mais perguntas
-];
+const toggleRobotVisibility = async (robot: Robot) => {
+  const newStatus = !robot.is_active;
+  const { error } = await supabase
+    .from('robots')
+    .update({ is_active: newStatus })
+    .eq('id', robot.id);
+  
+  if (!error) {
+    await createAuditLog({
+      action: newStatus ? 'robot_activated' : 'robot_hidden',
+      entityType: 'robot',
+      entityId: robot.id,
+      details: { robot_name: robot.name },
+    });
+    fetchData();
+  }
+};
 ```
 
-### TestimonialsSection.tsx
+### Filtro no Robots.tsx (usuario)
 ```typescript
-const testimonials = [
-  {
-    name: "Carlos M.",
-    avatar: "CM",
-    profit: 1250.00,
-    period: "30 dias",
-    robot: "Alpha Trader"
-  },
-  // ... mais depoimentos simulados
-];
+// Buscar todos os robos (ativos e inativos)
+const { data: robotsData } = await supabase
+  .from('robots')
+  .select('*, ...')
+  .order('profit_percentage_max', { ascending: false });
+
+// Buscar investimentos ativos do usuario
+const { data: userInvestments } = await supabase
+  .from('investments')
+  .select('robot_id')
+  .eq('user_id', user.id)
+  .eq('status', 'active');
+
+const activeRobotIds = new Set(userInvestments?.map(i => i.robot_id));
+
+// Filtrar: ativos + inativos com investimento
+const filtered = robotsData.filter(r => 
+  r.is_active || activeRobotIds.has(r.id)
+);
 ```
 
-### VideoSection.tsx
-```typescript
-// Thumbnail com overlay de play
-// Ao clicar, abre modal com vídeo (YouTube/Vimeo embed)
-// Ou mantém como placeholder para futuro conteúdo
-```
-
-### CTASection.tsx
-```typescript
-// Seção full-width com gradiente
-// Título grande: "Pronto para começar a lucrar?"
-// Subtítulo: "Junte-se a mais de 15.000 investidores"
-// Botão CTA grande com animação
-```
-
-## Animações e Efeitos
-- Contadores animados (count-up) para estatísticas
-- Fade-in ao scroll para novas seções
-- Hover effects nos cards de depoimentos
-- Gradientes e glows consistentes com design atual
-
-## Responsividade
-- Todas as novas seções serão responsivas
-- Mobile-first approach
-- Grids adaptáveis (1 coluna mobile, 2-4 colunas desktop)
-
-## Arquivos a Criar
-| Arquivo | Descrição |
-|---------|-----------|
-| `src/components/landing/FAQSection.tsx` | Perguntas frequentes com accordion |
-| `src/components/landing/TestimonialsSection.tsx` | Depoimentos e resultados |
-| `src/components/landing/VideoSection.tsx` | Seção de vídeo explicativo |
-| `src/components/landing/WhyChooseUsSection.tsx` | Diferenciais da plataforma |
-| `src/components/landing/CTASection.tsx` | Call-to-action final |
-
-## Arquivos a Modificar
-| Arquivo | Mudança |
+### Arquivos modificados
+| Arquivo | Mudanca |
 |---------|---------|
-| `src/pages/Index.tsx` | Importar e adicionar novas seções |
-| `src/components/landing/PartnersSection.tsx` | Atualizar % para valores corretos |
-| `src/components/landing/StepsSection.tsx` | Adicionar 4º passo opcional |
-| `src/components/landing/ProfitSection.tsx` | Adicionar projeções de 90/365 dias |
+| `src/pages/admin/AdminRobots.tsx` | Botao toggle visibilidade |
+| `src/pages/Robots.tsx` | Filtro de robos ocultos com investimentos |
 
