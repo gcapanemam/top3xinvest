@@ -40,7 +40,9 @@ import {
   X,
   Sparkles,
   RefreshCw,
-  Info
+  Info,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { createAuditLog } from '@/lib/auditLog';
 import { format, subDays } from 'date-fns';
@@ -751,6 +753,30 @@ const AdminRobots = () => {
     }
 
     setIsSubmitting(false);
+  };
+
+  const toggleRobotVisibility = async (robot: Robot) => {
+    const newStatus = !robot.is_active;
+    const { error } = await supabase
+      .from('robots')
+      .update({ is_active: newStatus })
+      .eq('id', robot.id);
+
+    if (!error) {
+      await createAuditLog({
+        action: newStatus ? 'robot_activated' : 'robot_hidden',
+        entityType: 'robot',
+        entityId: robot.id,
+        details: { robot_name: robot.name },
+      });
+      toast({
+        title: newStatus ? 'Robô ativado' : 'Robô ocultado',
+        description: newStatus 
+          ? `${robot.name} está visível para novos investimentos`
+          : `${robot.name} foi ocultado para novos investimentos`,
+      });
+      fetchData();
+    }
   };
 
   const deleteRobot = async (id: string) => {
@@ -1699,6 +1725,17 @@ const AdminRobots = () => {
                       title="Creditar Lucro"
                     >
                       <DollarSign className="h-4 w-4" />
+                    </button>
+                    <button 
+                      className={`p-2 rounded-lg transition-all ${
+                        robot.is_active 
+                          ? 'hover:bg-yellow-500/20 text-gray-400 hover:text-yellow-400' 
+                          : 'bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20'
+                      }`}
+                      onClick={() => toggleRobotVisibility(robot)}
+                      title={robot.is_active ? 'Ocultar robô' : 'Ativar robô'}
+                    >
+                      {robot.is_active ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                     <button 
                       className="p-2 rounded-lg hover:bg-[#1e2a3a] text-gray-400 hover:text-white transition-all"

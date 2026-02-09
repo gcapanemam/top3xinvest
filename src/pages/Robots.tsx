@@ -53,10 +53,11 @@ const Robots = () => {
   
   // Details dialog state
   const [detailsRobot, setDetailsRobot] = useState<Robot | null>(null);
+  const [hiddenRobotIds, setHiddenRobotIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchRobots();
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (user) {
@@ -65,6 +66,7 @@ const Robots = () => {
   }, [user]);
 
   const fetchRobots = async () => {
+    // Fetch all robots (active and inactive)
     const { data, error } = await supabase
       .from('robots')
       .select(`
@@ -74,11 +76,35 @@ const Robots = () => {
           cryptocurrency:cryptocurrencies(symbol, name)
         )
       `)
-      .eq('is_active', true)
       .order('profit_percentage_max', { ascending: false });
 
     if (data) {
-      setRobots(data as Robot[]);
+      // If user is logged in, check which inactive robots they have investments in
+      let userActiveRobotIds = new Set<string>();
+      if (user) {
+        const { data: userInvestments } = await supabase
+          .from('investments')
+          .select('robot_id')
+          .eq('user_id', user.id)
+          .eq('status', 'active');
+        
+        userActiveRobotIds = new Set(
+          userInvestments?.map(i => i.robot_id).filter(Boolean) as string[]
+        );
+      }
+
+      // Filter: show active robots + inactive robots only if user has active investment
+      const filtered = data.filter((r: any) => 
+        r.is_active || userActiveRobotIds.has(r.id)
+      );
+      
+      // Track which robots are hidden (inactive)
+      const hidden = new Set<string>(
+        filtered.filter((r: any) => !r.is_active).map((r: any) => r.id)
+      );
+      setHiddenRobotIds(hidden);
+      
+      setRobots(filtered as Robot[]);
     }
     setIsLoading(false);
   };
@@ -342,13 +368,20 @@ const Robots = () => {
               </div>
 
               <div className="p-6 pt-0">
-                <button 
-                  onClick={() => handleOpenInvestDialog(robot)}
-                  className="w-full py-3 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:shadow-teal-500/25"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  Investir Agora
-                </button>
+                {hiddenRobotIds.has(robot.id) ? (
+                  <div className="w-full py-3 rounded-xl bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 font-medium flex items-center justify-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    Encerrado para novos aportes
+                  </div>
+                ) : (
+                  <button 
+                    onClick={() => handleOpenInvestDialog(robot)}
+                    className="w-full py-3 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:shadow-teal-500/25"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    Investir Agora
+                  </button>
+                )}
               </div>
             </div>
           ))}
