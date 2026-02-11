@@ -1,49 +1,50 @@
 
 
-# Plano: Lucro Calculado a Partir dos Trades
+# Plano: Adicionar Editar Saldo e Editar Lucro no Admin
 
-## Resumo
-Atualmente o "Lucro" de cada investimento vem do campo `profit_accumulated` do banco (que esta zerado). O objetivo e calcular o lucro real baseado nas operacoes (trades) do robo: `valor_investido x percentual_diario`, acumulando dia a dia. O card de resumo no topo mostrara o lucro total de todos os bots somados.
+## Situacao Atual
+O dialog de edicao de usuario ja possui o campo "Saldo da carteira" (balance) na aba "Dados". Falta a opcao de editar o lucro (profit_accumulated) dos investimentos do usuario.
 
-## Como funciona o calculo
+## Mudancas em `src/pages/admin/AdminUsers.tsx`
 
-Para cada investimento:
-1. Buscar todas as operacoes (`robot_operations`) do robo associado
-2. Agrupar por dia e somar o `profit_percentage` de cada dia
-3. Aplicar cada percentual diario sobre o valor investido: `amount * (dailyPercent / 100)`
-4. Somar todos os dias para obter o lucro acumulado em USD
+### 1. Buscar investimentos do usuario ao abrir o dialog
+Na funcao `openEditDialog`, alem de buscar o email, buscar tambem os investimentos ativos do usuario para listar e permitir edicao do lucro de cada um.
 
-Exemplo: Investiu $100, dia 1 rendeu +0.5%, dia 2 rendeu +0.3%
-- Lucro dia 1: $100 * 0.005 = $0.50
-- Lucro dia 2: $100 * 0.003 = $0.30
-- Lucro total: $0.80
+### 2. Adicionar nova aba "Financeiro" no dialog de edicao
+Criar uma nova aba no dialog com dois blocos:
+- **Saldo da Carteira**: mover o campo de saldo para esta aba (ou duplicar)
+- **Lucro por Investimento**: listar os investimentos ativos do usuario com o nome do robo e um campo editavel para `profit_accumulated` de cada investimento
 
-## Mudancas
+### 3. Estado adicional
+- Adicionar estado para armazenar os investimentos do usuario sendo editado
+- Adicionar estado para os valores editados de `profit_accumulated` por investimento
 
-### `src/pages/Investments.tsx`
+### 4. Funcao de salvar lucro
+- Ao salvar, atualizar o `profit_accumulated` de cada investimento modificado na tabela `investments`
+- Registrar audit log com as alteracoes
 
-1. **Ao carregar investimentos**, buscar tambem as operacoes de todos os robos vinculados aos investimentos do usuario
-2. **Calcular lucro por investimento**: para cada investimento, filtrar as operacoes do seu robo, agrupar por dia, somar percentuais, multiplicar pelo valor investido
-3. **Usar o lucro calculado** no lugar de `profit_accumulated` nos cards individuais e no resumo do topo
-4. **Guardar em estado** um mapa `investmentId -> lucroCalculado` para renderizar
-
-### Logica de calculo (pseudo-codigo)
+### 5. Estrutura da aba "Financeiro"
 
 ```text
-Para cada investimento:
-  ops = operacoes do robot_id desse investimento
-  agrupar ops por dia (yyyy-MM-dd)
-  para cada dia:
-    dailyPercent = soma de profit_percentage das ops do dia
-    dailyProfit = investment.amount * (dailyPercent / 100)
-  lucroTotal = soma de todos os dailyProfit
+Aba Financeiro:
+  [Saldo da Carteira]
+  $ [input com valor]
+
+  [Lucro por Investimento]
+  Robo X - Investido: $500
+    Lucro: $ [input editavel]
+  Robo Y - Investido: $1000  
+    Lucro: $ [input editavel]
+
+  [Botao Salvar]
 ```
 
-### Resumo no topo
-- "Lucro Acumulado" passa a ser a soma dos lucros calculados de todos os investimentos (nao mais `profit_accumulated`)
+### Detalhes tecnicos
 
-### Arquivos modificados
 | Arquivo | Mudanca |
 |---------|---------|
-| `src/pages/Investments.tsx` | Buscar operacoes de todos os robos, calcular lucro por investimento e exibir nos cards e resumo |
+| `src/pages/admin/AdminUsers.tsx` | Adicionar busca de investimentos no openEditDialog, nova aba "Financeiro" com campos de saldo e lucro por investimento, funcao de salvar lucros, audit log |
 
+- A busca de investimentos usara `supabase.from('investments').select('*, robots(name)').eq('user_id', userId).eq('status', 'active')`
+- A atualizacao do lucro usara `supabase.from('investments').update({ profit_accumulated: valor }).eq('id', investmentId)`
+- O audit log registrara a acao como `user_edited` com detalhes das alteracoes de saldo e lucro
