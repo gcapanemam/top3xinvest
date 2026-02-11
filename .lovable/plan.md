@@ -1,47 +1,35 @@
 
 
-# Plano: Usar percentuais de comissao configurados pelo admin na pagina de Rede
+# Plano: Exibir cotacoes em tempo real no Dashboard
 
 ## Problema
-A pagina "Minha Rede" (`src/pages/MLMNetwork.tsx`) usa percentuais de comissao hardcoded no `LEVEL_CONFIG` (100%, 50%, 25%, 10%). Esses valores nao correspondem aos percentuais reais configurados pelo admin na tabela `mlm_settings` (10%, 5%, 3%, 2%).
+A secao "Cotacoes" no Dashboard exibe apenas os precos salvos no banco de dados, que so sao atualizados quando o admin acessa a pagina de cotacoes. O usuario quer ver os precos reais do mercado.
 
 ## Solucao
 
-### Mudancas em `src/pages/MLMNetwork.tsx`
+Ao carregar o Dashboard, alem de buscar os precos do banco (fallback), chamar a edge function `fetch-crypto-prices` para obter os precos atualizados do CoinGecko e exibi-los diretamente.
 
-1. **Adicionar query para buscar `mlm_settings`**
-   - Buscar os 4 niveis da tabela `mlm_settings` ordenados por `level`
-   - Extrair o campo `commission_percentage` de cada nivel
+### Mudancas em `src/pages/Dashboard.tsx`
 
-2. **Tornar `LEVEL_CONFIG` dinamico**
-   - Manter as cores e estilos no array estatico, mas remover o campo `percentage`
-   - Onde o percentual e exibido (linha 507: `{config.percentage}% comissao`), usar o valor vindo de `mlm_settings`
+1. Apos buscar as criptos do banco, chamar `supabase.functions.invoke('fetch-crypto-prices')` com os simbolos das criptos
+2. Se a edge function retornar dados, atualizar o estado `cryptos` com os precos reais (price e change)
+3. Manter os dados do banco como fallback caso a edge function falhe
 
-## Detalhes tecnicos
+### Logica
+
+```text
+1. Buscar criptos do banco (comportamento atual) -> exibe imediatamente
+2. Em paralelo, chamar fetch-crypto-prices com os simbolos
+3. Se sucesso, atualizar current_price e price_change_24h de cada crypto com os dados reais
+4. Se falha, manter dados do banco (silencioso, sem erro para o usuario)
+```
+
+### Detalhes tecnicos
 
 | Mudanca | Descricao |
 |---------|-----------|
-| Nova query | `useQuery` para buscar `mlm_settings` com `select('level, commission_percentage')` ordenado por `level` |
-| Remover percentages hardcoded | Remover campo `percentage` do `LEVEL_CONFIG` |
-| Exibir percentual dinamico | Usar dados de `mlm_settings` para mostrar o percentual correto por nivel |
-
-### Query
-
-```typescript
-const { data: mlmSettings } = useQuery({
-  queryKey: ['mlm-settings'],
-  queryFn: async () => {
-    const { data, error } = await supabase
-      .from('mlm_settings')
-      .select('level, commission_percentage')
-      .order('level');
-    if (error) throw error;
-    return data;
-  },
-});
-```
-
-### Uso no template
-
-Substituir `config.percentage` por uma funcao que busca o percentual do nivel correspondente nos dados de `mlm_settings`.
+| Nova funcao | `fetchRealPrices(cryptoList)` que chama a edge function e atualiza o estado |
+| Chamada | Executada apos `fetchData` retornar as criptos do banco |
+| Fallback | Se a edge function falhar, os precos do banco permanecem exibidos |
+| Sem salvar no banco | Apenas atualiza a exibicao no Dashboard, sem persistir (isso e responsabilidade do admin) |
 
