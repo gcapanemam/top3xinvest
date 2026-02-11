@@ -91,6 +91,31 @@ const Dashboard = () => {
     }
   }, [effectiveUserId]);
 
+  const fetchRealPrices = async (cryptoList: Cryptocurrency[]) => {
+    try {
+      const symbols = cryptoList.map(c => c.symbol);
+      const { data, error } = await supabase.functions.invoke('fetch-crypto-prices', {
+        body: { symbols },
+      });
+      if (error || !data) return;
+      setCryptos(prev =>
+        prev.map(crypto => {
+          const live = data[crypto.symbol];
+          if (live) {
+            return {
+              ...crypto,
+              current_price: live.price,
+              price_change_24h: live.change,
+            };
+          }
+          return crypto;
+        })
+      );
+    } catch {
+      // Silently fallback to DB prices
+    }
+  };
+
   const fetchData = async () => {
     if (!effectiveUserId) return;
     
@@ -114,6 +139,8 @@ const Dashboard = () => {
 
     if (cryptoData) {
       setCryptos(cryptoData);
+      // Fetch real-time prices from CoinGecko via edge function
+      fetchRealPrices(cryptoData);
     }
 
     // Fetch investments
