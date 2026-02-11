@@ -6,7 +6,7 @@ Deno.serve(async (req) => {
     
     console.log("OxaPay Webhook received:", JSON.stringify(body, null, 2));
 
-    const { trackId, status, orderId, amount, payCurrency, network, txID } = body;
+    const { trackId, status, orderId, amount, payCurrency, network, txID, payAmount, rate } = body;
 
     // Validate required fields
     if (!orderId) {
@@ -55,16 +55,28 @@ Deno.serve(async (req) => {
     const webhookAmount = parseFloat(String(amount));
     const depositAmount = parseFloat(String(deposit.amount));
 
-    // Log amount comparison (webhook sends payAmount in crypto, but we validate orderId/trackId)
-    console.log("Amount comparison - Webhook:", webhookAmount, "Deposit:", depositAmount);
+    // Calculate actual USD paid using payAmount * rate from OxaPay
+    let creditAmount = depositAmount;
+    if (payAmount && rate) {
+      const actualUsdPaid = parseFloat(String(payAmount)) * parseFloat(String(rate));
+      if (!isNaN(actualUsdPaid) && actualUsdPaid > 0) {
+        if (Math.abs(actualUsdPaid - depositAmount) > 0.01) {
+          console.log(`AMOUNT DIFFERENCE DETECTED - Invoice: $${depositAmount}, Actually paid: $${actualUsdPaid} (${payAmount} * ${rate})`);
+        }
+        creditAmount = actualUsdPaid;
+      }
+    }
 
-    // Update deposit to approved
+    console.log("Amount comparison - Webhook:", webhookAmount, "Deposit:", depositAmount, "Credit:", creditAmount);
+
+    // Update deposit to approved with actual paid amount
     const { error: updateError } = await supabase
       .from("deposits")
       .update({
         status: "approved",
+        amount: creditAmount,
         processed_at: new Date().toISOString(),
-        admin_notes: `Pago via OxaPay - ${payCurrency || 'CRYPTO'} (${network || 'N/A'}) - TxID: ${txID || 'N/A'}`,
+        admin_notes: `Pago via OxaPay - ${payCurrency || 'CRYPTO'} (${network || 'N/A'}) - TxID: ${txID || 'N/A'}${creditAmount !== depositAmount ? ` | Fatura: $${depositAmount}, Pago: $${creditAmount}` : ''}`,
       })
       .eq("id", orderId);
 
@@ -75,10 +87,10 @@ Deno.serve(async (req) => {
 
     console.log("Deposit updated to approved");
 
-    // Credit user balance using the deposit amount (not the crypto amount)
+    // Credit user balance using the actual paid amount
     const { error: balanceError } = await supabase.rpc("increment_balance", {
       p_user_id: deposit.user_id,
-      p_amount: depositAmount,
+      p_amount: creditAmount,
     });
 
     if (balanceError) {
@@ -96,7 +108,7 @@ Deno.serve(async (req) => {
         return new Response("Error crediting balance", { status: 500 });
       }
 
-      const newBalance = (parseFloat(String(profile.balance)) || 0) + depositAmount;
+      const newBalance = (parseFloat(String(profile.balance)) || 0) + creditAmount;
       
       const { error: directUpdateError } = await supabase
         .from("profiles")
@@ -108,9 +120,9 @@ Deno.serve(async (req) => {
         return new Response("Error crediting balance", { status: 500 });
       }
 
-      console.log("Balance credited via direct update:", depositAmount);
+      console.log("Balance credited via direct update:", creditAmount);
     } else {
-      console.log("Balance credited via RPC:", depositAmount);
+      console.log("Balance credited via RPC:", creditAmount);
     }
 
     // Create transaction record
@@ -119,7 +131,7 @@ Deno.serve(async (req) => {
       .insert({
         user_id: deposit.user_id,
         type: "deposit",
-        amount: depositAmount,
+        amount: creditAmount,
         reference_id: orderId,
         description: `Depósito via OxaPay - ${payCurrency || 'CRYPTO'}`,
       });
@@ -134,7 +146,7 @@ Deno.serve(async (req) => {
     const { error: commissionError } = await supabase.rpc("distribute_deposit_commission", {
       p_deposit_id: orderId,
       p_user_id: deposit.user_id,
-      p_deposit_amount: depositAmount,
+      p_deposit_amount: creditAmount,
     });
 
     if (commissionError) {
@@ -144,7 +156,7 @@ Deno.serve(async (req) => {
       console.log("MLM commissions distributed successfully");
     }
 
-    console.log(`Deposit ${orderId} approved successfully, balance credited: $${depositAmount}`);
+    console.log(`Deposit ${orderId} approved successfully, balance credited: $${creditAmount}`);
 
     return new Response("OK", { status: 200 });
   } catch (error) {
