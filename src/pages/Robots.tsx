@@ -38,7 +38,7 @@ interface Robot {
 }
 
 const Robots = () => {
-  const { user } = useAuth();
+  const { user, effectiveUserId } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -57,13 +57,13 @@ const Robots = () => {
 
   useEffect(() => {
     fetchRobots();
-  }, [user]);
+  }, [effectiveUserId]);
 
   useEffect(() => {
-    if (user) {
+    if (effectiveUserId) {
       fetchUserBalance();
     }
-  }, [user]);
+  }, [effectiveUserId]);
 
   const fetchRobots = async () => {
     // Fetch all robots (active and inactive)
@@ -81,11 +81,11 @@ const Robots = () => {
     if (data) {
       // If user is logged in, check which inactive robots they have investments in
       let userActiveRobotIds = new Set<string>();
-      if (user) {
+      if (effectiveUserId) {
         const { data: userInvestments } = await supabase
           .from('investments')
           .select('robot_id')
-          .eq('user_id', user.id)
+          .eq('user_id', effectiveUserId)
           .eq('status', 'active');
         
         userActiveRobotIds = new Set(
@@ -110,12 +110,12 @@ const Robots = () => {
   };
 
   const fetchUserBalance = async () => {
-    if (!user) return;
+    if (!effectiveUserId) return;
     
     const { data } = await supabase
       .from('profiles')
       .select('balance')
-      .eq('user_id', user.id)
+      .eq('user_id', effectiveUserId)
       .single();
     
     if (data) {
@@ -157,7 +157,7 @@ const Robots = () => {
   };
 
   const handleInvest = async () => {
-    if (!selectedRobot || !user || !investmentAmount) return;
+    if (!selectedRobot || !effectiveUserId || !investmentAmount) return;
     
     setIsInvesting(true);
     
@@ -211,7 +211,7 @@ const Robots = () => {
     const { error: investError } = await supabase
       .from('investments')
       .insert({
-        user_id: user.id,
+        user_id: effectiveUserId,
         robot_id: selectedRobot.id,
         amount: amount,
         lock_until: lockUntil.toISOString(),
@@ -232,7 +232,7 @@ const Robots = () => {
     const { error: balanceError } = await supabase
       .from('profiles')
       .update({ balance: userBalance - amount })
-      .eq('user_id', user.id);
+      .eq('user_id', effectiveUserId);
     
     if (balanceError) {
       toast({
