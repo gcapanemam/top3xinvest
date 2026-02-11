@@ -15,6 +15,7 @@ import Investments from "./pages/Investments";
 import Deposits from "./pages/Deposits";
 import PaymentStatus from "./pages/PaymentStatus";
 import Withdrawals from "./pages/Withdrawals";
+import Receivables from "./pages/Receivables";
 import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
 import MLMNetwork from "./pages/MLMNetwork";
@@ -58,6 +59,7 @@ const App = () => (
               <Route path="/deposits" element={<Deposits />} />
               <Route path="/deposit/status/:depositId" element={<PaymentStatus />} />
               <Route path="/withdrawals" element={<Withdrawals />} />
+              <Route path="/receivables" element={<Receivables />} />
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/settings" element={<Settings />} />
 
