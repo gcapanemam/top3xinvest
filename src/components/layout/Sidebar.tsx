@@ -8,6 +8,7 @@ import {
   ArrowDownCircle,
   ArrowUpCircle,
   Bell,
+  Receipt,
   Users,
   Coins,
   LogOut,
@@ -40,6 +41,7 @@ const userNavItems: NavItem[] = [
   { label: 'Minha Rede', href: '/mlm', icon: Users },
   { label: 'Depósitos', href: '/deposits', icon: ArrowDownCircle },
   { label: 'Saques', href: '/withdrawals', icon: ArrowUpCircle },
+  { label: 'Extrato de Recebimentos', href: '/receivables', icon: Receipt },
   { label: 'Notificações', href: '/notifications', icon: Bell },
   { label: 'Configurações', href: '/settings', icon: Settings },
 ];
