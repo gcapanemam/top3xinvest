@@ -15,6 +15,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Plus, ArrowUpCircle, Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import ReceivablesStatement from '@/components/withdrawals/ReceivablesStatement';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -326,6 +327,9 @@ const Withdrawals = () => {
           </div>
         </div>
       )}
+
+      {/* Extrato de Recebimentos */}
+      <ReceivablesStatement />
     </div>
   );
 };
