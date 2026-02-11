@@ -1,50 +1,33 @@
 
 
-# Plano: Adicionar Editar Saldo e Editar Lucro no Admin
+# Plano: Corrigir Saldo na Pagina de Robos para Impersonacao
 
-## Situacao Atual
-O dialog de edicao de usuario ja possui o campo "Saldo da carteira" (balance) na aba "Dados". Falta a opcao de editar o lucro (profit_accumulated) dos investimentos do usuario.
+## Problema Identificado
+A pagina de Robos (`src/pages/Robots.tsx`) usa `user.id` (o ID do admin logado) para buscar o saldo e criar investimentos. Quando o admin impersona um usuario via "Acessar Painel", o sistema busca o saldo do admin (que e $0), nao do usuario impersonado. Por isso aparece "saldo insuficiente".
 
-## Mudancas em `src/pages/admin/AdminUsers.tsx`
+## Causa Raiz
+- `fetchUserBalance` usa `user.id` em vez de `effectiveUserId`
+- `handleInvest` cria o investimento com `user_id: user.id` (admin) em vez do usuario impersonado
+- `fetchRobots` tambem filtra investimentos pelo `user.id` errado
 
-### 1. Buscar investimentos do usuario ao abrir o dialog
-Na funcao `openEditDialog`, alem de buscar o email, buscar tambem os investimentos ativos do usuario para listar e permitir edicao do lucro de cada um.
+## Mudancas em `src/pages/Robots.tsx`
 
-### 2. Adicionar nova aba "Financeiro" no dialog de edicao
-Criar uma nova aba no dialog com dois blocos:
-- **Saldo da Carteira**: mover o campo de saldo para esta aba (ou duplicar)
-- **Lucro por Investimento**: listar os investimentos ativos do usuario com o nome do robo e um campo editavel para `profit_accumulated` de cada investimento
+### 1. Importar `effectiveUserId` do AuthContext
+Trocar `const { user } = useAuth()` por `const { user, effectiveUserId } = useAuth()`
 
-### 3. Estado adicional
-- Adicionar estado para armazenar os investimentos do usuario sendo editado
-- Adicionar estado para os valores editados de `profit_accumulated` por investimento
+### 2. Usar `effectiveUserId` em todas as queries
+- `fetchUserBalance`: trocar `.eq('user_id', user.id)` por `.eq('user_id', effectiveUserId)`
+- `fetchRobots`: trocar `user.id` por `effectiveUserId` na busca de investimentos ativos
+- `handleInvest`: trocar `user_id: user.id` por `user_id: effectiveUserId` ao criar investimento e ao atualizar saldo
 
-### 4. Funcao de salvar lucro
-- Ao salvar, atualizar o `profit_accumulated` de cada investimento modificado na tabela `investments`
-- Registrar audit log com as alteracoes
-
-### 5. Estrutura da aba "Financeiro"
-
-```text
-Aba Financeiro:
-  [Saldo da Carteira]
-  $ [input com valor]
-
-  [Lucro por Investimento]
-  Robo X - Investido: $500
-    Lucro: $ [input editavel]
-  Robo Y - Investido: $1000  
-    Lucro: $ [input editavel]
-
-  [Botao Salvar]
-```
+### 3. Atualizar dependencias dos useEffect
+- Trocar `[user]` por `[effectiveUserId]` nos useEffect de fetch
 
 ### Detalhes tecnicos
 
 | Arquivo | Mudanca |
 |---------|---------|
-| `src/pages/admin/AdminUsers.tsx` | Adicionar busca de investimentos no openEditDialog, nova aba "Financeiro" com campos de saldo e lucro por investimento, funcao de salvar lucros, audit log |
+| `src/pages/Robots.tsx` | Substituir todas as referencias a `user.id` por `effectiveUserId` nas queries de saldo, investimentos e criacao de investimento |
 
-- A busca de investimentos usara `supabase.from('investments').select('*, robots(name)').eq('user_id', userId).eq('status', 'active')`
-- A atualizacao do lucro usara `supabase.from('investments').update({ profit_accumulated: valor }).eq('id', investmentId)`
-- O audit log registrara a acao como `user_edited` com detalhes das alteracoes de saldo e lucro
+Isso garante que quando o admin impersona um usuario, a pagina de robos mostra o saldo correto e cria investimentos na conta do usuario impersonado.
+
