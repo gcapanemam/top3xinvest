@@ -1,33 +1,39 @@
 
+# Plano: Limpar Rede ao Excluir Usuario
 
-# Plano: Corrigir Saldo na Pagina de Robos para Impersonacao
+## Problema
+As tabelas `referrals` e `referral_commissions` nao possuem foreign keys com CASCADE para `auth.users`. Quando um admin exclui um usuario, os registros de indicacao e comissoes permanecem orfaos no banco, poluindo a rede MLM.
 
-## Problema Identificado
-A pagina de Robos (`src/pages/Robots.tsx`) usa `user.id` (o ID do admin logado) para buscar o saldo e criar investimentos. Quando o admin impersona um usuario via "Acessar Painel", o sistema busca o saldo do admin (que e $0), nao do usuario impersonado. Por isso aparece "saldo insuficiente".
+## Solucao
+Adicionar foreign keys com `ON DELETE CASCADE` nas tabelas `referrals` e `referral_commissions` para que os registros sejam automaticamente removidos quando o usuario for excluido.
 
-## Causa Raiz
-- `fetchUserBalance` usa `user.id` em vez de `effectiveUserId`
-- `handleInvest` cria o investimento com `user_id: user.id` (admin) em vez do usuario impersonado
-- `fetchRobots` tambem filtra investimentos pelo `user.id` errado
+## Mudancas
 
-## Mudancas em `src/pages/Robots.tsx`
+### 1. Migracao SQL
+Adicionar constraints de foreign key nas seguintes colunas:
 
-### 1. Importar `effectiveUserId` do AuthContext
-Trocar `const { user } = useAuth()` por `const { user, effectiveUserId } = useAuth()`
+**Tabela `referrals`:**
+- `user_id` -> `auth.users(id) ON DELETE CASCADE` (usuario indicado)
+- `referrer_id` -> `auth.users(id) ON DELETE CASCADE` (quem indicou)
 
-### 2. Usar `effectiveUserId` em todas as queries
-- `fetchUserBalance`: trocar `.eq('user_id', user.id)` por `.eq('user_id', effectiveUserId)`
-- `fetchRobots`: trocar `user.id` por `effectiveUserId` na busca de investimentos ativos
-- `handleInvest`: trocar `user_id: user.id` por `user_id: effectiveUserId` ao criar investimento e ao atualizar saldo
+**Tabela `referral_commissions`:**
+- `user_id` -> `auth.users(id) ON DELETE CASCADE` (quem recebeu a comissao)
+- `from_user_id` -> `auth.users(id) ON DELETE CASCADE` (de quem veio)
 
-### 3. Atualizar dependencias dos useEffect
-- Trocar `[user]` por `[effectiveUserId]` nos useEffect de fetch
+### 2. Limpeza de dados orfaos existentes
+Antes de criar as constraints, remover registros que ja estao orfaos (referenciam usuarios que nao existem mais).
 
 ### Detalhes tecnicos
 
-| Arquivo | Mudanca |
-|---------|---------|
-| `src/pages/Robots.tsx` | Substituir todas as referencias a `user.id` por `effectiveUserId` nas queries de saldo, investimentos e criacao de investimento |
+A migracao executara:
 
-Isso garante que quando o admin impersona um usuario, a pagina de robos mostra o saldo correto e cria investimentos na conta do usuario impersonado.
+```text
+1. DELETE de registros orfaos em referral_commissions
+2. DELETE de registros orfaos em referrals  
+3. ALTER TABLE referrals ADD CONSTRAINT ... FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+4. ALTER TABLE referrals ADD CONSTRAINT ... FOREIGN KEY (referrer_id) REFERENCES auth.users(id) ON DELETE CASCADE
+5. ALTER TABLE referral_commissions ADD CONSTRAINT ... FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+6. ALTER TABLE referral_commissions ADD CONSTRAINT ... FOREIGN KEY (from_user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+```
 
+Nenhuma alteracao de codigo frontend e necessaria. A limpeza passa a ser automatica pelo banco de dados.
