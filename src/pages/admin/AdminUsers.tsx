@@ -753,6 +753,7 @@ const AdminUsers = () => {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Investido</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Rede</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">Ganhos</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden xl:table-cell">Cadastro</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
                 </tr>
               </thead>
@@ -842,6 +843,16 @@ const AdminUsers = () => {
                       <div className="flex items-center gap-2">
                         <TrendingUp className="h-4 w-4 text-green-400" />
                         <span className="text-green-400 font-medium">{formatCurrency(user.total_earnings)}</span>
+                      </div>
+                    </td>
+
+                    {/* Registration Date */}
+                    <td className="px-4 py-4 hidden xl:table-cell">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-gray-400" />
+                        <span className="text-gray-300 text-sm">
+                          {new Date(user.created_at).toLocaleDateString('pt-BR')}
+                        </span>
                       </div>
                     </td>
 
