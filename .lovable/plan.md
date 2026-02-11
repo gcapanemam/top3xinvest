@@ -1,91 +1,64 @@
 
-# Plano: Extrato de Recebimentos na Pagina de Saques
 
-## Objetivo
-Adicionar abaixo da secao de saques um extrato de recebimentos agrupado por data, com filtro de periodo, mostrando: Bonus 1o nivel, Bonus 2o nivel, Bonus 3o nivel, Bonus 4o nivel, Rendimentos Robos e Total.
+# Plano: Creditar Valor Real Pago via OxaPay
 
-## Fontes de Dados
+## Problema
+O usuario criou um deposito de $1.10, mas pagou $9.85 em USDT no OxaPay. O webhook creditou apenas $1.10 (o valor da fatura) ao inves do valor realmente pago. Isso acontece porque o webhook usa `deposit.amount` (valor da fatura) para creditar o saldo, ignorando o valor real enviado pelo usuario.
 
-- **Bonus niveis 1-4**: Tabela `referral_commissions` filtrada por `user_id` e agrupada por `level` (1, 2, 3, 4) e por data (`created_at`)
-- **Rendimentos Robos**: Tabela `robot_operations` cruzada com `investments` do usuario. O rendimento e calculado como `investment.amount * operation.profit_percentage / 100` para cada operacao fechada, agrupado por data (`closed_at`)
+Dados do caso:
+- Deposito: `8db996c7-fcbe-4baf-9223-1bc853b5148e`
+- Usuario: `06cb34f5-8071-4c25-b84c-2512a4b4562b`
+- Valor da fatura: $1.10
+- Valor pago: 9.85 USDT (~$9.85 USD)
+- Saldo atual: $1.10 (deveria ser $9.85)
 
-## Mudancas em `src/pages/Withdrawals.tsx`
+## Solucao
 
-### 1. Novos estados
-- `startDate` e `endDate` para filtro de periodo (date picker)
-- `statement` para armazenar os dados do extrato agrupados por data
+### 1. Correcao manual do deposito atual (Migracao SQL)
+- Atualizar o `amount` do deposito de $1.10 para $9.85
+- Creditar a diferenca ($8.75) no saldo do usuario
+- Atualizar o registro de transacao correspondente
 
-### 2. Funcao `fetchStatement`
-Buscar:
-- `referral_commissions` do usuario no periodo, com campo `level` e `amount`
-- `investments` ativos do usuario para obter os `robot_id` e `amount`
-- `robot_operations` fechadas dos robos investidos no periodo, com `profit_percentage` e `closed_at`
+### 2. Corrigir webhook para depositos futuros
+No `oxapay-webhook/index.ts`, usar o valor real pago (campo `payAmount` * `rate` do webhook) em vez do valor da fatura quando houver diferenca:
 
-Agrupar por data e calcular:
-- Bonus nivel 1: soma de `referral_commissions` onde `level = 1`
-- Bonus nivel 2: soma onde `level = 2`
-- Bonus nivel 3: soma onde `level = 3`
-- Bonus nivel 4: soma onde `level = 4`
-- Rendimentos Robos: soma de `(investment.amount * operation.profit_percentage / 100)` por dia
-- Total: soma de todos
-
-### 3. UI do extrato
-Abaixo do historico de saques, adicionar:
-
-```text
-[Extrato de Recebimentos]
-
-Filtro: [Data inicio] [Data fim] [Filtrar]
-
-Tabela:
-| Data       | Bonus 1o Nivel | Bonus 2o Nivel | Bonus 3o Nivel | Bonus 4o Nivel | Rendimentos Robos | Total   |
-|------------|----------------|----------------|----------------|----------------|-------------------|---------|
-| 10/02/2026 | $10.00         | $5.00          | $3.00          | $2.00          | $25.00            | $45.00  |
-| 09/02/2026 | $8.00          | $0.00          | $0.00          | $0.00          | $18.50            | $26.50  |
-
-Rodape com totais gerais
-```
-
-- Usar date pickers para selecao de periodo
-- Usar componentes Table do shadcn para a tabela
-- Estilo consistente com o tema dark da pagina
-
-### 4. Filtro padrao
-- Data inicio: 30 dias atras
-- Data fim: hoje
+- Extrair `payAmount` e `rate` do corpo do webhook
+- Calcular o valor real em USD: `payAmount * rate`
+- Se o valor real for diferente do valor da fatura, usar o valor real
+- Atualizar o campo `amount` do deposito com o valor real
+- Creditar o valor real no saldo do usuario
 
 ## Detalhes tecnicos
 
-| Arquivo | Mudanca |
-|---------|---------|
-| `src/pages/Withdrawals.tsx` | Adicionar secao de extrato com filtro de datas, busca de comissoes e rendimentos, tabela agrupada por data com totais |
+### Migracao SQL
 
-### Queries principais
-
-```typescript
-// Bonus por nivel
-const { data: commissions } = await supabase
-  .from('referral_commissions')
-  .select('amount, level, created_at')
-  .eq('user_id', effectiveUserId)
-  .gte('created_at', startDate)
-  .lte('created_at', endDate);
-
-// Investimentos do usuario
-const { data: investments } = await supabase
-  .from('investments')
-  .select('id, amount, robot_id')
-  .eq('user_id', effectiveUserId)
-  .eq('status', 'active');
-
-// Operacoes dos robos
-const { data: operations } = await supabase
-  .from('robot_operations')
-  .select('robot_id, profit_percentage, closed_at')
-  .in('robot_id', robotIds)
-  .eq('status', 'closed')
-  .gte('closed_at', startDate)
-  .lte('closed_at', endDate);
+```text
+1. UPDATE deposits SET amount = 9.85 WHERE id = '8db996c7-...'
+2. UPDATE profiles SET balance = balance + 8.75 WHERE user_id = '06cb34f5-...'
+3. UPDATE transactions SET amount = 9.85 WHERE reference_id = '8db996c7-...'
 ```
 
-Tambem sera usado `effectiveUserId` para suportar impersonacao pelo admin.
+### Mudancas no webhook (`supabase/functions/oxapay-webhook/index.ts`)
+
+| Mudanca | Descricao |
+|---------|-----------|
+| Extrair campos | Adicionar `payAmount`, `rate` do body do webhook |
+| Calcular USD real | `actualUsdPaid = parseFloat(payAmount) * parseFloat(rate)` quando ambos disponiveis |
+| Atualizar amount | Se `actualUsdPaid` difere do invoice amount, atualizar `deposits.amount` com o valor real |
+| Creditar saldo | Usar `actualUsdPaid` (ou `depositAmount` se payAmount nao disponivel) para creditar o saldo |
+| Log detalhado | Logar quando o valor pago difere do valor da fatura |
+
+### Logica do calculo no webhook
+
+```text
+1. webhookAmount = amount do webhook (valor da fatura em USD)
+2. Se payAmount e rate existem:
+   a. actualUsdPaid = payAmount * rate
+   b. Se actualUsdPaid > webhookAmount → usar actualUsdPaid
+3. Senao: usar depositAmount (comportamento atual)
+4. Atualizar deposits.amount com o valor final
+5. Creditar o valor final ao saldo
+```
+
+Isso garante que o usuario sempre receba o credito pelo valor que realmente pagou, mesmo quando diferente da fatura original.
+
