@@ -108,6 +108,11 @@ const AdminUsers = () => {
   });
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // Estados para aba Financeiro
+  const [userInvestments, setUserInvestments] = useState<any[]>([]);
+  const [editedProfits, setEditedProfits] = useState<Record<string, string>>({});
+  const [isSavingFinancial, setIsSavingFinancial] = useState(false);
+
   // Estados para dialog de ver rede
   const [viewNetworkUser, setViewNetworkUser] = useState<UserWithStats | null>(null);
   const [networkData, setNetworkData] = useState<NetworkMember[]>([]);
@@ -253,6 +258,20 @@ const AdminUsers = () => {
       body: { action: 'get_user_email', user_id: user.user_id },
     });
 
+    // Buscar investimentos ativos do usuário
+    const { data: investments } = await supabase
+      .from('investments')
+      .select('*, robots(name)')
+      .eq('user_id', user.user_id)
+      .eq('status', 'active');
+
+    setUserInvestments(investments || []);
+    const profitsMap: Record<string, string> = {};
+    (investments || []).forEach((inv: any) => {
+      profitsMap[inv.id] = inv.profit_accumulated.toString();
+    });
+    setEditedProfits(profitsMap);
+
     setEditUser({
       ...user,
       email: error ? undefined : data?.email,
@@ -321,6 +340,69 @@ const AdminUsers = () => {
     }
     
     setIsUpdating(false);
+  };
+
+  const handleSaveFinancial = async () => {
+    if (!editUser) return;
+    setIsSavingFinancial(true);
+
+    const balanceValue = parseFloat(editData.balance.replace(',', '.'));
+    if (isNaN(balanceValue) || balanceValue < 0) {
+      toast({ title: 'Erro', description: 'Valor de saldo inválido', variant: 'destructive' });
+      setIsSavingFinancial(false);
+      return;
+    }
+
+    // Update balance
+    const { error: balanceError } = await supabase
+      .from('profiles')
+      .update({ balance: balanceValue })
+      .eq('id', editUser.id);
+
+    if (balanceError) {
+      toast({ title: 'Erro', description: 'Não foi possível atualizar o saldo', variant: 'destructive' });
+      setIsSavingFinancial(false);
+      return;
+    }
+
+    // Update profits for each modified investment
+    const profitChanges: Record<string, { from: number; to: number; robot: string }> = {};
+    for (const inv of userInvestments) {
+      const newValue = parseFloat((editedProfits[inv.id] || '0').replace(',', '.'));
+      if (isNaN(newValue) || newValue < 0) continue;
+      if (newValue !== Number(inv.profit_accumulated)) {
+        const { error } = await supabase
+          .from('investments')
+          .update({ profit_accumulated: newValue })
+          .eq('id', inv.id);
+        if (!error) {
+          profitChanges[inv.id] = {
+            from: Number(inv.profit_accumulated),
+            to: newValue,
+            robot: inv.robots?.name || 'Desconhecido',
+          };
+        }
+      }
+    }
+
+    // Audit log
+    await createAuditLog({
+      action: 'user_edited',
+      entityType: 'user',
+      entityId: editUser.user_id,
+      details: {
+        user_name: editUser.full_name,
+        changes: {
+          balance: { from: editUser.balance, to: balanceValue },
+          ...(Object.keys(profitChanges).length > 0 ? { profits: profitChanges } : {}),
+        },
+      },
+    });
+
+    toast({ title: 'Sucesso!', description: 'Dados financeiros atualizados com sucesso' });
+    fetchUsersWithStats();
+    setEditUser(null);
+    setIsSavingFinancial(false);
   };
 
   const handleToggleAdmin = async (user: UserWithStats) => {
@@ -966,6 +1048,7 @@ const AdminUsers = () => {
           <Tabs defaultValue="dados" className="w-full">
             <TabsList className="w-full bg-[#0a0f14] border border-[#1e2a3a]">
               <TabsTrigger value="dados" className="flex-1 data-[state=active]:bg-[#1e2a3a]">Dados</TabsTrigger>
+              <TabsTrigger value="financeiro" className="flex-1 data-[state=active]:bg-[#1e2a3a]">Financeiro</TabsTrigger>
               <TabsTrigger value="permissoes" className="flex-1 data-[state=active]:bg-[#1e2a3a]">Permissões</TabsTrigger>
               <TabsTrigger value="acoes" className="flex-1 data-[state=active]:bg-[#1e2a3a]">Ações</TabsTrigger>
             </TabsList>
@@ -1035,6 +1118,68 @@ const AdminUsers = () => {
                   className="h-10 px-4 rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium disabled:opacity-50"
                 >
                   {isUpdating ? 'Salvando...' : 'Salvar Alterações'}
+                </button>
+              </DialogFooter>
+            </TabsContent>
+            
+            {/* Aba Financeiro */}
+            <TabsContent value="financeiro" className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label className="text-gray-300">Saldo da Carteira</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                  <Input
+                    type="text"
+                    placeholder="0,00"
+                    value={editData.balance}
+                    onChange={(e) => setEditData({ ...editData, balance: e.target.value })}
+                    className="pl-10 bg-[#0a0f14] border-[#1e2a3a] text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <Label className="text-gray-300">Lucro por Investimento</Label>
+                {userInvestments.length === 0 ? (
+                  <p className="text-sm text-gray-500 p-3 bg-[#0a0f14] rounded-lg border border-[#1e2a3a]">
+                    Nenhum investimento ativo encontrado
+                  </p>
+                ) : (
+                  userInvestments.map((inv: any) => (
+                    <div key={inv.id} className="p-3 bg-[#0a0f14] rounded-lg border border-[#1e2a3a] space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-white text-sm font-medium">
+                          {inv.robots?.name || 'Robô desconhecido'}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          Investido: {formatCurrency(Number(inv.amount))}
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
+                        <Input
+                          type="text"
+                          placeholder="0,00"
+                          value={editedProfits[inv.id] || ''}
+                          onChange={(e) => setEditedProfits({ ...editedProfits, [inv.id]: e.target.value })}
+                          className="pl-10 bg-[#111820] border-[#1e2a3a] text-white text-sm h-9"
+                        />
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <DialogFooter className="pt-4">
+                <Button variant="outline" onClick={() => setEditUser(null)} className="border-[#1e2a3a] text-gray-300 hover:bg-[#1e2a3a] hover:text-white">
+                  Cancelar
+                </Button>
+                <button
+                  onClick={handleSaveFinancial}
+                  disabled={isSavingFinancial}
+                  className="h-10 px-4 rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium disabled:opacity-50"
+                >
+                  {isSavingFinancial ? 'Salvando...' : 'Salvar Financeiro'}
                 </button>
               </DialogFooter>
             </TabsContent>
