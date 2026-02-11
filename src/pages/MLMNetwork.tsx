@@ -68,10 +68,10 @@ interface Commission {
 }
 
 const LEVEL_CONFIG = [
-  { level: 1, percentage: 100, color: 'amber', bgColor: 'bg-amber-500/20', textColor: 'text-amber-400', borderColor: 'border-amber-500/30' },
-  { level: 2, percentage: 50, color: 'green', bgColor: 'bg-green-500/20', textColor: 'text-green-400', borderColor: 'border-green-500/30' },
-  { level: 3, percentage: 25, color: 'cyan', bgColor: 'bg-cyan-500/20', textColor: 'text-cyan-400', borderColor: 'border-cyan-500/30' },
-  { level: 4, percentage: 10, color: 'purple', bgColor: 'bg-purple-500/20', textColor: 'text-purple-400', borderColor: 'border-purple-500/30' },
+  { level: 1, color: 'amber', bgColor: 'bg-amber-500/20', textColor: 'text-amber-400', borderColor: 'border-amber-500/30' },
+  { level: 2, color: 'green', bgColor: 'bg-green-500/20', textColor: 'text-green-400', borderColor: 'border-green-500/30' },
+  { level: 3, color: 'cyan', bgColor: 'bg-cyan-500/20', textColor: 'text-cyan-400', borderColor: 'border-cyan-500/30' },
+  { level: 4, color: 'purple', bgColor: 'bg-purple-500/20', textColor: 'text-purple-400', borderColor: 'border-purple-500/30' },
 ];
 
 const getLevelBadge = (volume: number) => {
@@ -179,6 +179,23 @@ const MLMNetwork = () => {
     },
     enabled: !!user?.id,
   });
+
+  // Fetch MLM settings (commission percentages)
+  const { data: mlmSettings } = useQuery({
+    queryKey: ['mlm-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('mlm_settings')
+        .select('level, commission_percentage')
+        .order('level');
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const getCommissionPercentage = (level: number) => {
+    return mlmSettings?.find(s => s.level === level)?.commission_percentage ?? 0;
+  };
 
   // Fetch commissions history
   const { data: commissions = [] } = useQuery({
@@ -504,7 +521,7 @@ const MLMNetwork = () => {
                           </div>
                           <div className="flex items-center gap-3">
                             <span className={cn('text-sm font-medium', config.textColor)}>
-                              {config.percentage}% comissão
+                              {getCommissionPercentage(config.level)}% comissão
                             </span>
                             {isOpen ? (
                               <ChevronDown className="h-5 w-5 text-gray-400" />
