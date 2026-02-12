@@ -1,35 +1,49 @@
 
-
-# Plano: Exibir cotacoes em tempo real no Dashboard
+# Plano: Corrigir impersonacao em todas as paginas
 
 ## Problema
-A secao "Cotacoes" no Dashboard exibe apenas os precos salvos no banco de dados, que so sao atualizados quando o admin acessa a pagina de cotacoes. O usuario quer ver os precos reais do mercado.
+Quando o admin usa "Acessar Painel" para ver o dashboard de um usuario, varias paginas continuam mostrando dados do admin em vez do usuario impersonado. Isso acontece porque essas paginas usam `user.id` (ID do admin autenticado) ao inves de `effectiveUserId` (que prioriza o usuario impersonado).
 
-## Solucao
+## Paginas afetadas
 
-Ao carregar o Dashboard, alem de buscar os precos do banco (fallback), chamar a edge function `fetch-crypto-prices` para obter os precos atualizados do CoinGecko e exibi-los diretamente.
+| Pagina | Arquivo | Problema |
+|--------|---------|----------|
+| Meus Investimentos | `src/pages/Investments.tsx` | Busca investimentos do admin |
+| Saques | `src/pages/Withdrawals.tsx` | Busca saldo e saques do admin |
+| Depositos | `src/pages/Deposits.tsx` | Busca depositos do admin |
+| Notificacoes | `src/pages/Notifications.tsx` | Busca notificacoes do admin |
+| Minha Rede | `src/pages/MLMNetwork.tsx` | Busca perfil, stats, arvore e comissoes do admin |
 
-### Mudancas em `src/pages/Dashboard.tsx`
+## Paginas ja corretas (nao precisam de alteracao)
+- Dashboard, Robos, Recebimentos, Configuracoes - ja usam `effectiveUserId`
 
-1. Apos buscar as criptos do banco, chamar `supabase.functions.invoke('fetch-crypto-prices')` com os simbolos das criptos
-2. Se a edge function retornar dados, atualizar o estado `cryptos` com os precos reais (price e change)
-3. Manter os dados do banco como fallback caso a edge function falhe
+## Correcoes
 
-### Logica
+### 1. Investments.tsx
+- Importar `effectiveUserId` do `useAuth()` (atualmente so importa `user`)
+- Substituir `user!.id` por `effectiveUserId` na query de investimentos (linha 73)
+- Alterar o `useEffect` para depender de `effectiveUserId` em vez de `user`
 
-```text
-1. Buscar criptos do banco (comportamento atual) -> exibe imediatamente
-2. Em paralelo, chamar fetch-crypto-prices com os simbolos
-3. Se sucesso, atualizar current_price e price_change_24h de cada crypto com os dados reais
-4. Se falha, manter dados do banco (silencioso, sem erro para o usuario)
-```
+### 2. Withdrawals.tsx
+- Importar `effectiveUserId` do `useAuth()`
+- Substituir `user!.id` por `effectiveUserId` nas queries de perfil (linha 57), saques (linha 68)
+- Na criacao de saque (linha 120), manter `user!.id` para evitar que o admin crie saques em nome de outro usuario, OU usar `effectiveUserId` se o admin deve poder fazer isso
+- Alterar o `useEffect` para depender de `effectiveUserId`
 
-### Detalhes tecnicos
+### 3. Deposits.tsx
+- Importar `effectiveUserId` do `useAuth()`
+- Substituir `user!.id` por `effectiveUserId` na query de depositos (linha 57)
+- Na criacao de deposito (linha 108), manter `user!.id` (mesma logica de saques)
+- Alterar o `useEffect` para depender de `effectiveUserId`
 
-| Mudanca | Descricao |
-|---------|-----------|
-| Nova funcao | `fetchRealPrices(cryptoList)` que chama a edge function e atualiza o estado |
-| Chamada | Executada apos `fetchData` retornar as criptos do banco |
-| Fallback | Se a edge function falhar, os precos do banco permanecem exibidos |
-| Sem salvar no banco | Apenas atualiza a exibicao no Dashboard, sem persistir (isso e responsabilidade do admin) |
+### 4. Notifications.tsx
+- Importar `effectiveUserId` do `useAuth()`
+- Substituir `user!.id` por `effectiveUserId` na query de notificacoes (linha 33)
+- Alterar o `useEffect` para depender de `effectiveUserId`
 
+### 5. MLMNetwork.tsx
+- Substituir todas as ocorrencias de `user.id` por `effectiveUserId` nas queries (linhas 142, 158, 174, 209)
+- Ja importa `effectiveUserId` mas nao usa nas queries de perfil, stats, arvore e comissoes
+
+## Observacao importante
+Para acoes de escrita (criar saque, criar deposito), as queries continuarao usando `user!.id` do admin autenticado, pois operacoes financeiras reais devem ser feitas pelo usuario real. O objetivo e apenas corrigir a **visualizacao** dos dados.
