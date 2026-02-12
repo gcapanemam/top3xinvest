@@ -81,6 +81,9 @@ const Investments = () => {
   };
 
   const fetchInvestments = async () => {
+    // Finalize expired investments before fetching
+    await supabase.rpc('finalize_expired_investments', { p_user_id: effectiveUserId });
+
     const { data } = await supabase
       .from('investments')
       .select('*, robot:robots(name, profit_percentage_min, profit_percentage_max, profit_period_days)')
