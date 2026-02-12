@@ -93,7 +93,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 shadow-lg shadow-teal-500/25">
               <Bot className="h-5 w-5 text-white" />
             </div>
-            <span className="font-bold text-white">Invest Hub</span>
+            <span className="font-bold text-white">N3XPRIME</span>
           </Link>
         )}
         {isCollapsed && !isMobile && (

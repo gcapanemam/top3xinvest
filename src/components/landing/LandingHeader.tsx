@@ -22,7 +22,7 @@ export const LandingHeader = () => {
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center">
               <TrendingUp className="w-6 h-6 text-white" />
             </div>
-            <span className="text-xl font-bold text-white">INVEST HUB</span>
+            <span className="text-xl font-bold text-white">N3XPRIME</span>
           </Link>
 
           {/* Desktop Navigation */}

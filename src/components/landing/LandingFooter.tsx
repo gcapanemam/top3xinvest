@@ -12,7 +12,7 @@ export const LandingFooter = () => {
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center">
                 <TrendingUp className="w-6 h-6 text-white" />
               </div>
-              <span className="text-xl font-bold text-white">INVEST HUB</span>
+              <span className="text-xl font-bold text-white">N3XPRIME</span>
             </Link>
             <p className="text-gray-500 max-w-md">
               Plataforma líder em investimentos automatizados com robôs de trading de alta performance 
@@ -72,7 +72,7 @@ export const LandingFooter = () => {
         {/* Copyright */}
         <div className="pt-8 border-t border-white/5 text-center">
           <p className="text-gray-600 text-sm">
-            © {new Date().getFullYear()} Invest Hub. Todos os direitos reservados.
+            © {new Date().getFullYear()} N3XPRIME. Todos os direitos reservados.
           </p>
         </div>
       </div>
