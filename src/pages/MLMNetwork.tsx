@@ -126,58 +126,58 @@ const formatCurrencyShort = (value: number) => {
 };
 
 const MLMNetwork = () => {
-  const { user } = useAuth();
+  const { user, effectiveUserId } = useAuth();
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const [openLevels, setOpenLevels] = useState<number[]>([1]);
 
   // Fetch user profile with referral code
   const { data: profile } = useQuery({
-    queryKey: ['profile', user?.id],
+    queryKey: ['profile', effectiveUserId],
     queryFn: async () => {
-      if (!user?.id) return null;
+      if (!effectiveUserId) return null;
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId)
         .single();
       
       if (error) throw error;
       return data;
     },
-    enabled: !!user?.id,
+    enabled: !!effectiveUserId,
   });
 
   // Fetch network stats
   const { data: networkStats, isLoading: loadingStats } = useQuery({
-    queryKey: ['network-stats', user?.id],
+    queryKey: ['network-stats', effectiveUserId],
     queryFn: async () => {
-      if (!user?.id) return null;
+      if (!effectiveUserId) return null;
       
       const { data, error } = await supabase.rpc('get_network_stats', {
-        target_user_id: user.id,
+        target_user_id: effectiveUserId,
       });
       
       if (error) throw error;
       return data?.[0] as NetworkStats | null;
     },
-    enabled: !!user?.id,
+    enabled: !!effectiveUserId,
   });
 
   // Fetch network tree
   const { data: networkTree = [], isLoading: loadingTree } = useQuery({
-    queryKey: ['network-tree', user?.id],
+    queryKey: ['network-tree', effectiveUserId],
     queryFn: async () => {
-      if (!user?.id) return [];
+      if (!effectiveUserId) return [];
       
       const { data, error } = await supabase.rpc('get_network_tree', {
-        root_user_id: user.id,
+        root_user_id: effectiveUserId,
       });
       
       if (error) throw error;
       return data as NetworkMember[];
     },
-    enabled: !!user?.id,
+    enabled: !!effectiveUserId,
   });
 
   // Fetch MLM settings (commission percentages)
@@ -199,21 +199,21 @@ const MLMNetwork = () => {
 
   // Fetch commissions history
   const { data: commissions = [] } = useQuery({
-    queryKey: ['commissions', user?.id],
+    queryKey: ['commissions', effectiveUserId],
     queryFn: async () => {
-      if (!user?.id) return [];
+      if (!effectiveUserId) return [];
       
       const { data, error } = await supabase
         .from('referral_commissions')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId)
         .order('created_at', { ascending: false })
         .limit(10);
       
       if (error) throw error;
       return data as Commission[];
     },
-    enabled: !!user?.id,
+    enabled: !!effectiveUserId,
   });
 
   const referralLink = profile?.referral_code

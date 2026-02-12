@@ -16,21 +16,21 @@ interface Notification {
 }
 
 const Notifications = () => {
-  const { user } = useAuth();
+  const { user, effectiveUserId } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
+    if (effectiveUserId) {
       fetchNotifications();
     }
-  }, [user]);
+  }, [effectiveUserId]);
 
   const fetchNotifications = async () => {
     const { data, error } = await supabase
       .from('notifications')
       .select('*')
-      .or(`user_id.eq.${user!.id},is_global.eq.true`)
+      .or(`user_id.eq.${effectiveUserId},is_global.eq.true`)
       .order('created_at', { ascending: false });
 
     if (data) {

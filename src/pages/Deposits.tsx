@@ -32,7 +32,7 @@ interface Deposit {
 }
 
 const Deposits = () => {
-  const { user } = useAuth();
+  const { user, effectiveUserId } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [deposits, setDeposits] = useState<Deposit[]>([]);
@@ -42,10 +42,10 @@ const Deposits = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (user) {
+    if (effectiveUserId) {
       fetchDeposits();
     }
-  }, [user]);
+  }, [effectiveUserId]);
 
   const fetchDeposits = async () => {
     const { data, error } = await supabase
@@ -54,7 +54,7 @@ const Deposits = () => {
         *,
         cryptocurrency:cryptocurrencies(symbol, name)
       `)
-      .eq('user_id', user!.id)
+      .eq('user_id', effectiveUserId)
       .order('created_at', { ascending: false });
 
     if (data) {

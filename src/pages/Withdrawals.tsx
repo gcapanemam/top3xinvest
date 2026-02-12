@@ -33,7 +33,7 @@ interface Profile {
 }
 
 const Withdrawals = () => {
-  const { user } = useAuth();
+  const { user, effectiveUserId } = useAuth();
   const { toast } = useToast();
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -44,17 +44,17 @@ const Withdrawals = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (user) {
+    if (effectiveUserId) {
       fetchData();
     }
-  }, [user]);
+  }, [effectiveUserId]);
 
   const fetchData = async () => {
     // Fetch profile
     const { data: profileData } = await supabase
       .from('profiles')
       .select('balance')
-      .eq('user_id', user!.id)
+      .eq('user_id', effectiveUserId)
       .single();
 
     if (profileData) {
@@ -65,7 +65,7 @@ const Withdrawals = () => {
     const { data: withdrawalData } = await supabase
       .from('withdrawals')
       .select('*')
-      .eq('user_id', user!.id)
+      .eq('user_id', effectiveUserId)
       .order('created_at', { ascending: false });
 
     if (withdrawalData) {
