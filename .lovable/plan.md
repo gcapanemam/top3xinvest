@@ -1,30 +1,47 @@
 
-# Plano: Lucro Acumulado deve refletir todos os investimentos
+# Plano: Alterar Nome do Site para N3XPRIME
 
-## Problema
+## Objetivo
+Substituir todas as referências de "INVEST HUB" ou "Invest Hub" pelo nome "N3XPRIME" em toda a aplicação.
 
-No Dashboard, a query de investimentos filtra apenas `status = 'active'` (linha 155). Quando um investimento e finalizado e muda para `completed`, ele desaparece da lista e seu lucro some do card "Lucro Acumulado".
+## Arquivos a Modificar
 
-## Solucao
+### 1. **index.html**
+- Alterar `<title>Lovable App</title>` para `<title>N3XPRIME</title>`
+- Alterar `og:title` para "N3XPRIME"
 
-### 1. Alterar a query de investimentos no Dashboard (Dashboard.tsx)
+### 2. **src/components/landing/LandingHeader.tsx**
+- Linha 25: `INVEST HUB` → `N3XPRIME`
 
-**Linha 155**: Remover o filtro `.eq('status', 'active')` e buscar investimentos com status `active` OU `completed` usando `.in('status', ['active', 'completed'])`.
+### 3. **src/components/landing/LandingFooter.tsx**
+- Linha 15: `INVEST HUB` → `N3XPRIME`
+- Linha 75: `Invest Hub` → `N3XPRIME`
 
-Isso garante que investimentos finalizados continuem contribuindo para o calculo de lucro.
+### 4. **src/components/landing/AboutSection.tsx**
+- Linha 27: `Invest Hub` → `N3XPRIME`
+- Linha 37: `O Invest Hub é` → `O N3XPRIME é`
 
-### 2. Ajustar o calculo de Total Investido
+### 5. **src/components/layout/Sidebar.tsx**
+- Linha 96: `Invest Hub` → `N3XPRIME`
 
-O "Total Investido" deve considerar apenas investimentos ativos (em operacao), enquanto o "Lucro Acumulado" deve somar os lucros de todos os investimentos (ativos + finalizados).
+### 6. **src/pages/Auth.tsx**
+- Linha 247: `Invest Hub` → `N3XPRIME`
 
-- **Total Investido**: filtrar apenas `active` no calculo
-- **Lucro Acumulado**: Para investimentos `completed`, usar o `profit_accumulated` salvo no banco (ja calculado pela RPC). Para investimentos `active`, continuar calculando dinamicamente a partir das `robot_operations`.
-- **Contagem de robos ativos**: filtrar apenas `active` para o texto "Em X robos ativos"
+### 7. **src/pages/MLMNetwork.tsx**
+- Linha 245: `Invest Hub - Convite` → `N3XPRIME - Convite`
+- Linha 246-247: Referências a "Invest Hub" → `N3XPRIME`
 
-### 3. Ajustar o card Patrimonio Total
+### 8. **src/components/landing/QuickNavCards.tsx**
+- Linha 7: `Conheça o Invest Hub` → `Conheça o N3XPRIME`
 
-O "Patrimonio Total" (Saldo + Investimentos + Lucros) tambem refletira os lucros corretos.
+### 9. **supabase/migrations/20260201203825_68291cf4-4b0f-4f10-9d2b-d4dd8da5e3df.sql** (comentário apenas)
+- Linha 2: Comentário `INVEST HUB` → `N3XPRIME`
 
-## Arquivos modificados
+## Resumo das Alterações
+- **9 arquivos** serão modificados
+- **~12 substituições** totais
+- Mantém a estrutura e funcionalidade intacta
+- Apenas muda o nome visual da marca
 
-- **src/pages/Dashboard.tsx**: Ajustar query e logica de calculo de lucro
+## Nota Importante
+O logo (ícone do bot/trending) permanece igual, apenas o texto é alterado para "N3XPRIME".
