@@ -1,13 +1,6 @@
-import { Play, Bot, Users, Info } from "lucide-react";
+import { Bot, Users, Info } from "lucide-react";
 
 const cards = [
-  {
-    icon: Play,
-    title: "Vídeo Apresentação",
-    description: "Conheça o N3XPRIME",
-    color: "from-rose-500 to-pink-500",
-    href: "#video",
-  },
   {
     icon: Bot,
     title: "Robôs",
