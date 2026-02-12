@@ -1,44 +1,37 @@
 
 
-# Plano: Corrigir exibicao de lucro no Dashboard
+# Plano: Mostrar horario e atualizar status automaticamente
 
-## Problema identificado
+## Mudancas na pagina Meus Investimentos (Investments.tsx)
 
-No **Dashboard** (pagina principal do usuario), os cards individuais de investimento mostram `profit_accumulated` do banco de dados, que sempre vale `$0.00`. O calculo dinamico baseado nas operacoes so e usado no card de resumo "Lucro Acumulado" no topo, mas NAO nos cards de cada investimento na lista inferior.
+### 1. Mostrar hora no Inicio e Fim
 
-A pagina de **Meus Investimentos** ja funciona corretamente porque usa `profitMap` (calculo dinamico). O Dashboard nao.
+Atualmente os campos "Inicio" e "Liberacao" mostram apenas `dd/MM/yy`. Vamos alterar para `dd/MM/yy HH:mm` para incluir a hora.
 
-## Trecho atual com problema (Dashboard.tsx, linha 777)
-
+**Linha ~243 (Inicio):**
 ```text
-+{formatCurrency(investment.profit_accumulated)}   <-- sempre $0.00
+ANTES:  format(new Date(investment.created_at), 'dd/MM/yy', { locale: ptBR })
+DEPOIS: format(new Date(investment.created_at), 'dd/MM/yy HH:mm', { locale: ptBR })
 ```
 
-## Correcao
-
-### Dashboard.tsx
-
-1. Criar um `profitMap` (mapa de lucro por investimento) igual ao que ja existe em Investments.tsx
-2. Ao buscar as operacoes para calcular `totalProfit`, tambem salvar o lucro individual de cada investimento nesse mapa
-3. Na renderizacao dos cards individuais (linha 777), substituir `investment.profit_accumulated` pelo valor do mapa dinamico
-
-### Logica da mudanca
-
+**Linha ~254 (Liberacao):**
 ```text
-ANTES:
-- Busca operacoes -> calcula totalProfit (soma geral) -> exibe no card de resumo
-- Cards individuais -> mostram investment.profit_accumulated (DB = 0)
-
-DEPOIS:
-- Busca operacoes -> calcula profitMap por investimento + totalProfit
-- Cards individuais -> mostram profitMap[investment.id] (calculado das operacoes)
-- Card de resumo -> continua mostrando totalProfit (soma do profitMap)
+ANTES:  format(new Date(investment.lock_until), 'dd/MM/yy', { locale: ptBR })
+DEPOIS: format(new Date(investment.lock_until), 'dd/MM/yy HH:mm', { locale: ptBR })
 ```
 
-### Detalhes tecnicos
+### 2. Atualizacao automatica de status ao expirar o bloqueio
 
-- Adicionar estado `profitMap` com `useState<Record<string, number>>({})`
-- No bloco que ja calcula `totalProfit` (linhas 168-186), salvar o lucro individual em `profitMap` por `investment.id`
-- Na linha 777, trocar `investment.profit_accumulated` por `profitMap[investment.id] || 0`
-- Nenhuma mudanca no banco de dados necessaria
+Adicionar um `useEffect` com timer que verifica a cada 30 segundos se algum investimento ativo passou da data de `lock_until`. Quando detectar, forca um re-render para que o badge mude de "Em Operacao" para "Disponivel" sem precisar recarregar a pagina manualmente.
+
+```text
+useEffect com setInterval(30s):
+  - Verifica se algum investimento ativo tem lock_until no passado
+  - Se sim, forca re-render via estado contador
+  - Limpa o interval ao desmontar o componente
+```
+
+### 3. Mesma correcao no Dashboard (Dashboard.tsx)
+
+Aplicar a mesma logica de horario nos campos de data dos cards de investimento do Dashboard, e adicionar o mesmo timer de auto-refresh.
 
