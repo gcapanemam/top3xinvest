@@ -4,7 +4,7 @@ const cards = [
   {
     icon: Play,
     title: "Vídeo Apresentação",
-    description: "Conheça o Invest Hub",
+    description: "Conheça o N3XPRIME",
     color: "from-rose-500 to-pink-500",
     href: "#video",
   },

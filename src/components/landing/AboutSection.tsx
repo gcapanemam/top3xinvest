@@ -24,7 +24,7 @@ export const AboutSection = () => {
       <div className="container mx-auto px-4">
         <div className="max-w-3xl mx-auto text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-            Conheça o <span className="bg-gradient-to-r from-teal-400 to-cyan-400 bg-clip-text text-transparent">Invest Hub</span>
+            Conheça o <span className="bg-gradient-to-r from-teal-400 to-cyan-400 bg-clip-text text-transparent">N3XPRIME</span>
           </h2>
           <p className="text-gray-400 text-lg">
             Seu caminho para investimentos de sucesso em cripto trading
@@ -34,7 +34,7 @@ export const AboutSection = () => {
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <div className="space-y-6">
             <p className="text-gray-300 leading-relaxed">
-              O Invest Hub é uma plataforma de investimentos automatizados que utiliza robôs 
+              O N3XPRIME é uma plataforma de investimentos automatizados que utiliza robôs 
               de trading de alta performance para operar no mercado de criptomoedas 24 horas 
               por dia, 7 dias por semana.
             </p>

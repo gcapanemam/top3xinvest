@@ -244,7 +244,7 @@ const Auth = () => {
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r from-teal-500 to-cyan-500 shadow-lg shadow-teal-500/25">
                 <Bot className="h-8 w-8 text-white" />
               </div>
-              <h1 className="text-4xl font-bold text-white">Invest Hub</h1>
+              <h1 className="text-4xl font-bold text-white">N3XPRIME</h1>
             </div>
             <p className="text-xl text-gray-400">
               Plataforma inteligente de investimentos com robôs automatizados

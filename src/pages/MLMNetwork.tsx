@@ -242,8 +242,8 @@ const MLMNetwork = () => {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'Invest Hub - Convite',
-          text: 'Venha investir comigo no Invest Hub! Use meu link de indicação:',
+          title: 'N3XPRIME - Convite',
+          text: 'Venha investir comigo no N3XPRIME! Use meu link de indicação:',
           url: referralLink,
         });
       } catch (err) {
