@@ -147,32 +147,38 @@ const Dashboard = () => {
       fetchRealPrices(cryptoData);
     }
 
-    // Fetch investments
+    // Fetch investments (active + completed)
     const { data: investmentData } = await supabase
       .from('investments')
       .select('id, amount, profit_accumulated, status, robot_id, created_at, robot:robots(name)')
       .eq('user_id', effectiveUserId)
-      .eq('status', 'active')
-      .limit(5);
+      .in('status', ['active', 'completed']);
 
     if (investmentData) {
       const invs = investmentData as Investment[];
-      setInvestments(invs);
-      const invested = invs.reduce((sum, inv) => sum + Number(inv.amount), 0);
+      const activeInvs = invs.filter(i => i.status === 'active');
+      const completedInvs = invs.filter(i => i.status === 'completed');
+
+      setInvestments(activeInvs);
+      const invested = activeInvs.reduce((sum, inv) => sum + Number(inv.amount), 0);
       setTotalInvested(invested);
 
-      // Calculate profit from robot_operations
-      const robotIds = [...new Set(invs.map(i => i.robot_id).filter(Boolean))] as string[];
-      if (robotIds.length > 0) {
+      // Profit from completed investments (already calculated by RPC)
+      const completedProfit = completedInvs.reduce((sum, inv) => sum + Number(inv.profit_accumulated || 0), 0);
+
+      // Calculate dynamic profit from active investments via robot_operations
+      const activeRobotIds = [...new Set(activeInvs.map(i => i.robot_id).filter(Boolean))] as string[];
+      let activeProfit = 0;
+      const newProfitMap: Record<string, number> = {};
+
+      if (activeRobotIds.length > 0) {
         const { data: allOps } = await supabase
           .from('robot_operations')
           .select('robot_id, profit_percentage, created_at')
-          .in('robot_id', robotIds);
+          .in('robot_id', activeRobotIds);
 
         if (allOps) {
-          let total = 0;
-          const newProfitMap: Record<string, number> = {};
-          for (const inv of invs) {
+          for (const inv of activeInvs) {
             if (inv.robot_id) {
               const ops = allOps.filter(op => op.robot_id === inv.robot_id);
               const grouped: Record<string, number> = {};
@@ -185,20 +191,16 @@ const Dashboard = () => {
                 invProfit += inv.amount * (pct / 100);
               }
               newProfitMap[inv.id] = invProfit;
-              total += invProfit;
+              activeProfit += invProfit;
             } else {
               newProfitMap[inv.id] = 0;
             }
           }
-          setProfitMap(newProfitMap);
-          setTotalProfit(total);
-        } else {
-          setProfitMap({});
-          setTotalProfit(0);
         }
-      } else {
-        setTotalProfit(0);
       }
+
+      setProfitMap(newProfitMap);
+      setTotalProfit(activeProfit + completedProfit);
     }
   };
 
@@ -481,7 +483,7 @@ const Dashboard = () => {
           </div>
           <div className="text-xl md:text-2xl font-bold text-white">{formatCurrency(totalInvested)}</div>
           <p className="text-xs text-gray-500 mt-1">
-            Em {investments.length} robôs ativos
+            Em {investments.filter(i => i.status === 'active').length} robôs ativos
           </p>
         </div>
 
