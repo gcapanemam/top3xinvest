@@ -119,6 +119,9 @@ const Dashboard = () => {
 
   const fetchData = async () => {
     if (!effectiveUserId) return;
+
+    // Finalize expired investments before fetching
+    await supabase.rpc('finalize_expired_investments', { p_user_id: effectiveUserId });
     
     // Fetch profile
     const { data: profileData } = await supabase

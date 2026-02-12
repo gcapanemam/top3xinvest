@@ -671,6 +671,10 @@ export type Database = {
         Args: { p_investment_id: string; p_profit_amount: number }
         Returns: boolean
       }
+      finalize_expired_investments: {
+        Args: { p_user_id?: string }
+        Returns: number
+      }
       get_network_stats: {
         Args: { target_user_id: string }
         Returns: {
