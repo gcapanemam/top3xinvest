@@ -83,6 +83,7 @@ const Dashboard = () => {
   const [totalProfit, setTotalProfit] = useState(0);
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
   const [robotDistribution, setRobotDistribution] = useState<RobotInvestment[]>([]);
+  const [profitMap, setProfitMap] = useState<Record<string, number>>({});
   const [copied, setCopied] = useState(false);
   useEffect(() => {
     if (effectiveUserId) {
@@ -167,6 +168,7 @@ const Dashboard = () => {
 
         if (allOps) {
           let total = 0;
+          const newProfitMap: Record<string, number> = {};
           for (const inv of invs) {
             if (inv.robot_id) {
               const ops = allOps.filter(op => op.robot_id === inv.robot_id);
@@ -175,13 +177,20 @@ const Dashboard = () => {
                 const day = format(new Date(op.created_at), 'yyyy-MM-dd');
                 grouped[day] = (grouped[day] || 0) + (op.profit_percentage || 0);
               }
+              let invProfit = 0;
               for (const pct of Object.values(grouped)) {
-                total += inv.amount * (pct / 100);
+                invProfit += inv.amount * (pct / 100);
               }
+              newProfitMap[inv.id] = invProfit;
+              total += invProfit;
+            } else {
+              newProfitMap[inv.id] = 0;
             }
           }
+          setProfitMap(newProfitMap);
           setTotalProfit(total);
         } else {
+          setProfitMap({});
           setTotalProfit(0);
         }
       } else {
@@ -774,7 +783,7 @@ const Dashboard = () => {
                 </div>
                 <div className="text-right">
                   <p className="text-sm md:text-base font-bold text-green-400">
-                    +{formatCurrency(investment.profit_accumulated)}
+                    +{formatCurrency(profitMap[investment.id] || 0)}
                   </p>
                   <p className="text-xs md:text-sm text-gray-400">Lucro acumulado</p>
                 </div>
