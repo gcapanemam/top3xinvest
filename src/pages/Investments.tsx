@@ -38,7 +38,7 @@ interface Operation {
 }
 
 const Investments = () => {
-  const { user } = useAuth();
+  const { user, effectiveUserId } = useAuth();
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [operationsDialogOpen, setOperationsDialogOpen] = useState(false);
@@ -48,10 +48,10 @@ const Investments = () => {
   const [profitMap, setProfitMap] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    if (user) {
+    if (effectiveUserId) {
       fetchInvestments();
     }
-  }, [user]);
+  }, [effectiveUserId]);
 
   const calculateProfitFromOps = (amount: number, ops: Operation[]): number => {
     const grouped: Record<string, number> = {};
@@ -70,7 +70,7 @@ const Investments = () => {
     const { data } = await supabase
       .from('investments')
       .select('*, robot:robots(name, profit_percentage_min, profit_percentage_max, profit_period_days)')
-      .eq('user_id', user!.id)
+      .eq('user_id', effectiveUserId)
       .order('created_at', { ascending: false });
 
     if (data) {
