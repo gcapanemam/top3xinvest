@@ -46,6 +46,20 @@ const Investments = () => {
   const [operations, setOperations] = useState<Operation[]>([]);
   const [isLoadingOperations, setIsLoadingOperations] = useState(false);
   const [profitMap, setProfitMap] = useState<Record<string, number>>({});
+  const [, setTick] = useState(0);
+
+  // Auto-refresh status when lock_until expires
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const hasActiveWithExpiredLock = investments.some(
+        (inv) => inv.status === 'active' && isPast(new Date(inv.lock_until))
+      );
+      if (hasActiveWithExpiredLock) {
+        setTick((t) => t + 1);
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [investments]);
 
   useEffect(() => {
     if (effectiveUserId) {
@@ -289,7 +303,7 @@ const Investments = () => {
                     <div>
                       <p className="text-xs text-gray-400">Início</p>
                       <p className="font-medium text-white">
-                        {format(new Date(investment.created_at), 'dd/MM/yy', {
+                        {format(new Date(investment.created_at), 'dd/MM/yy HH:mm', {
                           locale: ptBR,
                         })}
                       </p>
@@ -304,7 +318,7 @@ const Investments = () => {
                         Liberação
                       </p>
                       <p className="font-medium text-white">
-                        {format(new Date(investment.lock_until), 'dd/MM/yy', {
+                        {format(new Date(investment.lock_until), 'dd/MM/yy HH:mm', {
                           locale: ptBR,
                         })}
                       </p>
