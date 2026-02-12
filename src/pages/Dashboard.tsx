@@ -508,7 +508,7 @@ const Dashboard = () => {
             </div>
           </div>
           <div className="text-xl md:text-2xl font-bold text-white">
-            {formatCurrency((profile?.balance || 0) + totalInvested + totalProfit)}
+            {formatCurrency((profile?.balance || 0) + totalInvested)}
           </div>
           <p className="text-xs text-gray-500 mt-1">
             Saldo + Investimentos + Lucros
