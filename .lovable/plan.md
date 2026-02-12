@@ -1,49 +1,56 @@
 
-# Plano: Corrigir impersonacao em todas as paginas
 
-## Problema
-Quando o admin usa "Acessar Painel" para ver o dashboard de um usuario, varias paginas continuam mostrando dados do admin em vez do usuario impersonado. Isso acontece porque essas paginas usam `user.id` (ID do admin autenticado) ao inves de `effectiveUserId` (que prioriza o usuario impersonado).
+# Plano: Verificar e garantir que operacoes refletem nos lucros de todos os usuarios
 
-## Paginas afetadas
+## Diagnostico
 
-| Pagina | Arquivo | Problema |
-|--------|---------|----------|
-| Meus Investimentos | `src/pages/Investments.tsx` | Busca investimentos do admin |
-| Saques | `src/pages/Withdrawals.tsx` | Busca saldo e saques do admin |
-| Depositos | `src/pages/Deposits.tsx` | Busca depositos do admin |
-| Notificacoes | `src/pages/Notifications.tsx` | Busca notificacoes do admin |
-| Minha Rede | `src/pages/MLMNetwork.tsx` | Busca perfil, stats, arvore e comissoes do admin |
+Apos investigacao detalhada, identifiquei que:
 
-## Paginas ja corretas (nao precisam de alteracao)
-- Dashboard, Robos, Recebimentos, Configuracoes - ja usam `effectiveUserId`
+1. **As operacoes existem no banco** - Robot `dbf0e633` tem 20 operacoes (Feb 10 e 11) com 6.61% de lucro total
+2. **O calculo de lucro esta correto** - O codigo em `Investments.tsx` e `Dashboard.tsx` calcula lucros dinamicamente a partir das operacoes
+3. **O bug principal ja foi corrigido** - A correcao de impersonacao feita na mensagem anterior resolvia o problema do admin ver dados errados ao acessar paineis de usuarios
+
+## Problema residual potencial
+
+As politicas RLS da tabela `robot_operations` podem estar configuradas como **RESTRICTIVE** (restritivas). Se ambas as politicas forem restritivas, a politica "Admins can manage" (que exige `is_admin()`) pode bloquear usuarios comuns de lerem as operacoes, mesmo com a politica "Everyone can view" retornando `true`. Isso significaria que usuarios reais (nao-admin) veriam lucro $0.00 ao acessar seus proprios paineis.
 
 ## Correcoes
 
-### 1. Investments.tsx
-- Importar `effectiveUserId` do `useAuth()` (atualmente so importa `user`)
-- Substituir `user!.id` por `effectiveUserId` na query de investimentos (linha 73)
-- Alterar o `useEffect` para depender de `effectiveUserId` em vez de `user`
+### 1. Garantir que a politica SELECT de `robot_operations` seja PERMISSIVE
+- Recriar a politica "Everyone can view robot operations" como PERMISSIVE para garantir que usuarios comuns possam ler as operacoes
+- Manter a politica admin como RESTRICTIVE para gerenciamento
 
-### 2. Withdrawals.tsx
-- Importar `effectiveUserId` do `useAuth()`
-- Substituir `user!.id` por `effectiveUserId` nas queries de perfil (linha 57), saques (linha 68)
-- Na criacao de saque (linha 120), manter `user!.id` para evitar que o admin crie saques em nome de outro usuario, OU usar `effectiveUserId` se o admin deve poder fazer isso
-- Alterar o `useEffect` para depender de `effectiveUserId`
+### 2. Aplicar a mesma correcao para outras tabelas publicas
+Verificar e corrigir tabelas que seguem o mesmo padrao e precisam ser lidas por usuarios comuns:
+- `robots` (usuarios precisam ver robos ativos)
+- `cryptocurrencies` (usuarios precisam ver cotacoes)
+- `robot_cryptocurrencies` (usuarios precisam ver criptos dos robos)
+- `crypto_price_history` (usuarios precisam ver historico)
+- `mlm_settings` (usuarios precisam ver configuracoes de comissao)
 
-### 3. Deposits.tsx
-- Importar `effectiveUserId` do `useAuth()`
-- Substituir `user!.id` por `effectiveUserId` na query de depositos (linha 57)
-- Na criacao de deposito (linha 108), manter `user!.id` (mesma logica de saques)
-- Alterar o `useEffect` para depender de `effectiveUserId`
+### 3. Verificar o fluxo completo
+- Testar que o lucro aparece corretamente nas paginas de Investimentos, Dashboard e Extrato de Recebimentos
 
-### 4. Notifications.tsx
-- Importar `effectiveUserId` do `useAuth()`
-- Substituir `user!.id` por `effectiveUserId` na query de notificacoes (linha 33)
-- Alterar o `useEffect` para depender de `effectiveUserId`
+## Detalhes tecnicos
 
-### 5. MLMNetwork.tsx
-- Substituir todas as ocorrencias de `user.id` por `effectiveUserId` nas queries (linhas 142, 158, 174, 209)
-- Ja importa `effectiveUserId` mas nao usa nas queries de perfil, stats, arvore e comissoes
+### Migracao SQL
 
-## Observacao importante
-Para acoes de escrita (criar saque, criar deposito), as queries continuarao usando `user!.id` do admin autenticado, pois operacoes financeiras reais devem ser feitas pelo usuario real. O objetivo e apenas corrigir a **visualizacao** dos dados.
+Para cada tabela com politica publica de leitura, recriar a politica SELECT como PERMISSIVE:
+
+```sql
+-- robot_operations
+DROP POLICY IF EXISTS "Everyone can view robot operations" ON robot_operations;
+CREATE POLICY "Everyone can view robot operations" 
+  ON robot_operations FOR SELECT 
+  USING (true);
+
+-- Repetir padrao similar para robots, cryptocurrencies, etc.
+```
+
+### Paginas afetadas (sem mudanca de codigo necessaria)
+- `src/pages/Investments.tsx` - ja calcula lucro de operacoes corretamente
+- `src/pages/Dashboard.tsx` - ja calcula lucro acumulado e graficos corretamente
+- `src/pages/Receivables.tsx` - ja busca operacoes para extrato
+
+A correcao e puramente no nivel do banco de dados (RLS), sem necessidade de alterar codigo frontend.
+
