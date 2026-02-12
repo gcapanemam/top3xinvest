@@ -1,56 +1,44 @@
 
 
-# Plano: Verificar e garantir que operacoes refletem nos lucros de todos os usuarios
+# Plano: Corrigir exibicao de lucro no Dashboard
 
-## Diagnostico
+## Problema identificado
 
-Apos investigacao detalhada, identifiquei que:
+No **Dashboard** (pagina principal do usuario), os cards individuais de investimento mostram `profit_accumulated` do banco de dados, que sempre vale `$0.00`. O calculo dinamico baseado nas operacoes so e usado no card de resumo "Lucro Acumulado" no topo, mas NAO nos cards de cada investimento na lista inferior.
 
-1. **As operacoes existem no banco** - Robot `dbf0e633` tem 20 operacoes (Feb 10 e 11) com 6.61% de lucro total
-2. **O calculo de lucro esta correto** - O codigo em `Investments.tsx` e `Dashboard.tsx` calcula lucros dinamicamente a partir das operacoes
-3. **O bug principal ja foi corrigido** - A correcao de impersonacao feita na mensagem anterior resolvia o problema do admin ver dados errados ao acessar paineis de usuarios
+A pagina de **Meus Investimentos** ja funciona corretamente porque usa `profitMap` (calculo dinamico). O Dashboard nao.
 
-## Problema residual potencial
+## Trecho atual com problema (Dashboard.tsx, linha 777)
 
-As politicas RLS da tabela `robot_operations` podem estar configuradas como **RESTRICTIVE** (restritivas). Se ambas as politicas forem restritivas, a politica "Admins can manage" (que exige `is_admin()`) pode bloquear usuarios comuns de lerem as operacoes, mesmo com a politica "Everyone can view" retornando `true`. Isso significaria que usuarios reais (nao-admin) veriam lucro $0.00 ao acessar seus proprios paineis.
-
-## Correcoes
-
-### 1. Garantir que a politica SELECT de `robot_operations` seja PERMISSIVE
-- Recriar a politica "Everyone can view robot operations" como PERMISSIVE para garantir que usuarios comuns possam ler as operacoes
-- Manter a politica admin como RESTRICTIVE para gerenciamento
-
-### 2. Aplicar a mesma correcao para outras tabelas publicas
-Verificar e corrigir tabelas que seguem o mesmo padrao e precisam ser lidas por usuarios comuns:
-- `robots` (usuarios precisam ver robos ativos)
-- `cryptocurrencies` (usuarios precisam ver cotacoes)
-- `robot_cryptocurrencies` (usuarios precisam ver criptos dos robos)
-- `crypto_price_history` (usuarios precisam ver historico)
-- `mlm_settings` (usuarios precisam ver configuracoes de comissao)
-
-### 3. Verificar o fluxo completo
-- Testar que o lucro aparece corretamente nas paginas de Investimentos, Dashboard e Extrato de Recebimentos
-
-## Detalhes tecnicos
-
-### Migracao SQL
-
-Para cada tabela com politica publica de leitura, recriar a politica SELECT como PERMISSIVE:
-
-```sql
--- robot_operations
-DROP POLICY IF EXISTS "Everyone can view robot operations" ON robot_operations;
-CREATE POLICY "Everyone can view robot operations" 
-  ON robot_operations FOR SELECT 
-  USING (true);
-
--- Repetir padrao similar para robots, cryptocurrencies, etc.
+```text
++{formatCurrency(investment.profit_accumulated)}   <-- sempre $0.00
 ```
 
-### Paginas afetadas (sem mudanca de codigo necessaria)
-- `src/pages/Investments.tsx` - ja calcula lucro de operacoes corretamente
-- `src/pages/Dashboard.tsx` - ja calcula lucro acumulado e graficos corretamente
-- `src/pages/Receivables.tsx` - ja busca operacoes para extrato
+## Correcao
 
-A correcao e puramente no nivel do banco de dados (RLS), sem necessidade de alterar codigo frontend.
+### Dashboard.tsx
+
+1. Criar um `profitMap` (mapa de lucro por investimento) igual ao que ja existe em Investments.tsx
+2. Ao buscar as operacoes para calcular `totalProfit`, tambem salvar o lucro individual de cada investimento nesse mapa
+3. Na renderizacao dos cards individuais (linha 777), substituir `investment.profit_accumulated` pelo valor do mapa dinamico
+
+### Logica da mudanca
+
+```text
+ANTES:
+- Busca operacoes -> calcula totalProfit (soma geral) -> exibe no card de resumo
+- Cards individuais -> mostram investment.profit_accumulated (DB = 0)
+
+DEPOIS:
+- Busca operacoes -> calcula profitMap por investimento + totalProfit
+- Cards individuais -> mostram profitMap[investment.id] (calculado das operacoes)
+- Card de resumo -> continua mostrando totalProfit (soma do profitMap)
+```
+
+### Detalhes tecnicos
+
+- Adicionar estado `profitMap` com `useState<Record<string, number>>({})`
+- No bloco que ja calcula `totalProfit` (linhas 168-186), salvar o lucro individual em `profitMap` por `investment.id`
+- Na linha 777, trocar `investment.profit_accumulated` por `profitMap[investment.id] || 0`
+- Nenhuma mudanca no banco de dados necessaria
 
