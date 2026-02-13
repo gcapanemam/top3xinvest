@@ -1,47 +1,36 @@
 
-# Plano: Alterar Nome do Site para N3XPRIME
+# Plano: Botao "Detalhes" mais visivel + Dialog com informacoes completas
 
 ## Objetivo
-Substituir todas as referências de "INVEST HUB" ou "Invest Hub" pelo nome "N3XPRIME" em toda a aplicação.
+Tornar o botao de detalhes mais visivel no card do robo e expandir o dialog de detalhes para mostrar todas as informacoes do robo em formato de tabela, similar a imagem de referencia.
 
-## Arquivos a Modificar
+## Alteracoes em src/pages/Robots.tsx
 
-### 1. **index.html**
-- Alterar `<title>Lovable App</title>` para `<title>N3XPRIME</title>`
-- Alterar `og:title` para "N3XPRIME"
+### 1. Botao "Detalhes" mais visivel
+Substituir o pequeno icone ao lado do nome (linha 315-326) por um botao completo com texto "Detalhes" posicionado ao lado do botao "Investir Agora", na area inferior do card (linha 370-385). O botao sempre aparece (nao depende de ter descricao).
 
-### 2. **src/components/landing/LandingHeader.tsx**
-- Linha 25: `INVEST HUB` → `N3XPRIME`
+Layout dos botoes:
+- Dois botoes lado a lado: "Detalhes" (outline) + "Investir Agora" (gradient)
+- Para robos encerrados: "Detalhes" (outline) + badge "Encerrado" 
 
-### 3. **src/components/landing/LandingFooter.tsx**
-- Linha 15: `INVEST HUB` → `N3XPRIME`
-- Linha 75: `Invest Hub` → `N3XPRIME`
+### 2. Dialog de detalhes expandido
+Reformular o dialog (linha 474-515) para exibir informacoes completas em formato de tabela/lista, inspirado na imagem de referencia:
 
-### 4. **src/components/landing/AboutSection.tsx**
-- Linha 27: `Invest Hub` → `N3XPRIME`
-- Linha 37: `O Invest Hub é` → `O N3XPRIME é`
+| Campo | Valor |
+|-------|-------|
+| Preco do Bot | Min - Max investimento |
+| Periodo de Funcionamento | lock_period_days dias |
+| Lucro | profit_percentage_min - profit_percentage_max% |
+| Periodo de Lucro | profit_period_days dias |
+| Pares de Negociacao | Badges com cada criptomoeda/USDT |
+| Estrategia | Descricao do robo |
 
-### 5. **src/components/layout/Sidebar.tsx**
-- Linha 96: `Invest Hub` → `N3XPRIME`
+Cada linha tera label em cinza a esquerda e valor em branco/bold a direita, com separadores entre linhas.
 
-### 6. **src/pages/Auth.tsx**
-- Linha 247: `Invest Hub` → `N3XPRIME`
+### 3. Remover icone Info do titulo
+Remover o pequeno botao de info ao lado do nome do robo no card, ja que agora tera um botao dedicado.
 
-### 7. **src/pages/MLMNetwork.tsx**
-- Linha 245: `Invest Hub - Convite` → `N3XPRIME - Convite`
-- Linha 246-247: Referências a "Invest Hub" → `N3XPRIME`
-
-### 8. **src/components/landing/QuickNavCards.tsx**
-- Linha 7: `Conheça o Invest Hub` → `Conheça o N3XPRIME`
-
-### 9. **supabase/migrations/20260201203825_68291cf4-4b0f-4f10-9d2b-d4dd8da5e3df.sql** (comentário apenas)
-- Linha 2: Comentário `INVEST HUB` → `N3XPRIME`
-
-## Resumo das Alterações
-- **9 arquivos** serão modificados
-- **~12 substituições** totais
-- Mantém a estrutura e funcionalidade intacta
-- Apenas muda o nome visual da marca
-
-## Nota Importante
-O logo (ícone do bot/trending) permanece igual, apenas o texto é alterado para "N3XPRIME".
+## Resumo
+- **1 arquivo** modificado: `src/pages/Robots.tsx`
+- Botao "Detalhes" visivel e claro no card
+- Dialog completo com todas as specs do robo em formato tabular
