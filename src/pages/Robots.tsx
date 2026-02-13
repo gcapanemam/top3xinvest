@@ -294,79 +294,79 @@ const Robots = () => {
           {robots.map((robot) => (
             <div 
               key={robot.id} 
-              className="group flex flex-col rounded-xl bg-[#111820] border border-[#1e2a3a] overflow-hidden transition-all hover:border-teal-500/50"
+              className="group flex flex-col rounded-2xl bg-[#111820] border border-[#1e2a3a] overflow-hidden transition-all duration-300 hover:border-teal-500/50 hover:shadow-xl hover:shadow-teal-500/5"
             >
               {/* Gradient top border */}
-              <div className="h-1 bg-gradient-to-r from-teal-500 to-cyan-500" />
+              <div className="h-1.5 bg-gradient-to-r from-teal-500 via-cyan-400 to-teal-500" />
               
-              <div className="p-4 md:p-6">
+              <div className="p-5 md:p-6">
                 <div className="flex items-start justify-between">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r from-teal-500 to-cyan-500 shadow-lg shadow-teal-500/25">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-500 shadow-lg shadow-teal-500/25 transition-transform duration-300 group-hover:scale-110">
                     <Bot className="h-7 w-7 text-white" />
                   </div>
                   {(robot.robot_cryptocurrencies && robot.robot_cryptocurrencies.length > 0) || robot.cryptocurrency ? (
-                    <span className="px-3 py-1 rounded-full bg-[#1e2a3a] text-cyan-400 text-sm font-semibold">
+                    <span className="px-3 py-1.5 rounded-full bg-[#1e2a3a]/80 border border-cyan-500/20 text-cyan-400 text-sm font-semibold backdrop-blur-sm">
                       {getCryptoDisplay(robot)}
                     </span>
                   ) : null}
                 </div>
                 <div className="mt-4">
-                  <h3 className="text-lg font-semibold text-white group-hover:text-teal-400 transition-colors">{robot.name}</h3>
+                  <h3 className="text-lg font-bold text-white group-hover:text-teal-400 transition-colors duration-300">{robot.name}</h3>
                 </div>
               </div>
 
-              <div className="px-6 pb-6 flex-1 space-y-4">
+              <div className="px-5 md:px-6 pb-5 md:pb-6 flex-1 space-y-4">
                 {/* Profitability highlight */}
-                <div className="rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 p-4 shadow-lg shadow-green-500/25">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20">
-                      <TrendingUp className="h-5 w-5 text-white" />
+                <div className="rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 p-5 shadow-lg shadow-green-500/20">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+                      <TrendingUp className="h-6 w-6 text-white" />
                     </div>
-                    <div>
-                      <p className="text-sm text-white/80">Rentabilidade Diária</p>
-                      <p className="text-xl font-bold text-white">
-                        {robot.profit_percentage_min} - {robot.profit_percentage_max}% <span className="text-sm font-normal">/ dia</span>
+                    <div className="flex-1">
+                      <p className="text-sm text-white/70 font-medium">Rentabilidade Diária</p>
+                      <p className="text-2xl font-extrabold text-white tracking-tight">
+                        {robot.profit_percentage_min} - {robot.profit_percentage_max}% <span className="text-sm font-normal opacity-80">/ dia</span>
                       </p>
                     </div>
-                    <Sparkles className="ml-auto h-5 w-5 text-white/60 animate-pulse" />
+                    <Sparkles className="h-5 w-5 text-white/50 animate-[pulse_3s_ease-in-out_infinite]" />
                   </div>
-                  <div className="mt-2 pt-2 border-t border-white/20">
-                    <p className="text-xs text-white/70">Rentabilidade do Período</p>
-                    <p className="text-lg font-bold text-white">
-                      {(robot.profit_percentage_min * robot.lock_period_days).toFixed(1)} - {(robot.profit_percentage_max * robot.lock_period_days).toFixed(1)}% <span className="text-xs font-normal">/ {robot.lock_period_days} dias</span>
-                    </p>
+                  <div className="mt-3 pt-3 border-t border-white/15">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-white/60 font-medium uppercase tracking-wider">Rentabilidade do Período</p>
+                      <p className="text-lg font-bold text-white">
+                        {(robot.profit_percentage_min * robot.lock_period_days).toFixed(1)} - {(robot.profit_percentage_max * robot.lock_period_days).toFixed(1)}%
+                        <span className="text-xs font-normal opacity-70 ml-1">/ {robot.lock_period_days}d</span>
+                      </p>
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 md:gap-3">
-                  <div className="rounded-xl border border-[#1e2a3a] p-3 transition-all hover:border-teal-500/30">
-                    <div className="flex items-center gap-2 text-gray-400">
-                      <Clock className="h-4 w-4" />
-                      <span className="text-xs">Período Lock</span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl bg-[#0a0f14] border border-white/5 p-4 transition-all duration-200 hover:border-teal-500/30">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Clock className="h-4 w-4 text-teal-400" />
+                      <span className="text-xs text-gray-500 font-medium">Período Lock</span>
                     </div>
-                    <p className="mt-1 font-semibold text-white">{robot.lock_period_days} dias</p>
+                    <p className="text-lg font-bold text-white">{robot.lock_period_days} dias</p>
                   </div>
 
-                  <div className="rounded-xl border border-[#1e2a3a] p-3 transition-all hover:border-teal-500/30">
-                    <div className="flex items-center gap-2 text-gray-400">
-                      <DollarSign className="h-4 w-4" />
-                      <span className="text-xs">Mín. Investimento</span>
+                  <div className="rounded-2xl bg-[#0a0f14] border border-white/5 p-4 transition-all duration-200 hover:border-teal-500/30">
+                    <div className="flex items-center gap-2 mb-2">
+                      <DollarSign className="h-4 w-4 text-teal-400" />
+                      <span className="text-xs text-gray-500 font-medium">Investimento</span>
                     </div>
-                    <p className="mt-1 font-semibold text-white">{formatCurrency(robot.min_investment)}</p>
+                    <p className="text-lg font-bold text-white">{formatCurrency(robot.min_investment)}</p>
+                    {robot.max_investment && (
+                      <p className="text-xs text-gray-500 mt-1">Máx: {formatCurrency(robot.max_investment)}</p>
+                    )}
                   </div>
                 </div>
-
-                {robot.max_investment && (
-                  <p className="text-sm text-gray-400">
-                    Máximo: {formatCurrency(robot.max_investment)}
-                  </p>
-                )}
               </div>
 
-              <div className="p-6 pt-0 flex gap-2">
+              <div className="p-5 md:p-6 pt-0 flex gap-2">
                 <button
                   onClick={() => setDetailsRobot(robot)}
-                  className="flex-1 py-3 rounded-xl border border-[#1e2a3a] text-gray-300 font-medium flex items-center justify-center gap-2 transition-all hover:border-teal-500/50 hover:text-teal-400"
+                  className="flex-1 py-3 rounded-xl border border-[#1e2a3a] text-gray-300 font-medium flex items-center justify-center gap-2 transition-all duration-200 hover:border-teal-500/50 hover:text-teal-400 hover:bg-teal-500/5"
                 >
                   <Info className="h-4 w-4" />
                   Detalhes
@@ -379,7 +379,7 @@ const Robots = () => {
                 ) : (
                   <button 
                     onClick={() => handleOpenInvestDialog(robot)}
-                    className="flex-1 py-3 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:shadow-teal-500/25"
+                    className="flex-1 py-3 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-semibold flex items-center justify-center gap-2 shadow-lg shadow-teal-500/20 transition-all duration-200 hover:shadow-xl hover:shadow-teal-500/30 hover:brightness-110"
                   >
                     <Sparkles className="h-4 w-4" />
                     Investir Agora
