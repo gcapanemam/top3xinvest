@@ -317,17 +317,25 @@ const Robots = () => {
 
               <div className="px-6 pb-6 flex-1 space-y-4">
                 {/* Profitability highlight */}
-                <div className="flex items-center gap-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 p-4 shadow-lg shadow-green-500/25">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20">
-                    <TrendingUp className="h-5 w-5 text-white" />
+                <div className="rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 p-4 shadow-lg shadow-green-500/25">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20">
+                      <TrendingUp className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-white/80">Rentabilidade Diária</p>
+                      <p className="text-xl font-bold text-white">
+                        {robot.profit_percentage_min} - {robot.profit_percentage_max}% <span className="text-sm font-normal">/ dia</span>
+                      </p>
+                    </div>
+                    <Sparkles className="ml-auto h-5 w-5 text-white/60 animate-pulse" />
                   </div>
-                  <div>
-                    <p className="text-sm text-white/80">Rentabilidade</p>
-                    <p className="text-xl font-bold text-white">
-                      {robot.profit_percentage_min} - {robot.profit_percentage_max}% <span className="text-sm font-normal">/ {robot.profit_period_days} dias</span>
+                  <div className="mt-2 pt-2 border-t border-white/20">
+                    <p className="text-xs text-white/70">Rentabilidade do Período</p>
+                    <p className="text-lg font-bold text-white">
+                      {(robot.profit_percentage_min * robot.lock_period_days).toFixed(1)} - {(robot.profit_percentage_max * robot.lock_period_days).toFixed(1)}% <span className="text-xs font-normal">/ {robot.lock_period_days} dias</span>
                     </p>
                   </div>
-                  <Sparkles className="ml-auto h-5 w-5 text-white/60 animate-pulse" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 md:gap-3">
@@ -489,9 +497,15 @@ const Robots = () => {
                 <span className="text-white font-semibold">{detailsRobot.lock_period_days} dias</span>
               </div>
               <div className="flex items-center justify-between py-3">
-                <span className="text-gray-400 text-sm">Lucro</span>
+                <span className="text-gray-400 text-sm">Lucro Diário</span>
                 <span className="text-green-400 font-semibold">
                   {detailsRobot.profit_percentage_min}% - {detailsRobot.profit_percentage_max}%
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-3">
+                <span className="text-gray-400 text-sm">Rentabilidade do Período</span>
+                <span className="text-green-400 font-semibold">
+                  {(detailsRobot.profit_percentage_min * detailsRobot.lock_period_days).toFixed(1)}% - {(detailsRobot.profit_percentage_max * detailsRobot.lock_period_days).toFixed(1)}%
                 </span>
               </div>
               <div className="flex items-center justify-between py-3">
