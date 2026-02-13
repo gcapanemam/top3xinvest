@@ -310,20 +310,8 @@ const Robots = () => {
                     </span>
                   ) : null}
                 </div>
-                <div className="mt-4 flex items-center gap-2">
+                <div className="mt-4">
                   <h3 className="text-lg font-semibold text-white group-hover:text-teal-400 transition-colors">{robot.name}</h3>
-                  {robot.description && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDetailsRobot(robot);
-                      }}
-                      className="p-1 rounded-md bg-[#1e2a3a] hover:bg-teal-500/20 text-gray-400 hover:text-teal-400 transition-all"
-                      title="Ver detalhes"
-                    >
-                      <Info className="h-4 w-4" />
-                    </button>
-                  )}
                 </div>
               </div>
 
@@ -367,16 +355,23 @@ const Robots = () => {
                 )}
               </div>
 
-              <div className="p-6 pt-0">
+              <div className="p-6 pt-0 flex gap-2">
+                <button
+                  onClick={() => setDetailsRobot(robot)}
+                  className="flex-1 py-3 rounded-xl border border-[#1e2a3a] text-gray-300 font-medium flex items-center justify-center gap-2 transition-all hover:border-teal-500/50 hover:text-teal-400"
+                >
+                  <Info className="h-4 w-4" />
+                  Detalhes
+                </button>
                 {hiddenRobotIds.has(robot.id) ? (
-                  <div className="w-full py-3 rounded-xl bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 font-medium flex items-center justify-center gap-2">
+                  <div className="flex-1 py-3 rounded-xl bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 font-medium flex items-center justify-center gap-2">
                     <Clock className="h-4 w-4" />
-                    Encerrado para novos aportes
+                    Encerrado
                   </div>
                 ) : (
                   <button 
                     onClick={() => handleOpenInvestDialog(robot)}
-                    className="w-full py-3 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:shadow-teal-500/25"
+                    className="flex-1 py-3 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white font-medium flex items-center justify-center gap-2 transition-all hover:shadow-lg hover:shadow-teal-500/25"
                   >
                     <Sparkles className="h-4 w-4" />
                     Investir Agora
@@ -476,30 +471,53 @@ const Robots = () => {
         <DialogContent className="bg-[#111820] border-[#1e2a3a] max-w-[95vw] md:max-w-lg mx-auto">
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2">
-              <Info className="h-5 w-5 text-teal-400" />
-              Detalhes do Robô
+              <Bot className="h-5 w-5 text-teal-400" />
+              {detailsRobot?.name}
             </DialogTitle>
           </DialogHeader>
           {detailsRobot && (
-            <div className="space-y-4 py-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-teal-500/20 to-cyan-500/20">
-                  <Bot className="h-6 w-6 text-teal-400" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-white text-lg">{detailsRobot.name}</h3>
-                  {(detailsRobot.robot_cryptocurrencies && detailsRobot.robot_cryptocurrencies.length > 0) || detailsRobot.cryptocurrency ? (
-                    <span className="px-2 py-0.5 rounded-full bg-[#1e2a3a] text-cyan-400 text-xs font-medium">
-                      {getCryptoDisplay(detailsRobot)}
-                    </span>
-                  ) : null}
-                </div>
+            <div className="divide-y divide-[#1e2a3a]">
+              <div className="flex items-center justify-between py-3">
+                <span className="text-gray-400 text-sm">Preço do Bot</span>
+                <span className="text-white font-semibold">
+                  {formatCurrency(detailsRobot.min_investment)}
+                  {detailsRobot.max_investment && ` - ${formatCurrency(detailsRobot.max_investment)}`}
+                </span>
               </div>
-              <div className="p-4 bg-[#0a0f14] rounded-xl border border-[#1e2a3a]">
-                <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">
-                  {detailsRobot.description}
-                </p>
+              <div className="flex items-center justify-between py-3">
+                <span className="text-gray-400 text-sm">Período de Funcionamento</span>
+                <span className="text-white font-semibold">{detailsRobot.lock_period_days} dias</span>
               </div>
+              <div className="flex items-center justify-between py-3">
+                <span className="text-gray-400 text-sm">Lucro</span>
+                <span className="text-green-400 font-semibold">
+                  {detailsRobot.profit_percentage_min}% - {detailsRobot.profit_percentage_max}%
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-3">
+                <span className="text-gray-400 text-sm">Período de Lucro</span>
+                <span className="text-white font-semibold">{detailsRobot.profit_period_days} dias</span>
+              </div>
+              {(detailsRobot.robot_cryptocurrencies && detailsRobot.robot_cryptocurrencies.length > 0) && (
+                <div className="flex items-center justify-between py-3 gap-4">
+                  <span className="text-gray-400 text-sm shrink-0">Pares de Negociação</span>
+                  <div className="flex flex-wrap gap-1.5 justify-end">
+                    {detailsRobot.robot_cryptocurrencies.map((rc, i) => (
+                      <span key={i} className="px-2 py-0.5 rounded-full bg-[#1e2a3a] text-cyan-400 text-xs font-medium">
+                        {rc.cryptocurrency.symbol}/USDT
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {detailsRobot.description && (
+                <div className="py-3">
+                  <span className="text-gray-400 text-sm block mb-2">Estratégia</span>
+                  <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">
+                    {detailsRobot.description}
+                  </p>
+                </div>
+              )}
             </div>
           )}
           <DialogFooter>
