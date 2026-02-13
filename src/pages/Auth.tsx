@@ -146,8 +146,9 @@ const Auth = () => {
 
         toast({
           title: 'Conta criada!',
-          description: 'Verifique seu email para confirmar o cadastro',
+          description: 'Sua conta foi criada com sucesso!',
         });
+        navigate('/dashboard');
         setRegisterName('');
         setRegisterEmail('');
         setRegisterPassword('');
