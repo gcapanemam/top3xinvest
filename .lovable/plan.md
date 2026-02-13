@@ -1,35 +1,34 @@
 
-# Adicionar Rentabilidade do Periodo no Card do Robo
 
-## Objetivo
-A rentabilidade exibida no card (ex: 3 - 4.15%) e diaria. Adicionar tambem a rentabilidade estimada do periodo completo, calculada como: `lock_period_days x media da rentabilidade diaria`.
+# Melhorar Layout dos Cards de Robos
 
-## Calculo
-- Media diaria = (profit_percentage_min + profit_percentage_max) / 2
-- Rentabilidade min do periodo = profit_percentage_min x lock_period_days
-- Rentabilidade max do periodo = profit_percentage_max x lock_period_days
+## Melhorias visuais propostas no arquivo `src/pages/Robots.tsx`
 
-Sera exibido como faixa (min - max) do periodo total.
+### 1. Bloco de Rentabilidade (verde)
+- Aumentar o padding e espaçamento interno para respirar mais
+- Usar tipografia maior e mais destacada para os valores principais
+- Separador visual mais elegante entre rentabilidade diaria e do periodo
+- Icone do Sparkles com animacao mais suave
 
-## Alteracoes em src/pages/Robots.tsx
+### 2. Cards de Periodo Lock e Min. Investimento
+- Adicionar fundo sutil (`bg-[#0a0f14]`) em vez de apenas borda, para criar mais contraste e profundidade
+- Icones com cor teal para consistencia visual
+- Valores com tamanho de fonte maior (`text-lg`)
 
-### 1. Card - Bloco de Rentabilidade (linhas 319-331)
-Adicionar uma segunda linha abaixo da rentabilidade diaria mostrando a rentabilidade do periodo:
+### 3. Informacao de Maximo
+- Integrar o valor maximo dentro do card de Min. Investimento como sublinha, em vez de texto solto abaixo
+- Ou transformar em um terceiro card quando existir
 
-```
-Rentabilidade Diaria
-3 - 4.15% / dia
+### 4. Botoes de acao
+- Adicionar efeito de hover mais pronunciado nos botoes
+- Sombra no botao "Investir Agora" por padrao (nao so no hover)
 
-Rentabilidade do Periodo
-300 - 415% / 100 dias
-```
+### 5. Header do card
+- Badge de criptomoeda com estilo mais refinado (borda sutil + icone)
+- Icone do robo com leve animacao de hover (scale)
 
-O layout mantera o mesmo estilo visual (fundo verde gradient), adicionando a informacao do periodo logo abaixo com fonte um pouco menor.
+## Detalhes tecnicos
+- Arquivo modificado: `src/pages/Robots.tsx` (linhas 293-390)
+- Apenas alteracoes de classes CSS Tailwind e pequenos ajustes de estrutura HTML
+- Nenhuma logica ou calculo sera alterado
 
-### 2. Dialog de Detalhes
-Adicionar uma linha extra na tabela do dialog de detalhes com "Rentabilidade do Periodo" mostrando o calculo completo.
-
-## Resumo
-- **1 arquivo** modificado: `src/pages/Robots.tsx`
-- Calculo simples: min% x dias e max% x dias para exibir a faixa do periodo
-- Informacao adicionada tanto no card quanto no dialog de detalhes
