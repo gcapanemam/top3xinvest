@@ -172,7 +172,7 @@ const AdminRobots = () => {
   const [selectedRobotForDetails, setSelectedRobotForDetails] = useState<Robot | null>(null);
 
   // Expanded investors on cards
-  const [expandedInvestors, setExpandedInvestors] = useState<Record<string, { userId: string; fullName: string | null; amount: number }[]>>({});
+  const [expandedInvestors, setExpandedInvestors] = useState<Record<string, { userId: string; fullName: string | null; amount: number; createdAt: string; profitAccumulated: number }[]>>({});
   const [loadingInvestors, setLoadingInvestors] = useState<Set<string>>(new Set());
 
   // Form state
@@ -272,7 +272,7 @@ const AdminRobots = () => {
     try {
       const { data: investments } = await supabase
         .from('investments')
-        .select('user_id, amount')
+        .select('user_id, amount, created_at, profit_accumulated')
         .eq('robot_id', robotId)
         .eq('status', 'active');
 
@@ -283,17 +283,44 @@ const AdminRobots = () => {
           .select('user_id, full_name')
           .in('user_id', userIds);
 
+        // Fetch robot operations for dynamic profit calculation
+        const { data: operations } = await supabase
+          .from('robot_operations')
+          .select('profit_percentage, created_at')
+          .eq('robot_id', robotId)
+          .not('profit_percentage', 'is', null);
+
         const profileMap = new Map(profiles?.map(p => [p.user_id, p.full_name]) || []);
-        const grouped = new Map<string, { userId: string; fullName: string | null; amount: number }>();
+        const grouped = new Map<string, { userId: string; fullName: string | null; amount: number; createdAt: string; profitAccumulated: number }>();
         for (const inv of investments) {
+          // Calculate dynamic profit based on operations after investment creation (Golden Rule)
+          const invDate = new Date(inv.created_at);
+          const relevantOps = (operations || []).filter(op => new Date(op.created_at) >= invDate);
+          
+          // Group by day and sum
+          const dailyMap = new Map<string, number>();
+          for (const op of relevantOps) {
+            const day = op.created_at.substring(0, 10);
+            dailyMap.set(day, (dailyMap.get(day) || 0) + Number(op.profit_percentage));
+          }
+          const totalPct = Array.from(dailyMap.values()).reduce((s, v) => s + v, 0);
+          const dynamicProfit = Number(inv.amount) * (totalPct / 100);
+
           const existing = grouped.get(inv.user_id);
           if (existing) {
             existing.amount += Number(inv.amount);
+            existing.profitAccumulated += dynamicProfit;
+            // Keep earliest date
+            if (new Date(inv.created_at) < new Date(existing.createdAt)) {
+              existing.createdAt = inv.created_at;
+            }
           } else {
             grouped.set(inv.user_id, {
               userId: inv.user_id,
               fullName: profileMap.get(inv.user_id) || null,
               amount: Number(inv.amount),
+              createdAt: inv.created_at,
+              profitAccumulated: dynamicProfit,
             });
           }
         }
@@ -1771,9 +1798,11 @@ const AdminRobots = () => {
                               <span className="text-xs text-gray-500">Nenhum investidor ativo</span>
                             ) : (
                               expandedInvestors[robot.id].map((investor) => (
-                                <div key={investor.userId} className="flex items-center gap-2 text-xs">
-                                  <span className="text-gray-300">{investor.fullName || 'Sem nome'}</span>
-                                  <span className="text-gray-500">({formatCurrency(investor.amount)})</span>
+                                <div key={investor.userId} className="flex items-center gap-2 text-xs flex-wrap">
+                                  <span className="text-gray-300 font-medium">{investor.fullName || 'Sem nome'}</span>
+                                  <span className="text-gray-500">Ativou: {format(new Date(investor.createdAt), 'dd/MM/yy HH:mm')}</span>
+                                  <span className="text-gray-500">Invest: {formatCurrency(investor.amount)}</span>
+                                  <span className={investor.profitAccumulated >= 0 ? "text-green-400" : "text-red-400"}>Lucro: {formatCurrency(investor.profitAccumulated)}</span>
                                   <button
                                     onClick={() => {
                                       impersonateUser(investor.userId, investor.fullName);
