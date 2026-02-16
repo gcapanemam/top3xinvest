@@ -54,7 +54,7 @@ const Receivables = () => {
         .lte('created_at', end),
       supabase
         .from('investments')
-        .select('id, amount, robot_id')
+        .select('id, amount, robot_id, created_at')
         .eq('user_id', effectiveUserId)
         .eq('status', 'active'),
     ]);
@@ -77,14 +77,6 @@ const Receivables = () => {
       operations = data || [];
     }
 
-    // Build a map: investment amount per robot
-    const amountByRobot: Record<string, number> = {};
-    investments.forEach(inv => {
-      if (inv.robot_id) {
-        amountByRobot[inv.robot_id] = (amountByRobot[inv.robot_id] || 0) + inv.amount;
-      }
-    });
-
     // Group by date
     const grouped: Record<string, StatementRow> = {};
 
@@ -104,12 +96,19 @@ const Receivables = () => {
       }
     });
 
-    operations.forEach(op => {
-      if (!op.closed_at || op.profit_percentage == null) return;
-      const dateStr = format(new Date(op.closed_at), 'yyyy-MM-dd');
-      const row = getOrCreate(dateStr);
-      const investedAmount = amountByRobot[op.robot_id] || 0;
-      row.robotProfits += (investedAmount * op.profit_percentage) / 100;
+    // For each investment, filter operations that happened AFTER the investment was created
+    investments.forEach(inv => {
+      if (!inv.robot_id) return;
+      const invCreatedAt = new Date(inv.created_at);
+
+      operations
+        .filter(op => op.robot_id === inv.robot_id && new Date(op.closed_at!) >= invCreatedAt)
+        .forEach(op => {
+          if (!op.closed_at || op.profit_percentage == null) return;
+          const dateStr = format(new Date(op.closed_at), 'yyyy-MM-dd');
+          const row = getOrCreate(dateStr);
+          row.robotProfits += (inv.amount * op.profit_percentage) / 100;
+        });
     });
 
     // Calculate totals and sort
