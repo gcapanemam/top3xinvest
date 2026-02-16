@@ -1800,7 +1800,7 @@ const AdminRobots = () => {
                               expandedInvestors[robot.id].map((investor) => (
                                 <div key={investor.userId} className="flex items-center gap-2 text-xs flex-wrap">
                                   <span className="text-gray-300 font-medium">{investor.fullName || 'Sem nome'}</span>
-                                  <span className="text-gray-500">Ativou: {format(new Date(investor.createdAt), 'dd/MM/yy HH:mm')}</span>
+                                  <span className="text-gray-500">Ativou: {investor.createdAt && !isNaN(new Date(investor.createdAt).getTime()) ? format(new Date(investor.createdAt), 'dd/MM/yy HH:mm') : 'N/A'}</span>
                                   <span className="text-gray-500">Invest: {formatCurrency(investor.amount)}</span>
                                   <span className={investor.profitAccumulated >= 0 ? "text-green-400" : "text-red-400"}>Lucro: {formatCurrency(investor.profitAccumulated)}</span>
                                   <button
