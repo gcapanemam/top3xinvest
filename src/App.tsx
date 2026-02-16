@@ -21,6 +21,7 @@ import NotFound from "./pages/NotFound";
 import MLMNetwork from "./pages/MLMNetwork";
 import ResetPassword from "./pages/ResetPassword";
 import Settings from "./pages/Settings";
+import Presentation from "./pages/Presentation";
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -49,6 +50,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/auth/reset-password" element={<ResetPassword />} />
+            <Route path="/presentation" element={<Presentation />} />
 
             {/* Protected Routes - User */}
             <Route element={<DashboardLayout />}>
