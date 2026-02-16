@@ -6,7 +6,7 @@ import OpportunitiesSlide from "@/components/presentation/slides/OpportunitiesSl
 import RobotsSlide from "@/components/presentation/slides/RobotsSlide";
 import BotVsTraderSlide from "@/components/presentation/slides/BotVsTraderSlide";
 import WhyChooseSlide from "@/components/presentation/slides/WhyChooseSlide";
-import TimelineSlide from "@/components/presentation/slides/TimelineSlide";
+
 import StepsSlide from "@/components/presentation/slides/StepsSlide";
 import DepositsSlide from "@/components/presentation/slides/DepositsSlide";
 import CTASlide from "@/components/presentation/slides/CTASlide";
@@ -14,7 +14,7 @@ import { ChevronLeft, ChevronRight, Maximize, Minimize } from "lucide-react";
 
 const slides = [
   CoverSlide, AboutSlide, OpportunitiesSlide, RobotsSlide,
-  BotVsTraderSlide, WhyChooseSlide, TimelineSlide, StepsSlide,
+  BotVsTraderSlide, WhyChooseSlide, StepsSlide,
   DepositsSlide, CTASlide,
 ];
 
