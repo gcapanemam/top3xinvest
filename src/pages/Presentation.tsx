@@ -10,7 +10,7 @@ import WhyChooseSlide from "@/components/presentation/slides/WhyChooseSlide";
 import StepsSlide from "@/components/presentation/slides/StepsSlide";
 import DepositsSlide from "@/components/presentation/slides/DepositsSlide";
 import CTASlide from "@/components/presentation/slides/CTASlide";
-import { ChevronLeft, ChevronRight, Maximize, Minimize } from "lucide-react";
+import { ChevronLeft, ChevronRight, Maximize, Minimize, Download } from "lucide-react";
 
 const slides = [
   CoverSlide, AboutSlide, OpportunitiesSlide, RobotsSlide,
@@ -153,13 +153,22 @@ const Presentation = () => {
         </button>
       </div>
 
-      {/* Fullscreen button */}
-      <button
-        onClick={toggleFullscreen}
-        className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all z-50"
-      >
-        {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
-      </button>
+      {/* Top-right buttons */}
+      <div className="absolute top-4 right-4 flex items-center gap-2 z-50">
+        <button
+          onClick={() => window.print()}
+          className="w-10 h-10 rounded-full flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all"
+          title="Baixar como PDF"
+        >
+          <Download size={20} />
+        </button>
+        <button
+          onClick={toggleFullscreen}
+          className="w-10 h-10 rounded-full flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all"
+        >
+          {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
+        </button>
+      </div>
     </div>
   );
 };
