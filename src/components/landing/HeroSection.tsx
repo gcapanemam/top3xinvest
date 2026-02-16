@@ -58,11 +58,11 @@ export const HeroSection = () => {
             {/* Stats */}
             <div className="grid grid-cols-3 gap-6 pt-8 border-t border-white/10">
               <div>
-                <p className="text-2xl md:text-3xl font-bold text-white">$2M+</p>
+                <p className="text-2xl md:text-3xl font-bold text-white">$26k+</p>
                 <p className="text-sm text-gray-500">Volume Total</p>
               </div>
               <div>
-                <p className="text-2xl md:text-3xl font-bold text-white">15k+</p>
+                <p className="text-2xl md:text-3xl font-bold text-white">1k+</p>
                 <p className="text-sm text-gray-500">Usuários Ativos</p>
               </div>
               <div>
