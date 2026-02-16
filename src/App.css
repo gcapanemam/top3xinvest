@@ -40,3 +40,23 @@
 .read-the-docs {
   color: #888;
 }
+
+@media print {
+  body {
+    margin: 0;
+    padding: 0;
+    background: #0a0f14 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  #root {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+  .absolute.bottom-6,
+  .absolute.top-4.right-4,
+  .absolute.top-0.left-0.right-0.h-1 {
+    display: none !important;
+  }
+}
