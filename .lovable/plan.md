@@ -1,51 +1,48 @@
 
-# Correcao Critica: Filtrar Operacoes por Data de Ativacao do Investimento
 
-## O Problema
-Quando um usuario ativa um robo (ex: dia 15/02), o sistema calcula o lucro usando TODAS as operacoes do robo, incluindo operacoes anteriores a data de ativacao. Isso gera lucros indevidos para o cliente.
+# Adicionar Lista de Investidores nos Cards de Robos (Admin)
 
-**Regra correta**: Somente operacoes com data posterior (ou igual) ao `created_at` do investimento devem ser consideradas no calculo de lucro daquele investimento.
+## O que sera feito
 
-## Arquivos Afetados (4 locais com o mesmo bug)
+Na pagina de administracao de robos (`/admin/robots`), ao lado do texto "X investimento(s) ativo(s)", sera adicionado um botao clicavel que expande/mostra a lista dos nomes dos investidores ativos daquele robo. Cada investidor tera um icone de "olhinho" (Eye) que, ao ser clicado, faz a impersonacao do usuario e navega para a pagina `/investments`.
 
-### 1. `src/pages/Investments.tsx` - Calculo de lucro nos cards
-- **Linha 109**: `allOps.filter(op => op.robot_id === inv.robot_id)` nao filtra por data
-- **Correcao**: Adicionar filtro `op.created_at >= inv.created_at`
-- **Linha 128** (fetchOperations para dialog): Tambem nao filtra por data do investimento
-- **Correcao**: Passar `created_at` do investimento e filtrar com `.gte('created_at', investmentCreatedAt)`
+## Detalhes tecnicos
 
-### 2. `src/pages/Dashboard.tsx` - Lucro acumulado (linha 183)
-- **Linha 183**: `allOps.filter(op => op.robot_id === inv.robot_id)` sem filtro de data
-- **Correcao**: Adicionar filtro `op.created_at >= inv.created_at`
+### Arquivo: `src/pages/admin/AdminRobots.tsx`
 
-### 3. `src/pages/Dashboard.tsx` - Grafico de fluxo anual (linha 270)
-- **Linha 270**: `allChartOps.filter(op => op.robot_id === invAny.robot_id)` sem filtro de data
-- **Correcao**: Adicionar filtro `new Date(op.created_at) >= invDate`
+**1. Novo estado para controlar expansao**
+- Adicionar estado `expandedInvestors` do tipo `Record<string, InvestorData[]>` para armazenar os investidores carregados por robo
+- Adicionar estado `loadingInvestors` do tipo `Set<string>` para controle de loading
 
-### 4. `src/pages/Receivables.tsx` - Extrato de recebimentos (linha 82-86)
-- O agrupamento por robo nao considera a data de criacao do investimento
-- **Correcao**: Filtrar operacoes para cada investimento considerando apenas as posteriores ao `created_at` do investimento
+**2. Nova funcao `toggleInvestorsList`**
+- Ao clicar no botao, busca os investimentos ativos do robo no banco (com join no profiles para pegar `full_name`)
+- Se ja estiver expandido, colapsa (remove do estado)
+- Exibe um spinner durante o carregamento
 
-## Logica da Correcao
+**3. Alteracao no card do robo (linhas 1686-1695)**
+- Ao lado do texto "X investimento(s) ativo(s)", adicionar um botao com icone `Users` ou `ChevronDown`
+- Abaixo, renderizar condicionalmente a lista de investidores quando expandida
+- Cada item mostra o nome do investidor e um botao com icone `Eye`
+- O clique no `Eye` chama `impersonateUser(userId, fullName)` e `navigate('/investments')`
 
-Em todos os locais onde se faz:
-```typescript
-// ERRADO - pega TODAS as operacoes do robo
-const ops = allOps.filter(op => op.robot_id === inv.robot_id);
+**4. Imports adicionais**
+- Importar `useAuth` para acessar `impersonateUser`
+- O icone `Eye` ja esta importado no arquivo
+
+### Fluxo do usuario
+
+```
+Admin ve card do robo -> "3 investimento(s) ativo(s)" [botao Users]
+  -> Clica no botao
+  -> Lista expande mostrando:
+     - Joao Silva        [Eye]
+     - Maria Santos      [Eye]
+     - Pedro Oliveira    [Eye]
+  -> Clica no Eye do "Joao Silva"
+  -> Sistema impersona Joao e navega para /investments
 ```
 
-Sera corrigido para:
-```typescript
-// CORRETO - pega apenas operacoes posteriores a ativacao
-const ops = allOps.filter(op => 
-  op.robot_id === inv.robot_id && 
-  new Date(op.created_at) >= new Date(inv.created_at)
-);
-```
-
-## Impacto
-- Corrige o calculo de lucro em todos os cards de investimento
-- Corrige o lucro acumulado total no dashboard
-- Corrige os graficos de fluxo anual
-- Corrige o extrato de recebimentos
-- O historico de trades do dialog tambem passara a mostrar apenas operacoes relevantes para aquele investimento
+### Dados buscados
+- Tabela `investments` (filtro: `robot_id` e `status = 'active'`)
+- Join com `profiles` para obter `full_name`
+- Agrupado por usuario (caso um usuario tenha multiplos investimentos no mesmo robo)
