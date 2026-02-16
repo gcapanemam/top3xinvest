@@ -180,7 +180,7 @@ const Dashboard = () => {
         if (allOps) {
           for (const inv of activeInvs) {
             if (inv.robot_id) {
-              const ops = allOps.filter(op => op.robot_id === inv.robot_id);
+              const ops = allOps.filter(op => op.robot_id === inv.robot_id && new Date(op.created_at) >= new Date(inv.created_at));
               const grouped: Record<string, number> = {};
               for (const op of ops) {
                 const day = format(new Date(op.created_at), 'yyyy-MM-dd');
@@ -267,7 +267,8 @@ const Dashboard = () => {
 
       // Calculate profit from ops for this investment, grouped by month
       if (invAny.robot_id) {
-        const ops = allChartOps.filter(op => op.robot_id === invAny.robot_id);
+        const invDate = new Date(inv.created_at);
+        const ops = allChartOps.filter(op => op.robot_id === invAny.robot_id && new Date(op.created_at) >= invDate);
         ops.forEach(op => {
           const opDate = new Date(op.created_at);
           const opMonthIndex = months.findIndex(m => {

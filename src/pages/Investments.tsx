@@ -106,7 +106,7 @@ const Investments = () => {
           const newProfitMap: Record<string, number> = {};
           for (const inv of invs) {
             if (inv.robot_id) {
-              const robotOps = allOps.filter(op => op.robot_id === inv.robot_id);
+              const robotOps = allOps.filter(op => op.robot_id === inv.robot_id && new Date(op.created_at) >= new Date(inv.created_at));
               newProfitMap[inv.id] = calculateProfitFromOps(inv.amount, robotOps as Operation[]);
             } else {
               newProfitMap[inv.id] = 0;
@@ -119,12 +119,13 @@ const Investments = () => {
     setIsLoading(false);
   };
 
-  const fetchOperations = async (robotId: string) => {
+  const fetchOperations = async (robotId: string, investmentCreatedAt: string) => {
     setIsLoadingOperations(true);
     const { data } = await supabase
       .from('robot_operations')
       .select('*')
       .eq('robot_id', robotId)
+      .gte('created_at', investmentCreatedAt)
       .order('created_at', { ascending: false });
 
     if (data) {
@@ -137,7 +138,7 @@ const Investments = () => {
     setSelectedInvestment(investment);
     setOperationsDialogOpen(true);
     if (investment.robot_id) {
-      await fetchOperations(investment.robot_id);
+      await fetchOperations(investment.robot_id, investment.created_at);
     }
   };
 
