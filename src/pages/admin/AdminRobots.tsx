@@ -116,7 +116,7 @@ const CRYPTO_PAIRS = [
 ];
 
 const AdminRobots = () => {
-  const { isAdmin, isLoading } = useAuth();
+  const { isAdmin, isLoading, impersonateUser } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [robots, setRobots] = useState<Robot[]>([]);
@@ -170,6 +170,10 @@ const AdminRobots = () => {
   // Details dialog state
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [selectedRobotForDetails, setSelectedRobotForDetails] = useState<Robot | null>(null);
+
+  // Expanded investors on cards
+  const [expandedInvestors, setExpandedInvestors] = useState<Record<string, { userId: string; fullName: string | null; amount: number }[]>>({});
+  const [loadingInvestors, setLoadingInvestors] = useState<Set<string>>(new Set());
 
   // Form state
   const [formData, setFormData] = useState({
@@ -251,6 +255,60 @@ const AdminRobots = () => {
 
     if (cryptosData) {
       setCryptos(cryptosData);
+    }
+  };
+
+  const toggleInvestorsList = async (robotId: string) => {
+    if (expandedInvestors[robotId]) {
+      setExpandedInvestors(prev => {
+        const next = { ...prev };
+        delete next[robotId];
+        return next;
+      });
+      return;
+    }
+
+    setLoadingInvestors(prev => new Set(prev).add(robotId));
+    try {
+      const { data: investments } = await supabase
+        .from('investments')
+        .select('user_id, amount')
+        .eq('robot_id', robotId)
+        .eq('status', 'active');
+
+      if (investments && investments.length > 0) {
+        const userIds = [...new Set(investments.map(inv => inv.user_id))];
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, full_name')
+          .in('user_id', userIds);
+
+        const profileMap = new Map(profiles?.map(p => [p.user_id, p.full_name]) || []);
+        const grouped = new Map<string, { userId: string; fullName: string | null; amount: number }>();
+        for (const inv of investments) {
+          const existing = grouped.get(inv.user_id);
+          if (existing) {
+            existing.amount += Number(inv.amount);
+          } else {
+            grouped.set(inv.user_id, {
+              userId: inv.user_id,
+              fullName: profileMap.get(inv.user_id) || null,
+              amount: Number(inv.amount),
+            });
+          }
+        }
+        setExpandedInvestors(prev => ({ ...prev, [robotId]: Array.from(grouped.values()) }));
+      } else {
+        setExpandedInvestors(prev => ({ ...prev, [robotId]: [] }));
+      }
+    } catch (error) {
+      console.error('Error fetching investors:', error);
+    } finally {
+      setLoadingInvestors(prev => {
+        const next = new Set(prev);
+        next.delete(robotId);
+        return next;
+      });
     }
   };
 
@@ -1684,13 +1742,53 @@ const AdminRobots = () => {
                       )}
                     </div>
                     {robotStats[robot.id] && (
-                      <div className="flex items-center gap-4 mt-1">
-                        <span className="text-xs text-gray-500">
-                          {robotStats[robot.id].activeInvestments} investimento(s) ativo(s)
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          Volume: {formatCurrency(robotStats[robot.id].totalVolume)}
-                        </span>
+                      <div className="mt-1">
+                        <div className="flex items-center gap-4">
+                          <span className="text-xs text-gray-500">
+                            {robotStats[robot.id].activeInvestments} investimento(s) ativo(s)
+                          </span>
+                          {robotStats[robot.id].activeInvestments > 0 && (
+                            <button
+                              onClick={() => toggleInvestorsList(robot.id)}
+                              className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                              title="Ver investidores"
+                            >
+                              {loadingInvestors.has(robot.id) ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Users className="h-3 w-3" />
+                              )}
+                              {expandedInvestors[robot.id] ? 'Ocultar' : 'Ver'}
+                            </button>
+                          )}
+                          <span className="text-xs text-gray-500">
+                            Volume: {formatCurrency(robotStats[robot.id].totalVolume)}
+                          </span>
+                        </div>
+                        {expandedInvestors[robot.id] && (
+                          <div className="mt-2 space-y-1 pl-1">
+                            {expandedInvestors[robot.id].length === 0 ? (
+                              <span className="text-xs text-gray-500">Nenhum investidor ativo</span>
+                            ) : (
+                              expandedInvestors[robot.id].map((investor) => (
+                                <div key={investor.userId} className="flex items-center gap-2 text-xs">
+                                  <span className="text-gray-300">{investor.fullName || 'Sem nome'}</span>
+                                  <span className="text-gray-500">({formatCurrency(investor.amount)})</span>
+                                  <button
+                                    onClick={() => {
+                                      impersonateUser(investor.userId, investor.fullName);
+                                      navigate('/investments');
+                                    }}
+                                    className="p-0.5 rounded hover:bg-blue-500/20 text-blue-400 transition-colors"
+                                    title={`Ver como ${investor.fullName || 'usuário'}`}
+                                  >
+                                    <Eye className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
