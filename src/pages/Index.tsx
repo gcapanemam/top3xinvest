@@ -1,6 +1,7 @@
 import { LandingHeader } from "@/components/landing/LandingHeader";
 import { HeroSection } from "@/components/landing/HeroSection";
 import { QuickNavCards } from "@/components/landing/QuickNavCards";
+import { FundraisingSection } from "@/components/landing/FundraisingSection";
 
 import { AboutSection } from "@/components/landing/AboutSection";
 import { ProfitSection } from "@/components/landing/ProfitSection";
@@ -20,6 +21,7 @@ const Index = () => {
       <LandingHeader />
       <HeroSection />
       <QuickNavCards />
+      <FundraisingSection />
       <AboutSection />
       <ProfitSection />
       <WhyChooseUsSection />

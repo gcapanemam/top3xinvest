@@ -238,3 +238,8 @@ All colors MUST be HSL.
 .animate-pulse-arrow {
   animation: pulse-arrow 2s ease-in-out infinite;
 }
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
