@@ -1,48 +1,102 @@
 
 
-# Adicionar Lista de Investidores nos Cards de Robos (Admin)
+# Apresentacao Pitch Deck N3XPRIME - Pagina Web Navegavel
 
-## O que sera feito
+## Visao Geral
 
-Na pagina de administracao de robos (`/admin/robots`), ao lado do texto "X investimento(s) ativo(s)", sera adicionado um botao clicavel que expande/mostra a lista dos nomes dos investidores ativos daquele robo. Cada investidor tera um icone de "olhinho" (Eye) que, ao ser clicado, faz a impersonacao do usuario e navega para a pagina `/investments`.
+Criar uma pagina web estilo pitch deck (`/presentation`) com slides navegaveis, inspirada na apresentacao BWIS anexada, mas com todas as informacoes adaptadas para a N3XPRIME. O visual seguira a identidade da marca (fundo escuro, gradientes teal/cyan, glassmorphism).
 
-## Detalhes tecnicos
+## Estrutura dos Slides (10 slides)
 
-### Arquivo: `src/pages/admin/AdminRobots.tsx`
+1. **Capa** - Logo N3XPRIME, titulo "Smart Crypto-Bots Gerando Lucros Diarios", visual impactante
+2. **Quem Somos** - Descricao da empresa, o que oferecemos, produtos principais
+3. **Ferramentas para o Sucesso** - Oportunidades de investimento, como funciona a plataforma, papel da empresa
+4. **Nossos Robos** - Tabela com os 6 robos ativos (S-BOT, CP-Bot, CC-Bot, PT-Bot, BW-Bot, CM-Bot) com rentabilidade min/max
+5. **Bot vs. Trader** - Comparativo entre trading manual e bots automatizados (processamento, velocidade, 24/7, emocoes)
+6. **Por que Escolher a N3XPRIME** - Inovacao, transparencia, seguranca, flexibilidade, tabela comparativa
+7. **Linha do Tempo** - Evolucao e roadmap da empresa
+8. **3 Passos para Comecar** - Cadastro, deposito, ativacao do bot
+9. **Depositos e Saques** - Rapido, seguro, simples, comparativo de velocidade
+10. **CTA Final** - Chamada para acao, contato, link para registro
 
-**1. Novo estado para controlar expansao**
-- Adicionar estado `expandedInvestors` do tipo `Record<string, InvestorData[]>` para armazenar os investidores carregados por robo
-- Adicionar estado `loadingInvestors` do tipo `Set<string>` para controle de loading
+## Detalhes Tecnicos
 
-**2. Nova funcao `toggleInvestorsList`**
-- Ao clicar no botao, busca os investimentos ativos do robo no banco (com join no profiles para pegar `full_name`)
-- Se ja estiver expandido, colapsa (remove do estado)
-- Exibe um spinner durante o carregamento
+### Novos Arquivos
 
-**3. Alteracao no card do robo (linhas 1686-1695)**
-- Ao lado do texto "X investimento(s) ativo(s)", adicionar um botao com icone `Users` ou `ChevronDown`
-- Abaixo, renderizar condicionalmente a lista de investidores quando expandida
-- Cada item mostra o nome do investidor e um botao com icone `Eye`
-- O clique no `Eye` chama `impersonateUser(userId, fullName)` e `navigate('/investments')`
+**`src/pages/Presentation.tsx`**
+- Componente principal com navegacao entre slides
+- Estado para slide atual, navegacao por setas do teclado, clique, e swipe mobile
+- Barra de progresso e indicadores de slide
+- Botao de tela cheia (Fullscreen API)
+- Escala responsiva: slide base 1920x1080, escalonado via `transform: scale()`
 
-**4. Imports adicionais**
-- Importar `useAuth` para acessar `impersonateUser`
-- O icone `Eye` ja esta importado no arquivo
+**`src/components/presentation/SlideLayout.tsx`**
+- Wrapper de cada slide com fundo, header (logo + numero da pagina) e footer (contato)
 
-### Fluxo do usuario
+**`src/components/presentation/slides/CoverSlide.tsx`**
+- Slide 1: Capa com logo, titulo principal, estatisticas
 
-```
-Admin ve card do robo -> "3 investimento(s) ativo(s)" [botao Users]
-  -> Clica no botao
-  -> Lista expande mostrando:
-     - Joao Silva        [Eye]
-     - Maria Santos      [Eye]
-     - Pedro Oliveira    [Eye]
-  -> Clica no Eye do "Joao Silva"
-  -> Sistema impersona Joao e navega para /investments
-```
+**`src/components/presentation/slides/AboutSlide.tsx`**
+- Slide 2: Quem somos, o que oferecemos, localizacao, produtos
 
-### Dados buscados
-- Tabela `investments` (filtro: `robot_id` e `status = 'active'`)
-- Join com `profiles` para obter `full_name`
-- Agrupado por usuario (caso um usuario tenha multiplos investimentos no mesmo robo)
+**`src/components/presentation/slides/OpportunitiesSlide.tsx`**
+- Slide 3: Ferramentas, papel da empresa, programa de parceria, suporte
+
+**`src/components/presentation/slides/RobotsSlide.tsx`**
+- Slide 4: Tabela com dados reais dos robos do banco de dados
+
+**`src/components/presentation/slides/BotVsTraderSlide.tsx`**
+- Slide 5: Comparativo visual bot vs trader
+
+**`src/components/presentation/slides/WhyChooseSlide.tsx`**
+- Slide 6: Vantagens e tabela comparativa
+
+**`src/components/presentation/slides/TimelineSlide.tsx`**
+- Slide 7: Evolucao da empresa
+
+**`src/components/presentation/slides/StepsSlide.tsx`**
+- Slide 8: 3 passos simples
+
+**`src/components/presentation/slides/DepositsSlide.tsx`**
+- Slide 9: Depositos e saques
+
+**`src/components/presentation/slides/CTASlide.tsx`**
+- Slide 10: Chamada final
+
+### Alteracao em arquivo existente
+
+**`src/App.tsx`**
+- Adicionar rota publica `/presentation` apontando para o componente `Presentation`
+
+### Navegacao
+
+- Setas esquerda/direita do teclado
+- Botoes de navegacao na tela (prev/next)
+- Indicadores clicaveis na parte inferior
+- Barra de progresso no topo
+- Botao de fullscreen
+- Suporte a swipe em mobile (touch events)
+
+### Dados dos Robos (Slide 4)
+
+Dados buscados do banco via Supabase no carregamento:
+
+| Robo | Rentabilidade Min | Rentabilidade Max | Investimento Min | Lock |
+|------|------------------|------------------|-----------------|------|
+| S-BOT (Starter Bot) | 0.30%/dia | 3.35%/dia | $10 | 30 dias |
+| CP-Bot (Crypto Pulse) | 0.30%/dia | 3.45%/dia | $100 | 45 dias |
+| CC-Bot (Coin Craft) | 0.55%/dia | 3.55%/dia | $1,000 | 60 dias |
+| PT-Bot (Pro Trade) | 0.75%/dia | 3.50%/dia | $2,500 | 60 dias |
+| BW-Bot (Bit Wise) | 1.05%/dia | 3.95%/dia | $15,000 | 60 dias |
+| CM-Bot (Crypto Master) | 1.15%/dia | 4.15%/dia | $25,000 | 50 dias |
+
+### Estilo Visual
+
+- Fundo escuro (#0a0f14) com gradientes teal/cyan
+- Cards com glassmorphism (#111820, bordas #1e2a3a)
+- Tipografia grande e bold para titulos
+- Icones Lucide para ilustrar conceitos
+- Animacoes de entrada (fade-in) ao trocar slides
+- Header com logo N3XPRIME + numero do slide
+- Footer com informacoes de contato
+
