@@ -57,6 +57,7 @@ const adminNavItems: NavItem[] = [
   { label: 'Cotações', href: '/admin/prices', icon: Coins, adminOnly: true },
   { label: 'Notificações', href: '/admin/notifications', icon: Bell, adminOnly: true },
   { label: 'Logs de Auditoria', href: '/admin/logs', icon: ClipboardList, adminOnly: true },
+  { label: 'Configurações', href: '/admin/settings', icon: Settings, adminOnly: true },
 ];
 
 export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
