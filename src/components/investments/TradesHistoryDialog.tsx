@@ -52,7 +52,7 @@ export const TradesHistoryDialog = ({
 
     // Group by day
     const grouped = operations.reduce((acc, op) => {
-      const day = format(new Date(op.created_at), 'yyyy-MM-dd');
+      const day = op.created_at.slice(0, 10);
       if (!acc[day]) acc[day] = [];
       acc[day].push(op);
       return acc;
@@ -128,7 +128,7 @@ export const TradesHistoryDialog = ({
                         )}
                       />
                       <span className="font-medium text-white">
-                        {format(new Date(day.date + 'T12:00:00'), 'dd/MM/yyyy', { locale: ptBR })}
+                        {day.date.split('-').reverse().join('/')}
                       </span>
                       <span className="text-xs text-gray-400">
                         {day.operations.length} trade(s)
@@ -176,7 +176,7 @@ export const TradesHistoryDialog = ({
                               {op.operation_type.toUpperCase()}
                             </span>
                             <span className="text-xs text-white/80">
-                              {format(new Date(op.created_at), 'HH:mm')}
+                              {op.created_at.slice(11, 16) === '00:00' ? '—' : op.created_at.slice(11, 16)}
                             </span>
                           </div>
                         ))}

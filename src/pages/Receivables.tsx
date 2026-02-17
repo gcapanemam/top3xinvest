@@ -88,7 +88,7 @@ const Receivables = () => {
     };
 
     commissions.forEach(c => {
-      const dateStr = format(new Date(c.created_at), 'yyyy-MM-dd');
+      const dateStr = c.created_at.slice(0, 10);
       const row = getOrCreate(dateStr);
       const key = `bonus${c.level}` as 'bonus1' | 'bonus2' | 'bonus3' | 'bonus4';
       if (key in row) {
@@ -105,7 +105,7 @@ const Receivables = () => {
         .filter(op => op.robot_id === inv.robot_id && new Date(op.closed_at!) >= invCreatedAt)
         .forEach(op => {
           if (!op.closed_at || op.profit_percentage == null) return;
-          const dateStr = format(new Date(op.closed_at), 'yyyy-MM-dd');
+          const dateStr = op.closed_at!.slice(0, 10);
           const row = getOrCreate(dateStr);
           row.robotProfits += (inv.amount * op.profit_percentage) / 100;
         });
