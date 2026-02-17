@@ -1,33 +1,40 @@
 
 
-# Remover operacoes de robos nos finais de semana
+# Apagar operacoes do domingo 15/02/2026
 
-## Situacao atual
+## Problema
 
-Existem **9 operacoes** registradas no domingo 15/02/2026 para o robo S-BOT (robot_id: 290e537f). Nenhuma operacao foi encontrada em sabados.
-
-As operacoes afetadas sao todas do dia 2026-02-15 (domingo):
-- BTC/USDT (2 operacoes)
-- XRP/USDT (2 operacoes)
-- ADA/USDT, ETH/USDT (2), BNB/USDT, SOL/USDT
+As 9 operacoes do dia 15/02/2026 (domingo) ainda existem no banco de dados. A exclusao planejada anteriormente nao foi executada.
 
 ## O que sera feito
 
-1. **Migracao SQL** para deletar todas as operacoes de `robot_operations` cujo `created_at` cai em sabado (DOW=6) ou domingo (DOW=0)
-2. **Validacao no admin** (opcional mas recomendado): adicionar uma verificacao no formulario de registro de operacoes do admin para impedir o lancamento em sabados e domingos no futuro
+1. **Excluir as 9 operacoes** de `robot_operations` onde `created_at` cai em sabado ou domingo (DOW = 0 ou 6)
+2. **Adicionar validacao no admin** para impedir lancamento de operacoes em finais de semana no futuro
+
+## Registros a serem removidos
+
+| Ativo | Tipo | Lucro | Data |
+|-------|------|-------|------|
+| BTC/USDT | BUY | +0.39% | 15/02 |
+| BTC/USDT | BUY | +0.40% | 15/02 |
+| XRP/USDT | SELL | +0.18% | 15/02 |
+| XRP/USDT | BUY | -0.07% | 15/02 |
+| ADA/USDT | BUY | +0.41% | 15/02 |
+| ETH/USDT | BUY | -0.17% | 15/02 |
+| BNB/USDT | BUY | +0.31% | 15/02 |
+| SOL/USDT | BUY | +0.13% | 15/02 |
+| ETH/USDT | BUY | +0.26% | 15/02 |
 
 ## Detalhes tecnicos
 
-### Migracao SQL
+### Passo 1 - Exclusao via SQL
 
 ```sql
 DELETE FROM robot_operations
 WHERE EXTRACT(DOW FROM created_at) IN (0, 6);
 ```
 
-Isso remove as 9 operacoes do domingo 15/02.
+### Passo 2 - Validacao no AdminRobots
 
-### Validacao futura (AdminRobots)
-
-Adicionar checagem no formulario de criacao de operacoes para bloquear datas que caiam em sabado ou domingo, exibindo uma mensagem de erro ao admin caso tente lancar operacao em fim de semana.
+Adicionar verificacao no formulario de registro de operacoes para bloquear datas que caiam em sabado ou domingo, exibindo mensagem de erro ao admin.
 
